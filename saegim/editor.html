@@ -464,13 +464,13 @@ body{
         <div class="panel" id="panel-bg">
           <div class="p-label">직접 색상</div>
           <label class="bg-custom"><input type="color" id="bgColor" value="#38323F"><span>색을 골라 단색 배경으로</span></label>
+          <div class="p-label">직접 이미지</div>
+          <label class="bg-imgadd" id="bgImgAdd"><input type="file" id="bgImgInput" accept="image/*" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15l-5-5L5 21"/><path d="M3 5h18v14H3z"/><circle cx="8.5" cy="9" r="1.5"/></svg><span>이미지 추가 (카드에 꽉 차게)</span></label>
           <div class="p-label">단색 · 밝은 톤</div><div class="swatch-row" id="bgSolidWarm"></div>
           <div class="p-label">단색 · 어두운 톤</div><div class="swatch-row" id="bgSolidDeep"></div>
           <div class="p-label">그라데이션</div><div class="swatch-row" id="bgGrad"></div>
           <div class="p-label">패턴 · 질감</div><div class="swatch-row" id="bgPattern"></div>
-          <div class="p-label">이미지</div>
-          <label class="bg-imgadd" id="bgImgAdd"><input type="file" id="bgImgInput" accept="image/*" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15l-5-5L5 21"/><path d="M3 5h18v14H3z"/><circle cx="8.5" cy="9" r="1.5"/></svg><span>이미지 추가 (카드에 꽉 차게)</span></label>
-          <div class="swatch-row" id="bgImage" style="margin-top:9px"></div>
+          <div class="p-label">이미지 프리셋</div><div class="swatch-row" id="bgImage"></div>
           <div class="p-label">배경 어둡게 · 딤</div>
           <div class="dim-row"><input type="range" id="bgDim" min="0" max="0.6" step="0.02" value="0"><span class="dim-val" id="bgDimVal">0%</span></div>
         </div>

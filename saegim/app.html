@@ -561,20 +561,7 @@ body{
   visibility:hidden; transition:background .35s var(--ease), visibility .35s;
 }
 .scrim.on{ background:rgba(30,24,16,.46); visibility:visible; }
-.sheet{
-  position:absolute; left:0; right:0; bottom:0; z-index:51;
-  max-height:88%; background:var(--paper);
-  border-radius:26px 26px 0 0; transform:translateY(102%);
-  transition:transform .42s var(--ease);
-  display:flex; flex-direction:column;
-  box-shadow:0 -20px 50px -20px rgba(40,30,18,.5);
-  overflow:hidden;
-}
-.sheet.on{ transform:translateY(0); }
-.sheet .grip{ flex:0 0 auto; padding:11px 0 4px; display:grid; place-items:center; touch-action:none; cursor:grab; }
-.sheet .grip span{ width:42px; height:5px; border-radius:99px; background:var(--ink-4); }
-.sheet-scroll{ overflow-y:auto; -webkit-overflow-scrolling:touch; padding:6px 24px 30px; }
-.sheet-scroll::-webkit-scrollbar{ width:0; }
+/* (문장 상세 시트 폐기) .sheet/.sheet-scroll CSS 제거 */
 
 /* 댓글 시트(글 상세) */
 .cmt-sheet{ position:absolute; left:0; right:0; bottom:0; z-index:53; height:80%; background:var(--paper); border-radius:26px 26px 0 0; transform:translateY(102%); transition:transform .42s var(--ease); display:flex; flex-direction:column; box-shadow:0 -20px 50px -20px rgba(40,30,55,.5); overflow:hidden; }
@@ -603,47 +590,7 @@ body{
 .cmt-send:disabled{ background:var(--ink-4); cursor:default; }
 .cmt-send svg{ width:18px; height:18px; }
 
-/* 문장 상세 시트 */
-.sd-card{
-  border-radius:18px; padding:26px 22px; margin-bottom:18px;
-  position:relative; overflow:hidden;
-}
-.sd-card::after{ content:""; position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:multiply;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); }
-.sd-card .theme{ position:relative; z-index:2; font-size:10.5px; font-weight:800; letter-spacing:.14em; color:var(--sepia); text-transform:uppercase; margin-bottom:14px; }
-.sd-card .text{ position:relative; z-index:2; font-size:23px; line-height:1.55; font-weight:700; letter-spacing:-.01em; white-space:pre-line; color:var(--ink); }
-.sd-tags{ display:flex; flex-wrap:wrap; gap:7px; margin:-6px 0 16px; }
-.sd-tag{ font-size:11.5px; font-weight:800; color:var(--ink-2); background:var(--cream-2); border:1px solid var(--line); padding:5px 11px; border-radius:999px; }
-.sd-tag.mood{ color:var(--green); background:var(--green-soft); border-color:transparent; }
-.sd-meta{ display:flex; align-items:center; gap:12px; margin-bottom:20px; }
-.sd-meta .who{ flex:1 1 auto; }
-.sd-meta .who .w{ font-size:15px; font-weight:800; }
-.sd-meta .who .a{ font-size:12.5px; color:var(--ink-2); margin-top:2px; }
-.sd-actions{ display:flex; gap:10px; margin-bottom:24px; }
-.sd-act{
-  flex:1 1 0; display:flex; align-items:center; justify-content:center; gap:7px;
-  padding:13px; border-radius:14px; font-family:var(--font); font-size:13.5px; font-weight:800;
-  cursor:pointer; border:1px solid var(--line); background:var(--cream); color:var(--ink);
-  transition:.2s var(--ease);
-}
-.sd-act:active{ transform:scale(.96); }
-.sd-act svg{ width:18px; height:18px; }
-.sd-act.primary{ background:var(--green); color:#FBF8FC; border-color:var(--green); }
-.sd-act.primary.done{ background:var(--stamp); border-color:var(--stamp); }
-.sd-act.stamp{ animation:stampHit .55s var(--ease-back); }
-.sim-label{ font-size:12px; font-weight:800; color:var(--ink-2); letter-spacing:.02em; margin-bottom:11px; display:flex; align-items:center; gap:6px; }
-.sim-list{ display:flex; flex-direction:column; gap:10px; }
-.sim-item{
-  display:flex; gap:12px; align-items:center; padding:13px 14px; border-radius:13px;
-  background:var(--cream); border:1px solid var(--line); cursor:pointer; transition:transform .16s var(--ease);
-}
-.sim-item:active{ transform:scale(.98); }
-.sim-item .sm-tag{ flex:0 0 auto; width:42px; height:42px; border-radius:10px; display:grid; place-items:center;
-  background:var(--sepia-soft); color:var(--sepia); font-size:10px; font-weight:800; }
-.sim-item .sm-b{ flex:1 1 auto; min-width:0; }
-.sim-item .sm-b .t{ font-size:13.5px; font-weight:700; line-height:1.45; color:var(--ink);
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:pre-line; }
-.sim-item .sm-b .m{ font-size:11px; color:var(--ink-2); margin-top:4px; font-weight:600; }
+/* (문장 상세 시트 폐기) .sd-*/.sim-* CSS 제거 */
 
 /* 작가 페이지 시트(서가) */
 .ap-hero{ display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; padding:8px 0 20px; }
@@ -877,10 +824,7 @@ body{
 .cmp-sticker.star{ width:32px; height:32px; opacity:.85; }
 .cmp-sticker.dot{ width:68px; height:11px; opacity:.6; }
 .cmp-sticker.tag{ padding:6px 13px; border:1.5px solid currentColor; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.04em; opacity:.85; }
-/* 상세 시트: 폰 비율 합성 카드(축소 프레임) */
-.sd-stage{ display:flex; justify-content:center; margin-bottom:18px; }
-.sd-comp-wrap{ position:relative; width:195px; height:347px; border-radius:20px; overflow:hidden; box-shadow:var(--shadow-card); }
-.sd-comp{ position:absolute; top:0; left:0; width:390px; height:694px; transform:scale(.5); transform-origin:top left; overflow:hidden; }
+/* (문장 상세 시트 폐기) .sd-stage/.sd-comp CSS 제거 */
 .cv-mark{ position:relative; z-index:1; font-family:var(--serif); font-size:50px; line-height:0; height:20px; color:var(--green); opacity:.5; }
 .cv-q{ position:relative; z-index:1; font-size:25px; line-height:1.55; font-weight:700; letter-spacing:-.01em; color:var(--ink); white-space:pre-line; }
 .cv-by{ position:relative; z-index:1; margin-top:20px; font-size:13.5px; color:var(--ink-2); font-weight:600; }
@@ -898,7 +842,7 @@ body{
 .feed-title{ position:absolute; left:50%; top:calc(70px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:7; max-width:74%; font-family:var(--serif); font-size:13.5px; font-weight:700; letter-spacing:.02em; color:var(--ink); background:rgba(252,251,252,.5); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); padding:5px 15px; border-radius:999px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px -9px rgba(60,45,70,.3); }
 .feed-title:empty{ display:none; }
 /* ⋯ 더보기 버튼(투명) → 글 상세 패널 */
-.feed-more{ position:absolute; top:auto; bottom:calc(56px + env(safe-area-inset-bottom)); right:16px; z-index:8; width:40px; height:40px; border-radius:50%; border:none; background:transparent; color:#fff; display:grid; place-items:center; cursor:pointer; filter:drop-shadow(0 1px 5px rgba(0,0,0,.45)); }
+.feed-more{ width:46px; height:46px; border-radius:50%; border:none; background:transparent; color:#fff; display:grid; place-items:center; cursor:pointer; filter:drop-shadow(0 1px 5px rgba(0,0,0,.45)); margin-top:2px; }
 .feed-more svg{ width:22px; height:22px; }
 .feed-more:active{ transform:scale(.9); }
 /* 글 상세 패널(하단 시트) */
@@ -987,11 +931,11 @@ body{
         <div class="feed-meta" id="feedMeta"></div>
         <div class="cv-nav" id="cvNav"></div>
         <div class="reel-author" id="feedAuthor"></div>
-        <button class="feed-more" id="feedMore" aria-label="더보기"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg></button>
         <div class="rail" id="feedRail">
           <button class="rail-btn carve" id="feedCarve" aria-label="서랍에 넣기(새김) · 나만 보는 보관함"><span class="ring"></span></button>
           <button class="rail-btn like" id="feedLike" aria-label="좋아요 · 공개 공감"><span class="ring"></span><span class="lbl" id="feedLikeN"></span></button>
           <button class="rail-btn cmt" id="feedCmt" aria-label="댓글"><span class="ring"></span><span class="lbl" id="feedCmtN"></span></button>
+          <button class="feed-more" id="feedMore" aria-label="더보기"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg></button>
         </div>
         <div class="feed-title" id="feedTitle"></div>
         <div class="swipe-hint" id="feedHint"><span>아래로 다음 글 · 옆으로 카드(장)</span></div>
@@ -1137,13 +1081,6 @@ body{
     <button class="fab" id="fab" aria-label="포착">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
     </button>
-
-    <!-- 바텀시트(공통) -->
-    <div class="scrim" id="scrim"></div>
-    <div class="sheet" id="sheet">
-      <div class="grip" id="sheetGrip"><span></span></div>
-      <div class="sheet-scroll" id="sheetScroll"></div>
-    </div>
 
     <!-- 글 상세 패널(⋯ 버튼으로 올라옴: 작가·정보 + 액션) -->
     <div class="scrim" id="feedScrim"></div>
@@ -1494,7 +1431,7 @@ function switchView(v, opt){
   // 딥링크용 해시 동기화
   if(('#'+v) !== location.hash){ history.replaceState(null,'','#'+v); }
 }
-$$('.tab[data-tab]').forEach(b=> b.addEventListener('click', ()=>switchView(b.dataset.tab)));
+$$('.tab[data-tab]').forEach(b=> b.addEventListener('click', ()=>{ if(b.dataset.tab==='discover') pinnedCard=null; switchView(b.dataset.tab); }));
 $('#fab').addEventListener('click', ()=> window.open('editor.html','_blank'));   // 포착 = 카드 에디터(별도 탭)
 
 /* 에디터 탭에서 돌아오면 발행한 컬렉션을 수신해 앱 전체에 반영 */
@@ -1547,9 +1484,7 @@ function syncCarveUI(id, on){
     b.querySelector('.ring').innerHTML = on?sealSvg():carveSvg();
     b.querySelector('.lbl').textContent = on?'새김':'새기기';
   });
-  // 상세 시트 버튼도 동기화
-  const sb = $(`#sheetScroll [data-sd-carve="${id}"]`);
-  if(sb){ sb.classList.toggle('done', on); sb.innerHTML = (on?sealSvg():carveSvg())+`<span>${on?'새김 완료':'새기기'}</span>`; if(on){ sb.classList.add('stamp'); setTimeout(()=>sb.classList.remove('stamp'),600);} }
+  // (문장 상세 시트 폐기 — 동기화 불필요)
 }
 
 function doLike(id, btn){
@@ -1613,10 +1548,10 @@ function enterDrawer(){
   g.innerHTML = arr.map(s=> postCardHTML({s})).join('');
 }
 
-/* 카드 탭 → 문장 상세(기존 sent 카드와 동일 동작) */
+/* 카드 탭 → 카드 상세 페이지(발견 피드) */
 $('#drawerGrid').addEventListener('click', e=>{
   const card=e.target.closest('.shelf-card[data-pt="sent"]'); if(!card) return;
-  openDetail(+card.dataset.id);
+  openSentence(+card.dataset.id);
 });
 /* 검색 */
 $('#drawerSearch').addEventListener('input', e=>{ drawerQuery=e.target.value.trim(); enterDrawer(); });
@@ -1678,7 +1613,6 @@ $('#homeBanner').addEventListener('click', e=>{
   const s=e.target.closest('.hb-slide'); if(!s)return;
   const k=s.dataset.hbKind;
   if(k==='page') openPage(s.dataset.hbPid, 'home');
-  else if(k==='sent') openDetail(+s.dataset.hbId);
   else openCollection(+s.dataset.hbI);   // coll(글) → 발견 피드의 그 글로
 });
 /* 배너 가로 스와이프(세로 스크롤은 그대로) */
@@ -1775,6 +1709,7 @@ function bgWithDim(bg, dim){ const d=dim===true?0.34:(+dim||0); return d>0 ? `li
 function composedBg(card){ const c=card.comp; return bgWithDim((c&&c.bg)||'#FBF8FC', c&&c.dim); }
 function composedTextColor(card){ return (card.comp&&card.comp.textColor)||'#38323F'; }
 
+let pinnedCard=null;   // 단일 문장 상세용(발견 피드 핀)
 function buildFeedList(){
   // 내가 발행한 컬렉션(최신) + 큐레이션 컬렉션(취향 가중) — 모두 '컬렉션=게시물'
   const mine = publishedGroups().map(g=>({
@@ -1786,7 +1721,9 @@ function buildFeedList(){
   let cur = COLLECTIONS.slice(); const taste=state.taste||[];
   if(taste.length) cur.sort((a,b)=>(taste.includes(b.mood)?1:0)-(taste.includes(a.mood)?1:0));
   const curItems = cur.map(c=>({ q:c.q, mood:c.mood, pub:c.pub, official:c.official, mine:false, title:c.t, src:c }));
-  return mine.concat(curItems);
+  const list = mine.concat(curItems);
+  if(pinnedCard) list.unshift(pinnedCard);
+  return list;
 }
 function buildFeed(){
   CV = buildFeedList(); feedDirty=false;
@@ -1869,7 +1806,7 @@ function renderFeedSheet(){
     <div class="fs-rows">
       <button class="fs-row" data-fa="share"><span class="t">${shareSvg()}공유하기</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
       <button class="fs-row" data-fa="link"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>링크 복사</span><span class="soon">준비 중</span></button>
-      <button class="fs-row" data-fa="book"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>책으로 보기 <em>B2B</em></span><span class="soon">준비 중</span></button>
+      <button class="fs-row" data-fa="book"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>책으로 보기</span><span class="soon">준비 중</span></button>
       <button class="fs-row" data-fa="report"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h13l-2 4 2 4H4"/></svg>신고</span><span class="soon">준비 중</span></button>
     </div>`;
 }
@@ -1938,7 +1875,7 @@ let cvDrag=null;
   }, {passive:false});
 })();
 /* 키보드(발견 활성 시) */
-window.addEventListener('keydown', e=>{ if(curView!=='discover'||$('#sheet').classList.contains('on'))return; if(e.key==='ArrowRight'){e.preventDefault();cvGoPage(1);} else if(e.key==='ArrowLeft'){e.preventDefault();cvGoPage(-1);} else if(e.key==='ArrowDown'){e.preventDefault();cvGoCol(1);} else if(e.key==='ArrowUp'){e.preventDefault();cvGoCol(-1);} });
+window.addEventListener('keydown', e=>{ if(curView!=='discover'||$('#feedSheet').classList.contains('on')||$('#cmtSheet').classList.contains('on'))return; if(e.key==='ArrowRight'){e.preventDefault();cvGoPage(1);} else if(e.key==='ArrowLeft'){e.preventDefault();cvGoPage(-1);} else if(e.key==='ArrowDown'){e.preventDefault();cvGoCol(1);} else if(e.key==='ArrowUp'){e.preventDefault();cvGoCol(-1);} });
 
 /* ============================================================
    검색 (계정·컬렉션·문장 통합) — 홈 상단 진입
@@ -1991,7 +1928,7 @@ function doSearch(){
   $$('#searchResults [data-sacct]').forEach(b=> b.addEventListener('click', e=>{ if(e.target.closest('[data-ssub]'))return; openAuthor(b.dataset.sacct); }));
   $$('#searchResults [data-ssub]').forEach(b=> b.addEventListener('click', e=>{ e.stopPropagation(); toggleSub(b.dataset.ssub); const on=state.subs.includes(b.dataset.ssub); b.classList.toggle('on',on); b.textContent=on?'구독중':'구독'; }));
   $$('#searchResults [data-scol]').forEach(b=> b.addEventListener('click', ()=> openCollection(+b.dataset.scol)));
-  $$('#searchResults [data-stext]').forEach(b=> b.addEventListener('click', ()=> openDetail(+b.dataset.stext)));
+  $$('#searchResults [data-stext]').forEach(b=> b.addEventListener('click', ()=> openSentence(+b.dataset.stext)));
 }
 
 /* ============================================================
@@ -2089,7 +2026,7 @@ function bindProfile(root, name, isMe){
     const ty=t.dataset.pt;
     if(ty==='mycoll'){ const g=publishedGroups().find(x=>x.key===t.dataset.k); if(g) openMyCollection(g); }
     else if(ty==='coll'){ openCollection(+t.dataset.i); }
-    else if(ty==='sent'){ openDetail(+t.dataset.id); }
+    else if(ty==='sent'){ openSentence(+t.dataset.id); }
   }));
 }
 function renderMe(){ const root=$('#meProfile'); root.innerHTML=profileHTML(ME, true); bindProfile(root, ME, true);
@@ -2099,7 +2036,7 @@ let profileBack='home';
 function openProfile(name){
   if(name===ME){ switchView('me'); return; }
   profileBack = (curView==='profile') ? profileBack : curView;
-  closeSheet();
+  closeFeedSheet();
   const root=$('#otherProfile'); root.innerHTML=profileHTML(name, false); bindProfile(root, name, false);
   switchView('profile', {force:true});
 }
@@ -2259,92 +2196,26 @@ function saveEditProfile(){
 /* ============================================================
    바텀시트 — 문장 상세
    ============================================================ */
-let sheetType=null;
-function openSheet(html){
-  $('#sheetScroll').innerHTML=html;
-  $('#sheetScroll').scrollTop=0;
-  $('#scrim').classList.add('on');
-  $('#sheet').classList.add('on');
-}
-function closeSheet(){
-  $('#scrim').classList.remove('on');
-  $('#sheet').classList.remove('on');
-  $('#sheet').style.transform='';
-  sheetType=null;
-}
-$('#scrim').addEventListener('click', closeSheet);
-
-function openDetail(id){
+/* ============================================================
+   카드 상세 = 발견 피드(2D 뷰어). 개별 문장도 발견 피드로 진입.
+   (문장 상세 시트/openDetail/유사추천 similar 는 폐기 — 삭제된 기획)
+   ============================================================ */
+function openSentence(id){
   const s=byId(id); if(!s) return;
-  sheetType='detail';
-  const a=authorByName(s.author);
-  const tn=toneOf(s.theme);
-  const carved=isCarved(id);
-  const sims=similar(s);
-  const simHtml = sims.map(x=>`
-    <div class="sim-item" data-open="${x.id}">
-      <div class="sm-tag">${esc(x.theme)}</div>
-      <div class="sm-b"><div class="t">${lines(x.text).join('\n')}</div><div class="m">${esc(x.author)} · 『${esc(x.work)}』</div></div>
-    </div>`).join('');
-  const subbed=state.subs.includes(s.author);
-  const sdCard = s.comp
-    ? `<div class="sd-stage"><div class="sd-comp-wrap"><div class="sd-comp" style="background:${composedBg(s)}; --cv-text:${composedTextColor(s)}">${composedInner(s)}</div></div></div>`
-    : `<div class="sd-card" style="background:linear-gradient(160deg, ${tn.a}, ${tn.b})">
-      <div class="theme">${esc(s.theme)}</div>
-      <div class="text">${lines(s.text).join('\n')}</div>
-    </div>`;
-  openSheet(`
-    ${sdCard}
-    <div class="sd-meta">
-      <div class="avatar md" style="${avStyle(s.author)}">${esc(initial(s.author))}</div>
-      <div class="who"><div class="w">${esc(s.author)} ${vbadge(s.author)}</div><div class="a">『${esc(s.work)}』</div></div>
-      <button class="sub-btn ${subbed?'on':''}" data-sub="${esc(s.author)}">${subbed?'구독중':'구독'}</button>
-    </div>
-    ${((s.theme&&s.theme!=='일상') || (s.keywords&&s.keywords.length)) ? `<div class="sd-tags">${(s.theme&&s.theme!=='일상')?`<span class="sd-tag mood">${esc(s.theme)}</span>`:''}${(s.keywords||[]).map(t=>`<span class="sd-tag">${esc(t)}</span>`).join('')}</div>` : ''}
-    <div class="sd-actions">
-      <button class="sd-act primary ${carved?'done':''}" data-sd-carve="${id}">${carved?sealSvg():carveSvg()}<span>${carved?'새김 완료':'새기기'}</span></button>
-      <button class="sd-act" data-sd-share="${id}">${shareSvg()}<span>공유</span></button>
-    </div>
-    ${sims.length?`<div class="sim-label"><span class="seal" style="display:inline-grid;place-items:center;width:16px;height:16px;border:1.4px solid var(--green);border-radius:50%;color:var(--green);font-size:9px;">AI</span> 결이 닮은 문장</div><div class="sim-list">${simHtml}</div>`:''}
-    <div style="height:8px"></div>
-  `);
-  // 바인딩
-  $(`#sheetScroll [data-sd-carve]`).addEventListener('click', e=>{ doCarve(id, null); });
-  const ss=$(`#sheetScroll [data-sd-share]`); if(ss) ss.addEventListener('click', ()=>doShare(id));
-  const sub=$(`#sheetScroll [data-sub]`); if(sub) sub.addEventListener('click', ()=>toggleSub(s.author, sub));
-  $$(`#sheetScroll [data-open]`).forEach(b=> b.addEventListener('click', ()=> openDetail(+b.dataset.open)));
+  switchView('discover');
+  if(feedDirty||!CV.length) buildFeed();
+  // 이미 피드(내 발행 글)에 있으면 그 카드로 점프
+  let idx=CV.findIndex(x=>x.composed&&x.cards&&x.cards.some(c=>c.id===id));
+  if(idx<0){
+    // 시드/큐레이션 문장 → 단일 카드로 핀 후 재빌드
+    pinnedCard = s.comp
+      ? {composed:true, cards:[s], mine:(s.author==='\uB098'), pub:s.author||'\uB098', official:false, title:(s.work||lines(s.text)[0]||'').slice(0,18), mood:s.theme||'\uC77C\uC0C1', q:[[s.text,'']]}
+      : {q:[[s.text, s.author]], mood:s.theme||'\uC77C\uC0C1', pub:s.author||'', official:false, mine:false, title:(s.work||lines(s.text)[0]||'').slice(0,18)};
+    feedDirty=true; buildFeed(); idx=0;
+  }
+  const pi = (CV[idx].composed&&CV[idx].cards) ? Math.max(0, CV[idx].cards.findIndex(c=>c.id===id)) : 0;
+  enterFeed({i:idx}); cvPi=pi; cvTrans(false); feedUpdate();
 }
-/* 유사 추천: theme 우선 → 키워드 → 같은 작가 보조 */
-function similar(s){
-  const pool = DATA.filter(x=>x.id!==s.id);
-  const scored = pool.map(x=>{
-    let sc=0;
-    if(x.theme===s.theme) sc+=5;
-    const kw=(s.keywords||[]); const xk=(x.keywords||[]);
-    sc += kw.filter(k=>xk.includes(k)).length*2;
-    if(x.author===s.author) sc+=1;
-    return {x, sc};
-  }).filter(o=>o.sc>0).sort((a,b)=>b.sc-a.sc);
-  return scored.slice(0,2).map(o=>o.x);
-}
-
-/* 작가 페이지(서가) */
-/* (계정 프로필은 위 통합 프로필 페이지 openProfile 로 일원화 — openAuthor=openProfile) */
-
-/* 시트 드래그-다운으로 닫기 */
-(function sheetDrag(){
-  const grip=$('#sheetGrip'); const sheet=$('#sheet');
-  let sy=0, dragging=false;
-  grip.addEventListener('pointerdown', e=>{ dragging=true; sy=e.clientY; sheet.style.transition='none'; grip.setPointerCapture(e.pointerId); });
-  grip.addEventListener('pointermove', e=>{ if(!dragging)return; const d=Math.max(0,e.clientY-sy); sheet.style.transform=`translateY(${d}px)`; });
-  const end=e=>{ if(!dragging)return; dragging=false; sheet.style.transition='transform .42s var(--ease)'; const d=(e.clientY||sy)-sy; if(d>120) closeSheet(); else sheet.style.transform=''; };
-  grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
-})();
-
-/* 키보드: Esc 시트 닫기 (발견 화살표는 피드 엔진에서 처리) */
-window.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ if($('#sheet').classList.contains('on')) closeSheet(); }
-});
 
 /* ============================================================
    초기화
