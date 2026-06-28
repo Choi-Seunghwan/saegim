@@ -240,12 +240,13 @@ body{
 
 /* 상단 작가 바 (콘텐츠 안 가리도록 위로) */
 .reel-author{
-  position:absolute; left:12px; right:58px; top:calc(12px + env(safe-area-inset-top)); z-index:8;
-  display:flex; align-items:center; gap:9px;
-  background:rgba(252,251,252,.4); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:none; border-radius:999px; padding:6px 8px;
+  position:absolute; left:12px; top:calc(12px + env(safe-area-inset-top)); z-index:8;
+  max-width:calc(100% - 66px);
+  display:inline-flex; align-items:center; gap:7px;
+  background:rgba(252,251,252,.42); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:none; border-radius:999px; padding:4px 6px;
 }
-.reel-author .avatar{ width:34px; height:34px; font-size:13px; box-shadow:none; }
+.reel-author .avatar{ width:28px; height:28px; font-size:12px; box-shadow:none; }
 /* 발견 피드 상단 메타(컬렉션 제목 · 어떤 배경에서도 읽히게 프로스트) */
 .feed-meta{ display:none; }
 .feed-meta .fm-t{ display:inline-block; max-width:100%; background:rgba(252,251,252,.82); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid var(--line); padding:5px 13px; border-radius:999px; font-size:13px; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px -6px rgba(60,45,70,.35); }
@@ -259,8 +260,8 @@ body{
 .avatar.sm{ width:40px; height:40px; font-size:15px; }
 .avatar.md{ width:48px; height:48px; font-size:18px; }
 .avatar.lg{ width:74px; height:74px; font-size:28px; }
-.reel-author .who{ flex:1 1 auto; min-width:0; }
-.reel-author .who .nm{ font-size:14px; font-weight:800; color:var(--ink); }
+.reel-author .who{ min-width:0; }
+.reel-author .who .nm{ font-size:13px; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:48vw; }
 .reel-author .who .rl{ font-size:11.5px; color:var(--ink-2); }
 /* 구독 버튼 — 심리스(채움·외곽선 없이 글자만) */
 .sub-btn{
@@ -1760,7 +1761,7 @@ function feedUpdate(){
   if($('#feedSheet').classList.contains('on')) renderFeedSheet();   // 패널 열려 있으면 동기화
   const subbed=state.subs.includes(c.pub);
   const role = c.mine ? '내 글' : (verifyOf(c.pub)?vlabel(c.pub):'글');
-  $('#feedAuthor').innerHTML = `<div class="avatar sm" style="${avStyle(c.pub)}">${esc(initial(c.pub))}</div><div class="who"><div class="nm">${esc(c.pub)} ${vbadge(c.pub)}</div><div class="rl">${role}</div></div>${c.mine?'':`<button class="sub-btn ${subbed?'on':''}" data-sub="${esc(c.pub)}">${subbed?'구독중':'구독'}</button>`}`;
+  $('#feedAuthor').innerHTML = `<div class="avatar sm" style="${avStyle(c.pub)}">${esc(initial(c.pub))}</div><div class="who"><div class="nm">${esc(c.pub)} ${vbadge(c.pub)}</div></div>${c.mine?'':`<button class="sub-btn ${subbed?'on':''}" data-sub="${esc(c.pub)}">${subbed?'구독중':'구독'}</button>`}`;
   const sb=$('#feedAuthor [data-sub]'); if(sb) sb.addEventListener('click', ev=>{ ev.stopPropagation(); toggleSub(c.pub, sb); });
   // 제목 = 글의 이름표(작가 바와 분리). 현재 문장과 같으면 숨김(단일 자동제목 중복 방지)
   const curSent=((c.composed&&c.cards)?((c.cards[cvPi]||{}).text||''):((c.q[cvPi]||[])[0]||'')).trim();
