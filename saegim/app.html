@@ -1949,10 +1949,8 @@ function renderHome(){ renderHomeBanner(); renderHomeColls(); renderHomeAccts();
 let hbItems=[], hbIdx=0, hbTimer=null, hbDrag=null;
 const HB_DAWN='linear-gradient(150deg,#EEF0F3,#E7E9F0 55%,#ECEAF1)';
 function renderHomeBanner(){
-  const heroS = byId(HOME_HERO_ID) || SEED[0];
-  // 배너 = 서비스 주도 면: 오늘의 문장(에디토리얼) + 소식(공지·이벤트·광고 → 퍼블리싱 페이지)
+  // 배너 = 서비스 주도 '소식' 면(공지·이벤트·광고 → 퍼블리싱 페이지). 오늘의 문장/하단 상세 패널 진입은 배너에서 제외.
   hbItems = [
-    { kind:'sent', id:heroS.id, tag:'오늘의 문장', q:heroS.text, by:`${heroS.author} · 『${heroS.work}』`, light:true },
     { kind:'page', pid:'notice1', tag:'공지', q:PAGES.notice1.title, by:'새김', grad:'linear-gradient(150deg,#4A4651,#38323F)' },
     { kind:'page', pid:'event1', tag:'이벤트', q:PAGES.event1.title, by:PAGES.event1.date, grad:'linear-gradient(150deg,#5A5466,#3C3652)' },
     { kind:'page', pid:'promo1', tag:'AD', q:PAGES.promo1.title, by:'제휴 · 광고', grad:'linear-gradient(150deg,#6E6A74,#4A4651)' }
