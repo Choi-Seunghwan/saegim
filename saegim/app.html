@@ -304,133 +304,7 @@ body{
 }
 .sort-btn:active{ transform:scale(.95); }
 
-/* 모드 토글: 덱(뒤적이기) / 목록 */
-.mode-tabs{
-  flex:0 0 auto; margin:6px 22px 12px; display:inline-flex; align-self:flex-start;
-  background:var(--cream-2); border-radius:999px; padding:3px; gap:2px; border:1px solid var(--line);
-}
-.mode-tabs button{
-  font-size:12px; font-weight:700; color:var(--ink-2); padding:7px 15px;
-  border:none; background:none; border-radius:999px; cursor:pointer; transition:.2s var(--ease);
-}
-.mode-tabs button.on{ background:var(--paper); color:var(--ink); box-shadow:var(--shadow-soft); }
-
-/* --- 덱(스택 뒤적이기) 무대 --- */
-.deck-stage{
-  flex:0 0 auto; position:relative; height:380px; margin:4px 16px 0;
-  perspective:1200px;
-}
-.deck-stage.empty{ display:none; }
-.ticket-deck{ position:absolute; inset:0; }
-.deck-hint{
-  position:absolute; left:0; right:0; bottom:8px; text-align:center;
-  font-size:11.5px; color:var(--ink-3); font-weight:600; pointer-events:none; z-index:1;
-}
-.deck-count{
-  position:absolute; top:-2px; right:6px; z-index:60;
-  font-size:11px; font-weight:800; color:var(--ink-2);
-  background:var(--paper); border:1px solid var(--line); border-radius:999px; padding:4px 10px;
-}
-
-/* === 티켓(가로 긴 종이 조각) === */
-.ticket{
-  position:absolute; left:50%; top:18px;
-  width:300px; margin-left:-150px;
-  background:var(--paper);
-  border-radius:16px;
-  box-shadow:var(--shadow-card);
-  transform-origin:center 80%;
-  will-change:transform;
-  overflow:hidden;
-  --punch:#FBF8FC;
-}
-/* 절취선(펀치홀) — 좌우 반원 노치 + 점선 */
-.ticket .notch{
-  position:absolute; top:50%; width:18px; height:18px; margin-top:-9px;
-  background:var(--punch); border-radius:50%; z-index:3;
-  box-shadow:inset 0 0 0 1px var(--line);
-}
-.ticket .notch.l{ left:-9px; }
-.ticket .notch.r{ right:-9px; }
-.ticket .perf{
-  position:absolute; top:0; bottom:0; left:84px; width:1px; z-index:2;
-  background:repeating-linear-gradient(to bottom, var(--ink-4) 0 5px, transparent 5px 11px);
-}
-/* 좌측 스텁(일련번호·날짜·도장) */
-.ticket .stub{
-  position:absolute; left:0; top:0; bottom:0; width:84px;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px;
-  padding:14px 8px;
-  background:linear-gradient(180deg, var(--green-soft), transparent);
-}
-.ticket .stub .serial{
-  writing-mode:vertical-rl; font-size:10px; font-weight:800; letter-spacing:.22em;
-  color:var(--green); opacity:.8;
-}
-.ticket .stub .seal-stamp{
-  width:42px; height:42px; border-radius:50%;
-  border:2px solid var(--stamp); color:var(--stamp);
-  display:grid; place-items:center; transform:rotate(-9deg);
-  font-size:9px; font-weight:900; line-height:1.05; text-align:center; letter-spacing:.02em;
-  opacity:.82;
-}
-/* 본문 */
-.ticket .body{
-  margin-left:84px; padding:20px 20px 18px; min-height:200px;
-  display:flex; flex-direction:column;
-}
-.ticket .t-theme{
-  font-size:10px; font-weight:800; letter-spacing:.14em; color:var(--sepia);
-  text-transform:uppercase; margin-bottom:11px;
-}
-.ticket .t-text{
-  font-size:18.5px; line-height:1.55; font-weight:700; letter-spacing:-.01em;
-  white-space:pre-line; color:var(--ink); flex:1 1 auto;
-}
-.ticket .t-foot{
-  margin-top:16px; padding-top:12px; border-top:1px solid var(--line);
-  display:flex; align-items:flex-end; justify-content:space-between; gap:8px;
-}
-.ticket .t-foot .src{ min-width:0; }
-.ticket .t-foot .src .w{ font-size:12.5px; font-weight:700; color:var(--ink); }
-.ticket .t-foot .src .a{ font-size:11.5px; color:var(--ink-2); margin-top:1px; }
-.ticket .t-foot .date{ font-size:10.5px; font-weight:700; color:var(--ink-3); letter-spacing:.02em; text-align:right; flex:0 0 auto; }
-/* 드롭 애니메이션 */
-.ticket.drop{ animation:ticketDrop .7s var(--ease-back) both; }
-@keyframes ticketDrop{
-  0%{ opacity:0; transform:translateY(-120px) rotate(var(--rot,0deg)) scale(.96); }
-  70%{ opacity:1; }
-  100%{ opacity:1; }
-}
-.ticket.fling{ transition:transform .5s var(--ease), opacity .5s; }
-
-/* --- 목록 모드 --- */
-.ticket-list{ display:none; flex-direction:column; gap:14px; padding:2px 18px 0; }
-.ticket-list.on{ display:flex; }
-.tl-item{
-  position:relative; background:var(--paper); border-radius:14px;
-  box-shadow:var(--shadow-soft); overflow:hidden; cursor:pointer;
-  display:flex; transition:transform .18s var(--ease);
-  opacity:0; transform:translateY(14px);
-}
-.tl-item.in{ animation:rise .5s var(--ease) forwards; }
-.tl-item:active{ transform:scale(.985); }
-.tl-item .stub2{
-  flex:0 0 64px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
-  background:linear-gradient(180deg, var(--green-soft), transparent);
-  border-right:1px dashed var(--ink-4); padding:12px 4px; position:relative;
-}
-.tl-item .stub2::before, .tl-item .stub2::after{
-  content:""; position:absolute; right:-7px; width:14px; height:14px; border-radius:50%;
-  background:var(--paper); box-shadow:inset 0 0 0 1px var(--line);
-}
-.tl-item .stub2::before{ top:-7px; } .tl-item .stub2::after{ bottom:-7px; }
-.tl-item .stub2 .sr{ writing-mode:vertical-rl; font-size:9px; font-weight:800; letter-spacing:.18em; color:var(--green); opacity:.8; }
-.tl-item .stub2 .dt{ font-size:9px; font-weight:700; color:var(--ink-3); }
-.tl-item .b2{ flex:1 1 auto; padding:15px 16px; min-width:0; }
-.tl-item .b2 .tx{ font-size:15px; line-height:1.5; font-weight:700; white-space:pre-line; color:var(--ink);
-  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-.tl-item .b2 .mt{ font-size:11.5px; color:var(--ink-2); margin-top:8px; font-weight:600; }
+/* (티켓·덱 폐기) 모드토글·덱·티켓·목록 CSS 제거 — 서랍은 .shelf-cards 메이슨리(둘러보기/프로필 공유)를 재사용한다. */
 
 /* 빈 상태 */
 .empty-state{
@@ -580,11 +454,6 @@ body{
 .pg-li:active{ background:var(--cream-2); }
 .pg-li-t{ font-size:15px; font-weight:800; color:var(--ink); }
 .pg-li-d{ font-size:12px; color:var(--ink-3); font-weight:700; margin-top:4px; }
-/* 오늘의 한 문장 — 문장 카드 페이지 */
-#view-card .scroll{ padding:10px 22px 60px; }
-.cardpg{ display:flex; flex-direction:column; align-items:stretch; max-width:520px; margin:0 auto; }
-.cardpg .sd-stage,.cardpg .sd-comp-wrap{ margin:4px auto 0; }
-.cardpg .sd-card{ margin-top:4px; }
 .set-group{ margin:6px 0 20px; }
 .set-glabel{ font-size:11.5px; font-weight:800; color:var(--ink-3); letter-spacing:.04em; padding:0 22px 9px; }
 .set-list{ background:var(--paper); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
@@ -1149,20 +1018,9 @@ body{
             <span id="sortLabel">최신</span>
           </button>
         </div>
-        <div class="mode-tabs" id="drawerModes">
-          <button data-mode="deck" class="on">뒤적이기</button>
-          <button data-mode="list">목록</button>
-        </div>
-
         <div class="scroll" id="drawerScroll">
-          <!-- 덱 무대 -->
-          <div class="deck-stage" id="deckStage">
-            <span class="deck-count" id="deckCount"></span>
-            <div class="ticket-deck" id="ticketDeck"></div>
-            <div class="deck-hint" id="deckHint">맨 위 티켓을 좌우로 밀어 뒤적여 보세요</div>
-          </div>
-          <!-- 목록 -->
-          <div class="ticket-list" id="ticketList"></div>
+          <!-- 새김 미리보기 카드 그리드(메이슨리 · 둘러보기/프로필과 동일) -->
+          <div class="shelf-cards" id="drawerGrid"></div>
           <!-- 빈 상태 -->
           <div class="empty-state" id="drawerEmpty">
             <div class="em-ic">
@@ -1257,16 +1115,6 @@ body{
         <div class="scroll" id="pageScroll"><div id="pageBody"></div></div>
       </section>
 
-      <!-- ===== 화면 · 오늘의 한 문장(에디터 픽) 문장 카드 페이지(전체 페이지·시트 아님) ===== -->
-      <section class="view" id="view-card" data-view="card">
-        <div class="vhead">
-          <div style="display:flex;align-items:center;gap:11px">
-            <button class="icon-btn" id="cardBack" title="뒤로"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-            <h1 id="cardTitle">오늘의 한 문장</h1>
-          </div>
-        </div>
-        <div class="scroll" id="cardScroll"><div id="cardBody"></div></div>
-      </section>
 
     </div>
 
@@ -1622,8 +1470,8 @@ function toast(msg, stamp){
    탭 / 뷰 전환
    ============================================================ */
 const VIEWS = ['home','discover','shelf','me'];          // 메인 탭 (drawer는 '나' 하위 서브뷰)
-const TAB_FOR = { home:'home', discover:'discover', shelf:'shelf', me:'me', drawer:'me', search:'home', settings:'me', editprofile:'me', page:'home', card:'home' };
-const FULLPAGE = ['settings','editprofile','page','card'];   // 하단 탭/FAB 숨기는 전체 페이지
+const TAB_FOR = { home:'home', discover:'discover', shelf:'shelf', me:'me', drawer:'me', search:'home', settings:'me', editprofile:'me', page:'home' };
+const FULLPAGE = ['settings','editprofile','page'];   // 하단 탭/FAB 숨기는 전체 페이지
 let curView = 'home';
 function switchView(v, opt){
   if(v===curView && !(opt&&opt.force)) return;
@@ -1735,24 +1583,22 @@ function toggleSub(name, btn){
 }
 
 /* ============================================================
-   화면 2 — 서랍(티켓 덱) ★승부처
+   화면 2 — 서랍(새김) · 미리보기 카드 그리드
+   (티켓·덱 폐기 → 둘러보기/프로필과 동일한 shelf-card 메이슨리 재사용)
    ============================================================ */
-let drawerMode = 'deck';      // deck | list
-let sortMode = 'recent';      // recent | author | theme
+let sortMode = 'recent';      // recent | author
 let drawerQuery = '';
-let deckBuilt = false;
 
-function refreshDrawerData(){ deckBuilt=false; if(curView==='drawer') enterDrawer(); }
+function refreshDrawerData(){ if(curView==='drawer') enterDrawer(); }
 
 function carvedSentences(){
   let arr = state.carved.map(c=>{ const s=byId(c.id); return s?{...s, _at:c.at}:null; }).filter(Boolean);
   if(drawerQuery){
     const q=drawerQuery.toLowerCase();
-    arr = arr.filter(s=> (s.text+s.author+s.work+s.theme).toLowerCase().includes(q));
+    arr = arr.filter(s=> (s.text+s.author+s.work+(s.theme||'')).toLowerCase().includes(q));
   }
   if(sortMode==='recent') arr.sort((a,b)=>b._at-a._at);
-  if(sortMode==='author') arr.sort((a,b)=>a.author.localeCompare(b.author,'ko'));
-  if(sortMode==='theme') arr.sort((a,b)=>a.theme.localeCompare(b.theme,'ko'));
+  if(sortMode==='author') arr.sort((a,b)=>(a.author||'').localeCompare(b.author||'','ko'));
   return arr;
 }
 
@@ -1761,181 +1607,21 @@ function enterDrawer(){
   $('#drawerSub').textContent = state.carved.length? `간직한 글 ${state.carved.length}개 · 나만 봐요` : '내가 간직한 글 · 나만 보는 보관함';
   const empty = arr.length===0;
   $('#drawerEmpty').classList.toggle('on', empty);
-  $('#deckStage').style.display = (empty || drawerMode!=='deck') ? 'none' : 'block';
-  $('#ticketList').classList.toggle('on', !empty && drawerMode==='list');
-  if(empty){ $('#ticketList').classList.remove('on'); return; }
-  if(drawerMode==='deck') buildDeck(arr);
-  else buildList(arr);
+  const g=$('#drawerGrid');
+  if(empty){ g.innerHTML=''; return; }
+  // 새김 미리보기 = 프로필/둘러보기와 동일한 shelf-card(문장 단위) 재사용
+  g.innerHTML = arr.map(s=> postCardHTML({s})).join('');
 }
 
-/* --- 덱: 티켓 DOM 생성 --- */
-let deckItems = [];   // {el, sent}
-let deckTop = 0;      // 맨 위 인덱스(앞에서부터)
-function buildDeck(arr){
-  const deck = $('#ticketDeck');
-  deck.innerHTML='';
-  deckItems = [];
-  deckTop = 0;
-  $('#deckCount').textContent = `${arr.length}장`;
-  $('#deckHint').style.display = arr.length>1 ? 'block':'none';
-  arr.forEach((s, i)=>{
-    const t = el('div','ticket');
-    const tn = toneOf(s.theme);
-    t.style.background = `linear-gradient(165deg, ${tn.a}, ${tn.b})`;
-    t.innerHTML = ticketInner(s);
-    t.dataset.id = s.id;
-    // 드롭 연출용 회전값
-    t.style.setProperty('--rot', (Math.random()*6-3).toFixed(1)+'deg');
-    deck.appendChild(t);
-    deckItems.push({el:t, sent:s});
-  });
-  layoutDeck(true);
-  // 드롭 stagger
-  deckItems.forEach((it, i)=>{
-    if(i < 6){ // 위쪽 몇 장만 드롭 연출
-      it.el.classList.remove('drop'); void it.el.offsetWidth;
-      it.el.style.animationDelay = (i*0.09)+'s';
-      it.el.classList.add('drop');
-    }
-  });
-  enableDeckDrag();
-}
-function ticketInner(s){
-  return `
-    <span class="notch l"></span><span class="notch r"></span>
-    <span class="perf"></span>
-    <div class="stub">
-      <div class="serial">${serialOf(s.id)}</div>
-      <div class="seal-stamp">새김<br>${fmtDate(s._at).slice(2)}</div>
-    </div>
-    <div class="body">
-      <div class="t-theme">${esc(s.theme)}</div>
-      <div class="t-text">${lines(s.text).join('\n')}</div>
-      <div class="t-foot">
-        <div class="src"><div class="w">『${esc(s.work)}』</div><div class="a">${esc(s.author)}</div></div>
-        <div class="date">${relDate(s._at)}<br>새김</div>
-      </div>
-    </div>`;
-}
-/* 스택 레이아웃: 위에서부터 살짝 어긋나게 쌓기 */
-function layoutDeck(instant){
-  const n = deckItems.length;
-  for(let i=deckTop;i<n;i++){
-    const depth = i - deckTop;               // 0 = 맨 위
-    const it = deckItems[i];
-    const e = it.el;
-    if(depth>4){ e.style.display='none'; continue; }
-    e.style.display='block';
-    e.style.zIndex = 50 - depth;
-    const ty = depth*10;                       // 아래로 갈수록 내려감
-    const sc = 1 - depth*0.04;
-    const rot = depth===0?0:( (i%2?1:-1) * (1.2+depth*0.5) );
-    e.style.transition = instant ? 'none' : 'transform .4s var(--ease), opacity .4s';
-    e.style.transform = `translateY(${ty}px) scale(${sc}) rotate(${rot}deg)`;
-    e.style.opacity = depth>3?0.4:1;
-    e.style.pointerEvents = depth===0?'auto':'none';
-  }
-  if(instant){ requestAnimationFrame(()=>{ deckItems.forEach(it=> it.el.style.transition='transform .4s var(--ease), opacity .4s'); }); }
-  $('#deckCount').textContent = `${deckTop+1} / ${deckItems.length}`;
-}
-
-/* 맨 위 티켓 드래그 → 옆으로 휙 밀어 넘기기 / 되돌리기 */
-let dragState=null;
-function enableDeckDrag(){
-  deckItems.forEach((it, idx)=>{
-    const e=it.el;
-    e.addEventListener('pointerdown', onDeckDown);
-    // 탭 → 상세
-  });
-}
-function topItem(){ return deckItems[deckTop]; }
-function onDeckDown(ev){
-  const it = topItem(); if(!it) return;
-  if(ev.currentTarget!==it.el) return;          // 맨 위만
-  const e=it.el;
-  dragState={ x0:ev.clientX, y0:ev.clientY, moved:false, id:+e.dataset.id, el:e };
-  e.setPointerCapture(ev.pointerId);
-  e.style.transition='none';
-  e.addEventListener('pointermove', onDeckMove);
-  e.addEventListener('pointerup', onDeckUp);
-  e.addEventListener('pointercancel', onDeckUp);
-}
-function onDeckMove(ev){
-  if(!dragState) return;
-  const dx=ev.clientX-dragState.x0, dy=ev.clientY-dragState.y0;
-  if(Math.abs(dx)+Math.abs(dy)>6) dragState.moved=true;
-  const rot = dx*0.04;
-  dragState.el.style.transform = `translate(${dx}px, ${dy*0.25}px) rotate(${rot}deg)`;
-  dragState.el.style.opacity = (1 - Math.min(Math.abs(dx)/360,0.5)).toFixed(2);
-}
-function onDeckUp(ev){
-  if(!dragState) return;
-  const ds=dragState; dragState=null;
-  const e=ds.el;
-  e.removeEventListener('pointermove', onDeckMove);
-  e.removeEventListener('pointerup', onDeckUp);
-  e.removeEventListener('pointercancel', onDeckUp);
-  const dx=(ev.clientX!=null?ev.clientX:ds.x0)-ds.x0;
-  if(!ds.moved){ // 탭 → 상세
-    openDetail(ds.id);
-    e.style.transition='transform .3s var(--ease)'; layoutDeck();
-    return;
-  }
-  if(Math.abs(dx)>95){
-    // 휙 넘김 — 옆으로 날린 뒤 맨 아래로 보냄
-    const dir = dx>0?1:-1;
-    e.style.transition='transform .42s var(--ease), opacity .42s';
-    e.style.transform = `translate(${dir*460}px, 30px) rotate(${dir*22}deg)`;
-    e.style.opacity='0';
-    haptic(10);
-    setTimeout(()=>{
-      // 맨 위 티켓을 덱의 맨 끝으로 재배치
-      const moved = deckItems.splice(deckTop,1)[0];
-      deckItems.push(moved);
-      // DOM도 맨 뒤로
-      $('#ticketDeck').appendChild(moved.el);
-      moved.el.style.transition='none';
-      moved.el.style.opacity='1';
-      layoutDeck(true);
-    }, 300);
-  }else{
-    // 되돌리기
-    e.style.transition='transform .4s var(--ease-back), opacity .3s';
-    layoutDeck();
-  }
-}
-
-/* --- 목록 모드 --- */
-function buildList(arr){
-  const list=$('#ticketList'); list.innerHTML='';
-  arr.forEach((s,i)=>{
-    const item=el('div','tl-item');
-    const tn=toneOf(s.theme);
-    item.innerHTML=`
-      <div class="stub2" style="background:linear-gradient(180deg, ${tn.a}, transparent)">
-        <div class="sr">${serialOf(s.id)}</div>
-        <div class="dt">${fmtDate(s._at).slice(2)}</div>
-      </div>
-      <div class="b2">
-        <div class="tx">${lines(s.text).join('\n')}</div>
-        <div class="mt">『${esc(s.work)}』 · ${esc(s.author)} · ${relDate(s._at)} 새김</div>
-      </div>`;
-    item.addEventListener('click', ()=>openDetail(s.id));
-    list.appendChild(item);
-    setTimeout(()=>item.classList.add('in'), 30+i*45);
-  });
-}
-
-/* 모드 토글 */
-$$('#drawerModes button').forEach(b=> b.addEventListener('click', ()=>{
-  drawerMode=b.dataset.mode;
-  $$('#drawerModes button').forEach(x=>x.classList.toggle('on', x===b));
-  enterDrawer();
-}));
+/* 카드 탭 → 문장 상세(기존 sent 카드와 동일 동작) */
+$('#drawerGrid').addEventListener('click', e=>{
+  const card=e.target.closest('.shelf-card[data-pt="sent"]'); if(!card) return;
+  openDetail(+card.dataset.id);
+});
 /* 검색 */
 $('#drawerSearch').addEventListener('input', e=>{ drawerQuery=e.target.value.trim(); enterDrawer(); });
-/* 정렬 토글 */
-const SORTS=[['recent','최신'],['author','작가'],['theme','테마']];
+/* 정렬 토글 — 최신 ↔ 작가(테마는 결 직접노출 지양으로 제외) */
+const SORTS=[['recent','최신'],['author','작가']];
 $('#sortBtn').addEventListener('click', ()=>{
   const i=SORTS.findIndex(s=>s[0]===sortMode);
   const nx=SORTS[(i+1)%SORTS.length];
@@ -1965,10 +1651,10 @@ function renderHome(){ renderHomeBanner(); renderHomeColls(); renderHomeAccts();
 let hbItems=[], hbIdx=0, hbTimer=null, hbDrag=null;
 const HB_DAWN='linear-gradient(150deg,#EEF0F3,#E7E9F0 55%,#ECEAF1)';
 function renderHomeBanner(){
-  // 배너 = 오늘의 한 문장(에디터 픽 → 문장 카드 페이지) + 소식(공지·이벤트·광고 → 퍼블리싱 페이지). 하단 시트 진입 없음.
-  const heroS = byId(HOME_HERO_ID) || SEED[0];
+  // 배너 = 유저가 올린 듯한 글(문장 카드) 1개(탭 시 평소처럼 그 글로) + 소식(공지·이벤트·광고 → 퍼블리싱 페이지). 별도 카드 페이지/하단 시트 없음.
+  const feat = COLLECTIONS[0];
   hbItems = [
-    { kind:'card', id:heroS.id, tag:'오늘의 한 문장 · 에디터 픽', q:heroS.text, by:`${heroS.author}${heroS.work?` · 『${heroS.work}』`:''}`, light:true },
+    { kind:'coll', i:0, q:feat.q[0][0], by:`${feat.pub} · 『${feat.t}』`, grad:feat.grad },
     { kind:'page', pid:'notice1', tag:'공지', q:PAGES.notice1.title, by:'새김', grad:'linear-gradient(150deg,#4A4651,#38323F)' },
     { kind:'page', pid:'event1', tag:'이벤트', q:PAGES.event1.title, by:PAGES.event1.date, grad:'linear-gradient(150deg,#5A5466,#3C3652)' },
     { kind:'page', pid:'promo1', tag:'AD', q:PAGES.promo1.title, by:'제휴 · 광고', grad:'linear-gradient(150deg,#6E6A74,#4A4651)' }
@@ -1976,7 +1662,7 @@ function renderHomeBanner(){
   $('#hbTrack').innerHTML = hbItems.map(b=>{
     const bg = b.light ? HB_DAWN : b.grad, col = b.light ? '#38323F' : '#FBF8FC';
     const tagcol = b.light ? 'var(--ink-3)' : 'rgba(255,255,255,.82)';
-    return `<button class="hb-slide" style="background:${bg};color:${col}" data-hb-kind="${b.kind}" data-hb-id="${b.id!=null?b.id:''}" data-hb-i="${b.i!=null?b.i:''}" data-hb-pid="${b.pid!=null?b.pid:''}"><div class="hb-tag" style="color:${tagcol}">${esc(b.tag)}</div><div class="hb-q">${lines(b.q).join('<br>')}</div><div class="hb-by">${esc(b.by)}</div></button>`;
+    return `<button class="hb-slide" style="background:${bg};color:${col}" data-hb-kind="${b.kind}" data-hb-id="${b.id!=null?b.id:''}" data-hb-i="${b.i!=null?b.i:''}" data-hb-pid="${b.pid!=null?b.pid:''}">${b.tag?`<div class="hb-tag" style="color:${tagcol}">${esc(b.tag)}</div>`:''}<div class="hb-q">${lines(b.q).join('<br>')}</div><div class="hb-by">${esc(b.by)}</div></button>`;
   }).join('');
   $('#hbDots').innerHTML = hbItems.map((_,i)=>`<span class="d ${i===0?'on':''}" data-hbdot="${i}"></span>`).join('');
   hbIdx=0; hbApply(); hbRestartTimer();
@@ -1991,10 +1677,9 @@ $('#homeBanner').addEventListener('click', e=>{
   if(hbMoved){ hbMoved=false; return; }   // 스와이프 끝의 클릭 무시
   const s=e.target.closest('.hb-slide'); if(!s)return;
   const k=s.dataset.hbKind;
-  if(k==='card') openCardPage(+s.dataset.hbId);
-  else if(k==='page') openPage(s.dataset.hbPid, 'home');
+  if(k==='page') openPage(s.dataset.hbPid, 'home');
   else if(k==='sent') openDetail(+s.dataset.hbId);
-  else openCollection(+s.dataset.hbI);
+  else openCollection(+s.dataset.hbI);   // coll(글) → 발견 피드의 그 글로
 });
 /* 배너 가로 스와이프(세로 스크롤은 그대로) */
 (function(){ const vp=$('#homeBanner'); if(!vp) return;
@@ -2518,30 +2203,6 @@ function openNoticeList(){
   switchView('page', {force:true});
 }
 $('#pageBack').addEventListener('click', ()=> switchView(pageBack||'home'));
-
-/* 오늘의 한 문장(에디터 픽) — 문장 카드 전체 페이지(하단 시트 아님) */
-function openCardPage(id){
-  const s=byId(id); if(!s) return;
-  const tn=toneOf(s.theme), carved=isCarved(id), subbed=state.subs.includes(s.author);
-  const card = s.comp
-    ? `<div class="sd-stage"><div class="sd-comp-wrap"><div class="sd-comp" style="background:${composedBg(s)}; --cv-text:${composedTextColor(s)}">${composedInner(s)}</div></div></div>`
-    : `<div class="sd-card" style="background:linear-gradient(160deg, ${tn.a}, ${tn.b})"><div class="theme">${esc(s.theme)}</div><div class="text">${lines(s.text).join('\n')}</div></div>`;
-  $('#cardBody').innerHTML = `<div class="cardpg">${card}
-    <div class="sd-meta">
-      <div class="avatar md" style="${avStyle(s.author)}">${esc(initial(s.author))}</div>
-      <div class="who"><div class="w">${esc(s.author)} ${vbadge(s.author)}</div><div class="a">${s.work?'『'+esc(s.work)+'』':''}</div></div>
-      ${(s.author&&s.author!=='나')?`<button class="sub-btn ${subbed?'on':''}" data-sub="${esc(s.author)}">${subbed?'구독중':'구독'}</button>`:''}
-    </div>
-    <div class="sd-actions">
-      <button class="sd-act primary ${carved?'done':''}" data-cp-carve="${id}">${carved?sealSvg():carveSvg()}<span>${carved?'새김 완료':'새기기'}</span></button>
-      <button class="sd-act" data-cp-share="${id}">${shareSvg()}<span>공유</span></button>
-    </div></div>`;
-  const cv=$('#cardBody [data-cp-carve]'); if(cv) cv.addEventListener('click', ()=>{ doCarve(id,null); openCardPage(id); });
-  const sh=$('#cardBody [data-cp-share]'); if(sh) sh.addEventListener('click', ()=> doShare(id));
-  const sb=$('#cardBody [data-sub]'); if(sb) sb.addEventListener('click', ()=> toggleSub(s.author, sb));
-  switchView('card', {force:true});
-}
-$('#cardBack').addEventListener('click', ()=> switchView('home'));
 
 /* ===== 프로필 편집(전체 페이지) ===== */
 let epDraftPhoto = '';
