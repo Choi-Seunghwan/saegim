@@ -8,7 +8,7 @@
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" rel="stylesheet">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    새김(SAEGIM) — 소프트 감성(C) 디자인 시스템
@@ -43,6 +43,8 @@
   --font: 'Pretendard', Pretendard, system-ui, -apple-system, sans-serif;
   --serif: 'Gowun Batang', 'Nanum Myeongjo', Georgia, serif;
   --round: 'Gowun Dodum', 'Pretendard', sans-serif;
+  --pen: 'Nanum Pen Script', 'Gowun Dodum', cursive;
+  --black: 'Black Han Sans', 'Pretendard', sans-serif;
 }
 
 *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -520,7 +522,7 @@ body{
 .prof-shelf-h .t{ font-size:13.5px; font-weight:800; color:var(--ink); display:flex; align-items:center; gap:8px; }
 .prof-shelf-h .t .seal{ width:21px; height:21px; border:1.5px solid var(--stamp); color:var(--stamp); border-radius:6px; display:grid; place-items:center; font-family:var(--serif); font-size:11px; font-weight:800; transform:rotate(-5deg); }
 .prof-shelf-h .c{ font-size:11.5px; color:var(--ink-3); font-weight:700; }
-.shelf-cards{ display:grid; grid-template-columns:1fr 1fr; gap:11px; padding:0 16px; align-items:start; }   /* 카드 높이=내용에 따라 가변 */
+.shelf-cards{ column-count:2; column-gap:12px; padding:0 16px; }   /* 둘러보기와 동일한 메이슨리 */
 .scard{ position:relative; border-radius:15px; overflow:hidden; box-shadow:var(--shadow-soft); cursor:pointer; min-height:92px; padding:16px 15px; display:flex; flex-direction:column; --cv-text:#38323F; transition:transform .16s var(--ease); }
 .scard:active{ transform:scale(.98); }
 .scard .sc-mark{ font-family:var(--serif); font-size:22px; line-height:0; height:12px; color:var(--cv-text); opacity:.4; }
@@ -882,7 +884,7 @@ body{
 .shelf-chip{ flex:0 0 auto; padding:7px 14px; border-radius:999px; border:1px solid var(--line); background:var(--paper); font-size:13px; font-weight:700; color:var(--ink-2); cursor:pointer; transition:.14s var(--ease); }
 .shelf-chip.on{ background:var(--green); color:#FBF8FC; border-color:var(--green); }
 .shelf-grid{ column-count:2; column-gap:13px; padding:16px 22px 8px; }
-.shelf-card{ break-inside:avoid; width:100%; margin-bottom:13px; border-radius:18px; overflow:hidden; color:#fff; padding:16px; display:flex; flex-direction:column; gap:14px; position:relative; box-shadow:var(--shadow-soft); cursor:pointer; text-align:left; border:none; }
+.shelf-card{ break-inside:avoid; width:100%; margin-bottom:13px; border-radius:18px; overflow:hidden; color:var(--cv-text,#fff); padding:16px; display:flex; flex-direction:column; gap:14px; position:relative; box-shadow:var(--shadow-soft); cursor:pointer; text-align:left; border:none; }
 .shelf-card::after{ content:""; position:absolute; inset:0; background:linear-gradient(160deg,rgba(255,255,255,.15),transparent 55%); }
 .shelf-card .sq{ font-size:14.5px; font-weight:600; line-height:1.5; position:relative; z-index:1; opacity:.96; }
 .shelf-card .sfoot{ position:relative; z-index:1; }
@@ -967,11 +969,11 @@ body{
 .cv-page.composed::before{ display:none; }
 .cv-grain{ position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.5; mix-blend-mode:multiply; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); }
 .cmp-layer{ position:absolute; inset:0; z-index:1; }
-.cmp-text{ position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); width:84%; max-height:64%; text-align:center; line-height:1.5; letter-spacing:-.02em; color:var(--cv-text); white-space:pre-wrap; word-break:keep-all; overflow-y:auto; }
-.cmp-text{ overflow-x:hidden; overflow-wrap:anywhere; }
-.cmp-text::-webkit-scrollbar{ width:4px; }
-.cmp-text::-webkit-scrollbar-thumb{ background:currentColor; opacity:.28; border-radius:99px; }
+.cmp-text{ position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); width:max-content; max-width:90%; text-align:center; line-height:1.5; letter-spacing:-.02em; color:var(--cv-text); white-space:pre-wrap; word-break:keep-all; overflow-wrap:anywhere; }
 .cmp-text.serif{ font-family:var(--serif); }
+.cmp-text.f-round{ font-family:var(--round); }
+.cmp-text.f-pen{ font-family:var(--pen); }
+.cmp-text.f-black{ font-family:var(--black); }
 .cmp-src{ position:absolute; left:50%; bottom:120px; transform:translateX(-50%); text-align:center; color:var(--cv-text); opacity:.84; font-size:13px; line-height:1.45; max-width:84%; }
 .cmp-src.posed{ bottom:auto; transform:translate(-50%,-50%); }
 .cmp-src .w{ font-weight:800; letter-spacing:-.01em; }
@@ -2022,10 +2024,11 @@ function cmpSvgStar(){ return '<svg viewBox="0 0 24 24" fill="currentColor"><pat
 function cmpSvgDot(){ return '<svg viewBox="0 0 62 10" fill="currentColor"><circle cx="5" cy="5" r="2.4"/><circle cx="20" cy="5" r="2.4"/><circle cx="35" cy="5" r="2.4"/><circle cx="50" cy="5" r="2.4"/></svg>'; }
 function stickerGlyph(kind){ switch(kind){ case 'quote':return '“'; case 'underline':return cmpSvgUnderline(); case 'stamp':return '刻'; case 'leaf':return cmpSvgLeaf(); case 'star':return cmpSvgStar(); case 'dot':return cmpSvgDot(); case 'tag':return '발췌'; } return ''; }
 function cmpSourceHTML(card){ const a=(card.author||'').trim(), w=(card.work||'').trim(); let h=''; if(w && w!=='직접 새김') h+=`<div class="w">${esc(w)}</div>`; if(a && a!=='나') h+=`<div class="a">— ${esc(a)}</div>`; return h; }
+const CMP_FONT={ gothic:'', serif:'serif', round:'f-round', pen:'f-pen', black:'f-black' };
 function composedInner(card){
   const c=card.comp; if(!c) return '';
-  const fontCls=c.font==='serif'?'serif':'';
-  const weight=c.bold?700:400;
+  const fontCls=CMP_FONT[c.font]||'';
+  const weight=c.weight||(c.bold?700:400);
   const tp = c.textPos ? `left:${c.textPos.xp}%;top:${c.textPos.yp}%;` : '';
   const sp = c.sourcePos ? `left:${c.sourcePos.xp}%;top:${c.sourcePos.yp}%;` : '';
   const src = cmpSourceHTML(card);
@@ -2290,17 +2293,20 @@ function miniAuthor(name){ return `<span class="mini-au"><span class="mini-av" s
 /* 미리보기 카드 지표 — 좋아요(♡)만(댓글은 미노출: 정보 과다 방지). 넘침은 fmtNum으로 줄임 */
 function collMetrics(c, idx){ return `<span class="mtr">${heartSvg(false)} ${fmtNum(c.saves||0)}</span>`; }
 /* 프로필 그리드 카드 — 작성자 미노출(프로필에서 이미 특정됨), 문장 그대로 */
+/* 프로필 글 미리보기 = 둘러보기(shelf-card) 동일 스타일, 작성자(miniAuthor)만 제외 */
 function postCardHTML(p){
+  const metric = sv => `<div class="sm2"><span class="mtr">${heartSvg(false)} ${fmtNum(sv||0)}</span></div>`;
   if(p.type==='mycoll'){ const cover=p.group.cards[0], n=p.group.cards.length;
     const bg = cover.comp?composedBg(cover):`linear-gradient(155deg,${toneOf(cover.theme).a},${toneOf(cover.theme).b})`;
     const tc = cover.comp?composedTextColor(cover):'#38323F';
-    return `<div class="scard" data-pt="mycoll" data-k="${esc(p.group.key)}" style="background:${bg}; --cv-text:${tc}">${n>1?`<div class="sc-badge">${n}장</div>`:''}<div class="sc-mark">&ldquo;</div><div class="sc-q">${esc(cover.text||'')}</div>${p.group.title?`<div class="sc-meta">${esc(p.group.title)}</div>`:''}</div>`;
+    const title = p.group.title || (lines(cover.text)[0]||'내 글');
+    return `<button class="shelf-card" data-pt="mycoll" data-k="${esc(p.group.key)}" style="background:${bg}; --cv-text:${tc}">${n>1?`<div class="sc-badge">${n}장</div>`:''}<div class="sq">${esc(cover.text||'')}</div><div class="sfoot"><div class="st2">${esc(title)}</div></div></button>`;
   }
   if(p.type==='coll'){ const c=p.c;
-    return `<div class="scard" data-pt="coll" data-i="${p.i}" style="background:${c.grad}; --cv-text:#FBF8FC">${c.n>1?`<div class="sc-badge">${c.n}장</div>`:''}<div class="sc-mark">&ldquo;</div><div class="sc-q">${esc(c.q[0][0])}</div><div class="sc-meta">${esc(c.t)}</div></div>`;
+    return `<button class="shelf-card" data-pt="coll" data-i="${p.i}" style="background:${c.grad}; --cv-text:#FBF8FC">${c.n>1?`<div class="sc-badge">${c.n}장</div>`:''}<div class="sq">${esc(c.q[0][0])}</div><div class="sfoot"><div class="st2">${esc(c.t)}</div>${metric(c.saves)}</div></button>`;
   }
   const s=p.s, tn=toneOf(s.theme);
-  return `<div class="scard" data-pt="sent" data-id="${s.id}" style="background:linear-gradient(155deg,${tn.a},${tn.b})"><div class="sc-mark">&ldquo;</div><div class="sc-q">${esc(s.text)}</div>${s.work?`<div class="sc-meta">『${esc(s.work)}』</div>`:''}</div>`;
+  return `<button class="shelf-card" data-pt="sent" data-id="${s.id}" style="background:linear-gradient(155deg,${tn.a},${tn.b}); --cv-text:#FBF8FC"><div class="sq">${esc(s.text)}</div>${s.work?`<div class="sfoot"><div class="st2">『${esc(s.work)}』</div></div>`:''}</button>`;
 }
 function profileHTML(name, isMe){
   const posts = accountPosts(name, isMe);
@@ -2343,7 +2349,7 @@ function bindProfile(root, name, isMe){
     const b=root.querySelector('#profBack'); if(b) b.addEventListener('click', ()=>switchView(profileBack||'home'));
     const sb=root.querySelector('[data-sub]'); if(sb) sb.addEventListener('click', ()=>toggleSub(name, sb));
   }
-  root.querySelectorAll('.scard').forEach(t=> t.addEventListener('click', ()=>{
+  root.querySelectorAll('.shelf-card[data-pt]').forEach(t=> t.addEventListener('click', ()=>{
     const ty=t.dataset.pt;
     if(ty==='mycoll'){ const g=publishedGroups().find(x=>x.key===t.dataset.k); if(g) openMyCollection(g); }
     else if(ty==='coll'){ openCollection(+t.dataset.i); }

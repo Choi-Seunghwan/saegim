@@ -26,6 +26,8 @@
 - 5탭(홈·발견·＋포착·둘러보기·나, 라벨 없는 아이콘만·나=프로필 사진) + 검색. 소셜은 **인스타식 평등 계정**(인증 ✓는 상태). 프로필은 나=타인 동일 화면(나만 우측 상단 옵션).
 
 ## 작업 규칙
-- 데모는 의존성 없는 **단일 HTML**(바닐라 JS, Pretendard + Gowun Batang/Dodum CDN, **C 소프트 감성** 디자인 토큰).
-- 변경 후 가능하면 jsdom 등으로 동작을 검증할 것.
+- 데모는 의존성 없는 **단일 HTML**(바닐라 JS, **C 소프트 감성** 디자인 토큰). CDN 폰트 = Pretendard·Gowun Batang·Gowun Dodum·Nanum Pen Script·Black Han Sans(카드 문장 5종: 고딕/명조/둥근/손글씨/진한).
+- 변경 후 가능하면 jsdom 등으로 동작을 검증할 것(`outputs/app.test.js`·`editor.test.js`).
 - 토큰은 얼마든지 소비해도 됨.
+- **병행 세션 2개 운영**: 시작 전 `PLANNING.md`(SSOT) 필독. 충돌 방지 분담 — 앱(`saegim/app.html`) / 에디터(`saegim/editor.html`). WYSIWYG 계약 `comp{bg,dim,textColor,size,weight,align,font}`(에디터)↔`composedInner`/`.cmp-text`(앱)을 바꾸면 양쪽+테스트 동시 수정. 변경마다 PLANNING 진행 로그 1줄.
+- 이 폴더는 **git 관리**(기준선 커밋 있음) — 큰 변경 전/후 커밋 권장.
