@@ -1505,7 +1505,7 @@ function toggleSub(name, btn){
   // 셀렉터 대신 dataset 값을 직접 비교해 동기화한다.
   $$('[data-sub]').forEach(b=>{ if(b.dataset.sub===name){ b.classList.toggle('on', on); b.textContent = on?'구독중':'구독'; } });
   $$('[data-sub2]').forEach(b=>{ if(b.dataset.sub2===name){ b.classList.toggle('on', on); b.textContent = on?'구독중':'구독'; } });
-  toast(on?`${name} 곁에 두기`:`${name} 구독을 해제했어요`);
+  toast(on?`${name} 구독했어요`:`${name} 구독을 해제했어요`);
   haptic(10);
   updateStats();
   if(curView==='home') renderHomeAccts();
@@ -1986,7 +1986,7 @@ function profileHTML(name, isMe){
     : `<div class="prof-top"><button class="prof-ic" id="profBack" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button><span style="width:38px"></span></div>`;
   const headAction = isMe
     ? `<button class="prof-sub ghost" id="profEdit">프로필 편집</button>`
-    : `<button class="prof-sub ${subbed?'on':''}" data-sub="${esc(name)}">${subbed?'구독중':'곁에 두기'}</button>`;
+    : `<button class="prof-sub ${subbed?'on':''}" data-sub="${esc(name)}">${subbed?'구독중':'구독'}</button>`;
   const shelfTitle = isMe ? '내 글' : `${esc(dn)}의 글`;
   const grid = posts.length ? posts.map(postCardHTML).join('')
     : `<div class="prof-empty">${isMe?'아직 쓴 글이 없어요.<br>＋ 버튼으로 첫 문장을 새겨 보세요.':'아직 쓴 글이 없어요.'}</div>`;
