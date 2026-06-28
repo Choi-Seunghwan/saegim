@@ -238,13 +238,13 @@ body{
 .rail-btn.like.pop .ring{ animation:pop .45s var(--ease-back); }
 @keyframes pop{ 0%{transform:scale(1);} 40%{transform:scale(1.28);} 100%{transform:scale(1);} }
 
-/* 상단 작가 바 (콘텐츠 안 가리도록 위로) */
+/* 작가 바 — 하단 좌측, 투명 컴팩트 칩(제목과 위계 분리) */
 .reel-author{
-  position:absolute; left:12px; top:calc(12px + env(safe-area-inset-top)); z-index:8;
-  max-width:calc(100% - 66px);
+  position:absolute; left:12px; bottom:calc(112px + env(safe-area-inset-bottom)); z-index:8;
+  max-width:calc(100% - 84px);
   display:inline-flex; align-items:center; gap:7px;
-  background:rgba(252,251,252,.42); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:none; border-radius:999px; padding:4px 6px;
+  background:rgba(252,251,252,.3); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border:none; border-radius:999px; padding:5px 8px;
 }
 .reel-author .avatar{ width:28px; height:28px; font-size:12px; box-shadow:none; }
 /* 발견 피드 상단 메타(컬렉션 제목 · 어떤 배경에서도 읽히게 프로스트) */
@@ -834,7 +834,7 @@ body{
 .cv-nav .d{ width:6px; height:6px; border-radius:99px; background:rgba(255,255,255,.45); filter:drop-shadow(0 1px 2px rgba(0,0,0,.45)); transition:width .3s var(--ease),background .3s var(--ease); cursor:pointer; }
 .cv-nav .d.on{ width:18px; background:#fff; }
 /* 글 제목 — 작가 바와 분리된 정돈된 라벨(있을 때만) */
-.feed-title{ position:absolute; left:50%; top:calc(70px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:7; max-width:74%; font-family:var(--serif); font-size:13.5px; font-weight:700; letter-spacing:.02em; color:var(--ink); background:rgba(252,251,252,.5); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); padding:5px 15px; border-radius:999px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px -9px rgba(60,45,70,.3); }
+.feed-title{ position:absolute; left:50%; top:calc(16px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:7; max-width:74%; font-family:var(--serif); font-size:13.5px; font-weight:700; letter-spacing:.02em; color:var(--ink); background:rgba(252,251,252,.5); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); padding:5px 15px; border-radius:999px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px -9px rgba(60,45,70,.3); }
 .feed-title:empty{ display:none; }
 /* ⋯ 더보기 버튼(투명) → 글 상세 패널 */
 .feed-more{ width:46px; height:46px; border-radius:50%; border:none; background:transparent; color:#fff; display:grid; place-items:center; cursor:pointer; filter:drop-shadow(0 1px 5px rgba(0,0,0,.45)); margin-top:2px; }
@@ -1217,16 +1217,16 @@ const AUTHORS = [
 const authorByName = n => AUTHORS.find(a=>a.name===n) || {name:n, role:"", cat:"", bio:"", followers:0};
 
 /* ---------- 인증 = 신분이 아니라 '상태' (인스타식 평등 계정) ----------
-   공식(서비스가 공인)·공인(본인/유산 확인) 두 상태, 나머지는 일반 계정으로 모두 동등.
+   인증 = 단일 '공식' 상태 — 채움 체크 마크 하나뿐. (이전 '공인=가는 ✓' 2단계는 폐지, 공식으로 통합)
    캐릭터 호칭(시인·큐레이터 등)은 정체성 표기에서 내리고, 닉네임 + 인증 상태만 쓴다. */
 const VERIFY = {
   '에디터 픽':'official', '새김 편집부':'official',
-  '윤동주':'public', '김소월':'public', '한용운':'public', '이육사':'public', '이상':'public',
-  '안중근':'public', '노자':'public', '정현':'public'
+  '윤동주':'official', '김소월':'official', '한용운':'official', '이육사':'official', '이상':'official',
+  '안중근':'official', '노자':'official', '정현':'official'
 };
 function verifyOf(n){ return VERIFY[n] || null; }
-function vbadge(n){ const v=verifyOf(n); return v==='official' ? vmarkSvg() : (v==='public' ? vchkSvg() : ''); }   // 공식=채움 마크 / 공인=가는 ✓
-function vlabel(n){ const v=verifyOf(n); return v==='official' ? '공식 계정' : (v==='public' ? '공인 계정' : ''); }
+function vbadge(n){ return verifyOf(n) ? vmarkSvg() : ''; }   // 인증=채움 체크 마크 하나(공식)
+function vlabel(n){ return verifyOf(n) ? '공식 계정' : ''; }
 const sentencesByAuthor = n => DATA.filter(s=>s.author===n);
 const repSentence = n => { const l=sentencesByAuthor(n); return l.length?l[0]:null; };
 
@@ -1564,13 +1564,12 @@ $('#sortBtn').addEventListener('click', ()=>{
    ============================================================ */
 /* (레거시 제거) 인앱 ＋포착 발행 폼·미리보기·작가 목록 화면 JS 삭제.
    포착=에디터(editor.html, 발행 큐로 연동), 계정 탐색=검색/서가로 일원화.
-   살아있는 의존(toneOf·sentencesByAuthor·openAuthor·vchkSvg)은 아래에 유지. */
+   살아있는 의존(toneOf·sentencesByAuthor·openAuthor·vmarkSvg)은 아래에 유지. */
 
-/* 인증 배지 SVG */
-function vchkSvg(){ return `<svg class="vchk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`; }
-/* 공식 계정 마크 — 한 글자 크기. 채움 원에 체크를 '구멍'으로 뚫어(even-odd) 어떤 배경에서도 보임(currentColor 상속) */
+/* 인증 배지 = 채움 체크 마크 하나(공식). 한 글자 크기, 채움 원에 체크를 '구멍'으로 뚫어(even-odd) 어떤 배경에서도 보임(currentColor 상속) */
 function vmarkSvg(){ return `<svg class="vchk vmark" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm-1.7 15.2L6 11.9l1.5-1.5 2.8 2.8 6.2-6.2L18 8.5l-7.7 7.7Z"/></svg>`; }
-function vchkWSvg(){ return `<svg class="vchk" style="width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`; }
+/* 동일 마크의 흰색 고정판 — 그라데이션 히어로 위 */
+function vchkWSvg(){ return `<svg class="vchk vmark" style="width:13px;height:13px" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" fill="#fff" d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm-1.7 15.2L6 11.9l1.5-1.5 2.8 2.8 6.2-6.2L18 8.5l-7.7 7.7Z"/></svg>`; }
 
 /* ============================================================
    화면 0 — 홈(큐레이션)
@@ -1659,7 +1658,7 @@ function buildShelfStatic(){
   const hero = COLLECTIONS.filter(c=>c.pub==='에디터 픽').sort((a,b)=>b.saves-a.saves)[0] || COLLECTIONS[0];
   const hi = COLLECTIONS.indexOf(hero);
   const he=$('#shelfHero'); he.style.background=hero.grad;
-  he.innerHTML=`<div class="tag">✦ 에디터 픽 · 오늘의 글</div><div class="htt">${esc(hero.t)}</div><div class="hq">${esc(hero.q[0][0])}</div><div class="hm">${hero.n}장 · ♡ ${fmtNum(hero.saves)} · ${esc(hero.pub)}${vchkWSvg()}</div>`;
+  he.innerHTML=`<div class="tag">✦ 에디터 픽 · 오늘의 글</div><div class="htt">${esc(hero.t)}</div><div class="hq">${esc(hero.q[0][0])}</div><div class="hm">${hero.n}장 · ♡ ${fmtNum(hero.saves)} · ${esc(hero.pub)}${verifyOf(hero.pub)?vchkWSvg():''}</div>`;
   he.onclick=()=> openCollection(hi);
   // 정렬(인기/최신) — 무드 필터는 MVP에서 제외(테마/무드 큐레이션 보류)
   $$('#shelfSort button').forEach(b=> b.addEventListener('click', ()=>{ shelfSort=b.dataset.sort; $$('#shelfSort button').forEach(x=>x.classList.toggle('on',x===b)); renderShelfGrid(); }));
