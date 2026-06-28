@@ -14,7 +14,7 @@
    새김(SAEGIM) — 카드 에디터 (풀블리드 · 인스타식)
    카드(본 내용)가 화면을 꽉 채운다 = 조회(발견/뷰어)와 동일한 뷰.
    탭하면 인라인 문구 편집(키보드+색·폰트), 문구는 드래그로 이동.
-   배경·꾸밈·출처는 우측 상단 버튼 → 바텀시트.
+   제목·배경·출처·태그는 우측 상단 버튼 → 바텀시트.
    디자인 토큰은 app.html 기준 정전(SSOT).
    ============================================================ */
 :root{
@@ -65,7 +65,7 @@ body{
   body{ background:var(--cream); }
   #phone{ width:100vw; height:100vh; height:100dvh; border-radius:0; box-shadow:none; }
 }
-#app{ position:absolute; inset:0; }
+#app{ position:relative; width:100%; height:100%; overflow:hidden; overflow:clip; }
 
 /* ===== 카드 = 화면 전체(풀블리드) ===== */
 .canvas{

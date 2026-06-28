@@ -18,15 +18,17 @@
 - `PLANNING.md` — **기획 SSOT**(확정 상태 종합본 §1~13 · 진행 로그 · **§14 개발 착수 가이드**). 여기부터 읽으면 전체 맥락이 잡힌다.
 - `design-system.html` — 디자인 시스템 + 화면별 데모(통합 앱 딥링크 임베드).
 - `CLAUDE.md` — 작업 지침(요약).
+- `HANDOFF.md` — 개발 착수용 핵심 계약(기획 히스토리 제외).
 - `saegim/`
   - `app.html` — **통합 앱(메인 데모)**. 5탭 + 발견 2D 뷰어 + 검색 + 서랍, 단일 파일 SPA(바닐라 JS·localStorage).
   - `editor.html` — 카드 에디터(＋포착, 작성=조회 WYSIWYG).
-  - `brand-d.html` — 대안 다크(심야) 테마 보존용.
 
 ## 데모 보는 법
 브라우저에서 `saegim/app.html`(통합 앱)을 열거나, `design-system.html`(기획서 + 화면별 데모)을 연다.
 
 ## 개발 착수
+**스택**: Next.js(App Router) 프론트 · NestJS 백엔드 · PostgreSQL · Google OAuth 우선.
+
 **`PLANNING.md` §14(개발 착수 가이드)** 참조 — 화면 라우팅, 상태/저장(localStorage → API/DB), 발행 흐름, WYSIWYG `comp` 계약, 데이터 시드, 백엔드 경계(임베딩·인증·검색), 재사용 컴포넌트, 테스트, 정리 대상.
 
 ## 디자인
