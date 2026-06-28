@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>문장 책상 · 문장 연구소</title>
+<!-- 유일한 외부 의존: Pretendard 폰트 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
+<style>
+  /* ============================================================
+     문장 책상 (C03) — 무한 캔버스 큐레이션
+     책상 위 포스트잇/메모지를 흩뿌리고 정리하는 아날로그 촉감
+     ============================================================ */
+
+  :root {
+    /* 책상(나무/종이) 무드 — 미색과 잉크 */
+    --ink:        #2b2622;   /* 본문 잉크 */
+    --ink-soft:   #6f655c;   /* 약한 잉크(출처) */
+    --ink-faint:  #a99f93;   /* 더 옅은 회갈색 */
+    --desk-1:     #efe9df;   /* 책상 바탕(밝은 미색) */
+    --desk-2:     #e7e0d3;   /* 책상 바탕(약간 짙은) */
+    --grid-dot:   rgba(120, 104, 84, 0.16); /* 점 격자 */
+    --accent:     #b8593a;   /* 잉크 레드(붉은 도장 느낌) */
+    --accent-soft:#caa15a;   /* 누런 황동 */
+
+    /* 카드를 '들어올렸을 때'의 그림자 */
+    --shadow-rest: 0 1px 2px rgba(60,48,36,0.10),
+                   0 6px 14px rgba(60,48,36,0.10);
+    --shadow-lift: 0 10px 18px rgba(50,38,28,0.16),
+                   0 30px 55px rgba(50,38,28,0.22);
+
+    /* 모션 타이밍 — 촉감의 핵심 */
+    --ease-back:  cubic-bezier(0.34, 1.42, 0.46, 1);   /* 정착 시 살짝 튕김 */
+    --ease-out:   cubic-bezier(0.22, 0.61, 0.36, 1);
+    --ease-soft:  cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+    overflow: hidden;                 /* 스크롤 대신 캔버스 팬 */
+    font-family: "Pretendard", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--desk-2);
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ---------- 무대(뷰포트) ---------- */
+  #stage {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    cursor: grab;                     /* 빈 곳은 손바닥 커서 */
+    background:
+      radial-gradient(1200px 800px at 18% 12%, var(--desk-1), transparent 70%),
+      radial-gradient(1000px 900px at 86% 88%, #f3eee5, transparent 72%),
+      var(--desk-2);
+    touch-action: none;               /* 터치 제스처 직접 처리 */
+  }
+  #stage.is-panning { cursor: grabbing; }
+
+  /* ---------- 무한 캔버스(이동되는 큰 면) ---------- */
+  #canvas {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  /* 점 격자 + 미세 종이 질감 — 캔버스와 함께 움직이도록 별도 레이어 */
+  #grid {
+    position: absolute;
+    /* 충분히 넓게 깔아 어느 방향으로 팬해도 격자가 보이게 */
+    left: -4000px; top: -4000px;
+    width: 12000px; height: 12000px;
+    pointer-events: none;
+    background-image:
+      radial-gradient(var(--grid-dot) 1.4px, transparent 1.5px);
+    background-size: 30px 30px;
+    background-position: 0 0;
+    opacity: 0.9;
+  }
+  /* 종이 결(아주 옅은 사선 노이즈 느낌) */
+  #grid::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(115deg,
+        rgba(255,255,255,0.0) 0px,
+        rgba(255,255,255,0.04) 1px,
+        rgba(255,255,255,0.0) 3px);
+    mix-blend-mode: overlay;
+  }
+
+  /* ---------- 문장 카드(포스트잇) ---------- */
+  .card {
+    position: absolute;
+    left: 0; top: 0;
+    width: 268px;
+    padding: 24px 24px 18px;
+    border-radius: 4px;
+    background: var(--paper, #fbf7ee);
+    box-shadow: var(--shadow-rest);
+    cursor: grab;
+    user-select: none;
+    /* transform 은 JS가 매 프레임 직접 설정(translate + rotate + scale) */
+    will-change: transform;
+    /* 정착/정렬 전환을 위한 트랜지션(드래그 중엔 JS가 .dragging 으로 끔) */
+    transition:
+      transform 0.62s var(--ease-back),
+      box-shadow 0.35s var(--ease-out);
+    /* 카드 모서리에 살짝 종이 두께감 */
+    border: 1px solid rgba(120, 104, 84, 0.10);
+  }
+  /* 종이 위쪽 살짝 접힌 듯한 하이라이트 */
+  .card::before {
+    content: "";
+    position: absolute; left: 0; right: 0; top: 0; height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.45), transparent);
+    border-radius: 4px 4px 0 0;
+    pointer-events: none;
+  }
+  /* 좌상단 작은 마스킹테이프 — 책상에 붙인 느낌 */
+  .card .tape {
+    position: absolute;
+    top: -9px; left: 50%;
+    width: 56px; height: 18px;
+    transform: translateX(-50%) rotate(var(--tape-rot, -3deg));
+    background: rgba(202, 161, 90, 0.30);
+    border-left: 1px dashed rgba(0,0,0,0.05);
+    border-right: 1px dashed rgba(0,0,0,0.05);
+    pointer-events: none;
+  }
+
+  .card.dragging {
+    transition: box-shadow 0.2s var(--ease-out);  /* 위치는 즉시 따라오게 */
+    box-shadow: var(--shadow-lift);
+    cursor: grabbing;
+  }
+  /* 정착 직후 아주 짧게 '쿵' 가라앉는 강조 */
+  .card.settling { transition: transform 0.62s var(--ease-back), box-shadow 0.55s var(--ease-out); }
+
+  .card .quote {
+    font-size: 17.5px;
+    line-height: 1.62;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    white-space: pre-line;            /* 시드의 \n 줄바꿈 유지 */
+    word-break: keep-all;             /* 한글 어절 단위 줄바꿈 */
+    font-weight: 500;
+  }
+  .card .meta {
+    margin-top: 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    word-break: keep-all;
+  }
+  .card .meta .author { font-weight: 600; color: var(--ink); }
+  .card .meta .dot { color: var(--ink-faint); }
+  .card .meta .work { font-style: normal; }
+  .card .meta .year { color: var(--ink-faint); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  /* 하단 키워드 점선 — 색인표 느낌 */
+  .card .kw {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px dotted rgba(120,104,84,0.28);
+    display: flex; flex-wrap: wrap; gap: 5px;
+  }
+  .card .kw span {
+    font-size: 10px;
+    color: var(--ink-soft);
+    background: rgba(120,104,84,0.07);
+    padding: 1px 7px;
+    border-radius: 20px;
+    word-break: keep-all;
+  }
+
+  /* ---------- 상단 바 ---------- */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    padding: 0 22px;
+    pointer-events: none;             /* 바 자체는 통과, 내부 요소만 받음 */
+    z-index: 50;
+  }
+  /* 좌상단 브랜드 */
+  .brand {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: 11px;
+    user-select: none;
+  }
+  .brand .mark {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    background: var(--ink);
+    color: #f4efe6;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 15px;
+    box-shadow: 0 3px 8px rgba(40,30,22,0.22);
+    transform: rotate(-4deg);
+  }
+  .brand .txt { line-height: 1.1; }
+  .brand .txt b { font-size: 14.5px; font-weight: 700; letter-spacing: -0.02em; }
+  .brand .txt small { display: block; font-size: 10.5px; color: var(--ink-soft); margin-top: 2px; letter-spacing: 0.02em; }
+
+  /* 중앙 토글(흩뿌리기 ⇄ 정렬) */
+  .toggle-wrap {
+    pointer-events: auto;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: rgba(251, 247, 238, 0.86);
+    backdrop-filter: blur(8px) saturate(1.1);
+    -webkit-backdrop-filter: blur(8px) saturate(1.1);
+    border: 1px solid rgba(120,104,84,0.18);
+    border-radius: 999px;
+    padding: 4px;
+    box-shadow: var(--shadow-rest);
+    position: relative;
+  }
+  /* 슬라이딩 알약(현재 상태 표시) */
+  .toggle-wrap .pill {
+    position: absolute;
+    top: 4px; left: 4px;
+    height: calc(100% - 8px);
+    width: calc(50% - 4px);
+    background: var(--ink);
+    border-radius: 999px;
+    transition: transform 0.46s var(--ease-back);
+    box-shadow: 0 4px 10px rgba(40,30,22,0.25);
+  }
+  .toggle-wrap.mode-sorted .pill { transform: translateX(100%); }
+  .toggle-wrap button {
+    position: relative;
+    z-index: 1;
+    appearance: none; border: 0; background: transparent;
+    font-family: inherit;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink-soft);
+    padding: 8px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+    white-space: nowrap;
+  }
+  .toggle-wrap.mode-scatter button.b-scatter,
+  .toggle-wrap.mode-sorted  button.b-sorted { color: #f6f1e8; }
+
+  /* 우상단 보조 정보(카드 수 / 리셋) */
+  .topright {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: 12px;
+    margin-left: auto;
+    user-select: none;
+  }
+  .topright .count {
+    font-size: 11.5px; color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .topright .count b { color: var(--ink); font-weight: 700; }
+  .icon-btn {
+    pointer-events: auto;
+    appearance: none;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(120,104,84,0.20);
+    background: rgba(251,247,238,0.86);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: var(--ink-soft);
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: transform 0.25s var(--ease-back), color 0.2s, background 0.2s, box-shadow .25s;
+    box-shadow: var(--shadow-rest);
+  }
+  .icon-btn:hover { color: var(--ink); transform: translateY(-1px) rotate(-12deg); }
+  .icon-btn:active { transform: scale(0.92); }
+  .icon-btn svg { width: 16px; height: 16px; display: block; }
+
+  /* ---------- 첫 힌트 ---------- */
+  .hint {
+    position: fixed;
+    left: 50%; bottom: 28px;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: none;
+    z-index: 40;
+    display: flex; align-items: center; gap: 9px;
+    background: rgba(43, 38, 34, 0.90);
+    color: #f3eee4;
+    font-size: 13px; letter-spacing: -0.01em;
+    padding: 11px 18px;
+    border-radius: 999px;
+    box-shadow: 0 12px 30px rgba(30,22,16,0.30);
+    opacity: 0;
+    animation: hintIn 0.7s var(--ease-out) 0.5s forwards;
+    word-break: keep-all;
+  }
+  .hint.hide { opacity: 0 !important; transform: translateX(-50%) translateY(14px); transition: all 0.5s var(--ease-out); }
+  .hint .k {
+    font-size: 11px; opacity: 0.8;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 5px; padding: 1px 6px;
+  }
+  @keyframes hintIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(14px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  /* 우하단 미니맵 대용 — '원점으로' 안내 점(살짝) */
+  .recenter-hint { display:none; }
+
+  /* ---------- 포커스(전문 읽기) 오버레이 ---------- */
+  .focus-layer {
+    position: fixed; inset: 0;
+    z-index: 100;
+    display: grid; place-items: center;
+    background: rgba(30, 24, 18, 0);
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    pointer-events: none;
+    transition: background 0.45s var(--ease-out), backdrop-filter 0.45s var(--ease-out);
+  }
+  .focus-layer.on {
+    pointer-events: auto;
+    background: rgba(30, 24, 18, 0.46);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+  .focus-card {
+    width: min(560px, 86vw);
+    background: #fcf8f0;
+    border-radius: 8px;
+    padding: 54px 52px 40px;
+    box-shadow: 0 40px 90px rgba(20,14,8,0.45), 0 8px 20px rgba(20,14,8,0.25);
+    transform: scale(0.92) translateY(10px);
+    opacity: 0;
+    transition: transform 0.5s var(--ease-back), opacity 0.4s var(--ease-out);
+    position: relative;
+    border: 1px solid rgba(120,104,84,0.12);
+  }
+  .focus-layer.on .focus-card { transform: scale(1) translateY(0); opacity: 1; }
+  .focus-card .fc-quote {
+    font-size: 27px; line-height: 1.6;
+    letter-spacing: -0.02em; font-weight: 600;
+    white-space: pre-line; word-break: keep-all;
+    color: var(--ink);
+  }
+  .focus-card .fc-rule {
+    width: 40px; height: 2px; background: var(--accent);
+    margin: 26px 0 18px; border-radius: 2px;
+  }
+  .focus-card .fc-meta {
+    font-size: 14px; color: var(--ink-soft);
+    word-break: keep-all; line-height: 1.7;
+  }
+  .focus-card .fc-meta b { color: var(--ink); font-weight: 700; }
+  .focus-card .fc-theme {
+    display: inline-block; margin-top: 14px;
+    font-size: 11px; color: var(--accent);
+    border: 1px solid rgba(184,89,58,0.35);
+    padding: 2px 10px; border-radius: 20px;
+  }
+  .focus-card .fc-close {
+    position: absolute; top: 16px; right: 16px;
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 0; background: rgba(120,104,84,0.10);
+    color: var(--ink-soft); cursor: pointer;
+    display: grid; place-items: center;
+    transition: background 0.2s, transform 0.2s var(--ease-back);
+  }
+  .focus-card .fc-close:hover { background: rgba(120,104,84,0.18); transform: rotate(90deg); }
+  .focus-card .fc-esc {
+    position: absolute; bottom: 16px; right: 20px;
+    font-size: 11px; color: var(--ink-faint);
+  }
+
+  /* 모바일 대응 */
+  @media (max-width: 600px) {
+    .brand .txt small { display: none; }
+    .topright .count { display: none; }
+    .card { width: 240px; padding: 20px 20px 15px; }
+    .card .quote { font-size: 16px; }
+    .toggle-wrap button { padding: 8px 15px; font-size: 12px; }
+    .focus-card { padding: 44px 30px 34px; }
+    .focus-card .fc-quote { font-size: 22px; }
+    .hint { font-size: 12px; bottom: 18px; padding: 10px 15px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- 무대 + 무한 캔버스 -->
+  <div id="stage">
+    <div id="canvas">
+      <div id="grid"></div>
+      <!-- 카드는 JS가 생성해 삽입 -->
+    </div>
+  </div>
+
+  <!-- 상단 바 -->
+  <header class="topbar">
+    <div class="brand" title="문장 연구소">
+      <div class="mark">文</div>
+      <div class="txt">
+        <b>문장 연구소</b>
+        <small>Sentence Lab · 문장 책상</small>
+      </div>
+    </div>
+
+    <div class="toggle-wrap mode-scatter" id="toggle" role="group" aria-label="배치 모드">
+      <span class="pill" aria-hidden="true"></span>
+      <button class="b-scatter" data-mode="scatter">흩뿌리기</button>
+      <button class="b-sorted"  data-mode="sorted">정렬</button>
+    </div>
+
+    <div class="topright">
+      <div class="count"><b id="cardCount">10</b>개의 문장</div>
+      <button class="icon-btn" id="recenter" title="원점으로 (화면 맞춤)" aria-label="원점으로">
+        <!-- 가운데 맞춤 아이콘 -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 첫 힌트 -->
+  <div class="hint" id="hint">
+    <span>카드를 끌어 옮기고, 위에서 <b>정렬</b>을 눌러 보세요</span>
+    <span class="k">더블클릭=전문</span>
+  </div>
+
+  <!-- 포커스(전문 읽기) -->
+  <div class="focus-layer" id="focusLayer" aria-hidden="true">
+    <div class="focus-card" id="focusCard" role="dialog" aria-modal="true">
+      <button class="fc-close" id="focusClose" aria-label="닫기">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="fc-quote" id="fcQuote"></div>
+      <div class="fc-rule"></div>
+      <div class="fc-meta" id="fcMeta"></div>
+      <div class="fc-theme" id="fcTheme"></div>
+      <div class="fc-esc">Esc 로 닫기</div>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   데이터 — 시드 문장 10개 (그대로 인라인)
+   ============================================================ */
+const SENTENCES = [
+  {id:1,text:"죽는 날까지 하늘을 우러러\n한 점 부끄럼이 없기를",author:"윤동주",work:"하늘과 바람과 별과 시",year:"1948",theme:"성찰",keywords:["부끄러움","양심","바람"]},
+  {id:2,text:"나 보기가 역겨워 가실 때에는\n말없이 고이 보내 드리오리다",author:"김소월",work:"진달래꽃",year:"1925",theme:"이별",keywords:["이별","체념","헌신"]},
+  {id:3,text:"우리는 만날 때에 떠날 것을 염려하는 것과 같이,\n떠날 때에 다시 만날 것을 믿습니다",author:"한용운",work:"님의 침묵",year:"1926",theme:"이별",keywords:["만남","이별","믿음"]},
+  {id:4,text:"다시 천고의 뒤에\n백마 타고 오는 초인이 있어",author:"이육사",work:"광야",year:"1945",theme:"의지",keywords:["초인","미래","희생"]},
+  {id:5,text:"박제가 되어 버린 천재를 아시오?",author:"이상",work:"날개",year:"1936",theme:"자의식",keywords:["천재","권태","근대"]},
+  {id:6,text:"계절이 지나가는 하늘에는\n가을로 가득 차 있습니다",author:"윤동주",work:"하늘과 바람과 별과 시",year:"1948",theme:"자연",keywords:["가을","하늘","그리움"]},
+  {id:7,text:"하루라도 책을 읽지 않으면\n입안에 가시가 돋는다",author:"안중근",work:"유묵",year:"1910",theme:"배움",keywords:["독서","수양","단련"]},
+  {id:8,text:"천 리 길도\n한 걸음에서 시작된다",author:"노자",work:"도덕경",year:"고전",theme:"배움",keywords:["시작","한걸음","축적"]},
+  {id:9,text:"문장은 끝내기 위해서가 아니라,\n멈추는 법을 배우기 위해 쓴다",author:"새김 편집부",work:"쉼표의 자리",year:"2024",theme:"쓰기",keywords:["문장","멈춤","여백"]},
+  {id:10,text:"모든 책은 첫 문장에서 한 번,\n마지막 문장에서 다시 태어난다",author:"새김 편집부",work:"첫 문장의 무게",year:"2025",theme:"쓰기",keywords:["첫문장","끝문장","탄생"]}
+];
+
+/* 포스트잇 종이색 변주(오프화이트/크림/연한 미색) */
+const PAPERS = ["#fbf7ee", "#f7f0e2", "#fdfaf3", "#f4ecdd", "#f9f3e7", "#fcf6ea"];
+
+/* ============================================================
+   상태
+   ============================================================ */
+const stage  = document.getElementById('stage');
+const canvas = document.getElementById('canvas');
+const toggle = document.getElementById('toggle');
+const hintEl = document.getElementById('hint');
+
+/* 캔버스 팬 오프셋(무한 캔버스의 현재 위치) */
+let view = { x: 0, y: 0 };
+
+/* 카드 모델: 흩뿌리기 좌표 / 정렬 좌표 / 현재 좌표 / DOM */
+let cards = [];
+let zTop = 100;                 // z-index 최상단 카운터
+let mode = 'scatter';          // 'scatter' | 'sorted'
+
+/* 시드 난수 — 새로고침해도 같은 흩뿌림(재현성) */
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rand = mulberry32(20260626);
+const rrange = (a,b) => a + (b-a)*rand();
+
+/* ============================================================
+   레이아웃 계산
+   ============================================================ */
+const CARD_W = window.matchMedia('(max-width:600px)').matches ? 240 : 268;
+
+/* 흩뿌리기 좌표 — 중앙 부근에 보기 좋게 퍼뜨림(겹침 최소화하려는 간단한 분산) */
+function computeScatter(){
+  const cx = window.innerWidth  / 2;
+  const cy = window.innerHeight / 2;
+  // 넉넉한 타원 범위에 분산. 인덱스별로 각도 + 약간의 흔들림
+  const spreadX = Math.min(window.innerWidth  * 0.42, 560);
+  const spreadY = Math.min(window.innerHeight * 0.40, 430);
+  cards.forEach((c, i) => {
+    const ang = (i / cards.length) * Math.PI * 2 + rrange(-0.4, 0.4);
+    const r   = rrange(0.35, 1.05);
+    c.scatter = {
+      x: cx + Math.cos(ang) * spreadX * r + rrange(-40, 40) - CARD_W/2,
+      y: cy + Math.sin(ang) * spreadY * r + rrange(-30, 30) - 70,
+      rot: rrange(-5, 5)
+    };
+  });
+}
+
+/* 정렬 좌표 — 화면 폭에 맞춰 깔끔한 격자(중앙 정렬, 약간의 여백) */
+function computeSorted(){
+  const gapX = 26, gapY = 24;
+  const colW = CARD_W + gapX;
+  // 화면에 들어갈 만큼만 열을 잡되 최소 2열, 최대 5열
+  let cols = Math.max(2, Math.min(5, Math.floor((window.innerWidth - 80) / colW)));
+  const rows = Math.ceil(cards.length / cols);
+  const gridW = cols * CARD_W + (cols - 1) * gapX;
+  const startX = (window.innerWidth - gridW) / 2;
+  const startY = 96;             // 상단 바 아래에서 시작
+  // 카드 높이가 제각각이라, 열별 누적 높이를 추적하는 메이슨리 배치
+  const colH = new Array(cols).fill(startY);
+  cards.forEach((c, i) => {
+    // 가장 낮은 열에 배치(메이슨리)
+    let col = 0;
+    for (let k = 1; k < cols; k++) if (colH[k] < colH[col]) col = k;
+    const x = startX + col * colW;
+    const y = colH[col];
+    c.sorted = { x, y, rot: 0 };
+    colH[col] += (c.el.offsetHeight || 150) + gapY;
+  });
+}
+
+/* ============================================================
+   카드 DOM 생성
+   ============================================================ */
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function buildCards(){
+  const frag = document.createDocumentFragment();
+  SENTENCES.forEach((s, i) => {
+    const el = document.createElement('article');
+    el.className = 'card';
+    el.style.setProperty('--paper', PAPERS[i % PAPERS.length]);
+    el.style.setProperty('--tape-rot', (rrange(-6,6)).toFixed(1) + 'deg');
+    el.dataset.id = s.id;
+    el.innerHTML = `
+      <span class="tape"></span>
+      <div class="quote">${esc(s.text)}</div>
+      <div class="meta">
+        <span class="author">${esc(s.author)}</span>
+        <span class="dot">·</span>
+        <span class="work">${esc(s.work)}</span>
+        <span class="year">${esc(s.year)}</span>
+      </div>
+      <div class="kw">${s.keywords.map(k=>`<span>#${esc(k)}</span>`).join('')}</div>
+    `;
+    frag.appendChild(el);
+    cards.push({ data: s, el, cur:{x:0,y:0,rot:0}, scatter:null, sorted:null });
+  });
+  canvas.appendChild(frag);
+}
+
+/* 현재 모드의 목표 좌표를 카드에 적용(트랜지션은 CSS가 처리) */
+function applyTransform(c, withTransition=true){
+  const t = (mode === 'scatter') ? c.scatter : c.sorted;
+  c.cur = { ...t };
+  c.el.style.transform =
+    `translate(${t.x}px, ${t.y}px) rotate(${t.rot}deg)`;
+}
+
+/* 모드 전환 — 핵심 쾌감: stagger 로 스르륵 이동 */
+function setMode(next){
+  if (mode === next) return;
+  mode = next;
+  toggle.classList.toggle('mode-sorted',  mode === 'sorted');
+  toggle.classList.toggle('mode-scatter', mode === 'scatter');
+
+  // 정렬 좌표는 카드 실제 높이를 알아야 하므로 매번 재계산
+  if (mode === 'sorted') computeSorted();
+
+  // 중앙 근처 카드부터 퍼지듯 — 중심 거리 기반 stagger 정렬
+  const cx = window.innerWidth/2, cy = window.innerHeight/2;
+  const order = [...cards].map((c,idx)=>{
+    const t = (mode==='scatter') ? c.scatter : c.sorted;
+    const d = Math.hypot((t.x+CARD_W/2)-cx, (t.y+70)-cy);
+    return { c, d, idx };
+  }).sort((a,b)=> mode==='sorted' ? a.d-b.d : b.d-a.d);
+
+  order.forEach(({c}, k) => {
+    const delay = k * 38;        // 38ms 간격으로 차례차례
+    setTimeout(() => {
+      // 정렬로 갈 땐 각도를 0으로 정리, 흩뿌릴 땐 무작위 각도
+      c.el.classList.remove('dragging');
+      applyTransform(c);
+    }, delay);
+  });
+
+  hideHint();
+}
+
+/* ============================================================
+   드래그 (카드) — 직접 구현 (마우스 + 터치)
+   ============================================================ */
+let drag = null;  // { c, startX, startY, offX, offY, moved }
+
+function pointerXY(e){
+  if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+  return { x: e.clientX, y: e.clientY };
+}
+
+function onCardDown(e, c){
+  // 더블클릭(포커스)과 충돌 방지: 단일 포인터만
+  if (e.touches && e.touches.length > 1) return;
+  const p = pointerXY(e);
+  // 카드의 현재 캔버스 좌표(translate 값) 기준 오프셋 계산
+  drag = {
+    c,
+    startPX: p.x, startPY: p.y,
+    baseX: c.cur.x, baseY: c.cur.y,
+    moved: false,
+  };
+  // 들어올림: scale 1.04 + 그림자 깊게 + 맨 앞으로
+  c.el.classList.add('dragging');
+  c.el.classList.remove('settling');
+  c.el.style.zIndex = (++zTop);
+  // 잡는 순간엔 트랜지션 없이 살짝 커지며 회전 유지
+  c.el.style.transition = 'transform 0.16s ' + 'cubic-bezier(0.34,1.42,0.46,1)' + ', box-shadow 0.25s ease';
+  liftTransform(c, c.cur.x, c.cur.y);
+  e.preventDefault();
+  window.addEventListener('mousemove', onDragMove, { passive:false });
+  window.addEventListener('mouseup', onDragUp);
+  window.addEventListener('touchmove', onDragMove, { passive:false });
+  window.addEventListener('touchend', onDragUp);
+}
+
+/* 드래그 중 변형: 들린 상태(scale 1.04) + 현재 각도 유지 */
+function liftTransform(c, x, y){
+  c.el.style.transform =
+    `translate(${x}px, ${y}px) rotate(${c.cur.rot * 0.6}deg) scale(1.04)`;
+}
+
+function onDragMove(e){
+  if (!drag) return;
+  const p = pointerXY(e);
+  const dx = p.x - drag.startPX;
+  const dy = p.y - drag.startPY;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+  const nx = drag.baseX + dx;
+  const ny = drag.baseY + dy;
+  drag.c.cur.x = nx; drag.c.cur.y = ny;
+  // 이동 중엔 트랜지션 끄고 즉시 따라오게(.dragging)
+  drag.c.el.style.transition = 'box-shadow 0.25s ease';
+  liftTransform(drag.c, nx, ny);
+  e.preventDefault();
+}
+
+function onDragUp(e){
+  if (!drag) return;
+  const c = drag.c;
+  window.removeEventListener('mousemove', onDragMove);
+  window.removeEventListener('mouseup', onDragUp);
+  window.removeEventListener('touchmove', onDragMove);
+  window.removeEventListener('touchend', onDragUp);
+
+  c.el.classList.remove('dragging');
+  c.el.classList.add('settling');
+  // 놓는 순간: 자유 위치에 부드럽게 정착(ease-back) — scale 1로 '쿵'
+  c.el.style.transition = 'transform 0.6s cubic-bezier(0.34,1.42,0.46,1), box-shadow 0.5s ease';
+
+  // 사용자가 카드를 옮겼으면, 그 위치를 현재 모드 좌표로 '저장'(자유 배치 유지)
+  if (drag.moved) {
+    if (mode === 'scatter') {
+      // 흩뿌리기 모드: 새 위치 + 약간의 새 각도 부여(아날로그 느낌)
+      c.scatter = { x: c.cur.x, y: c.cur.y, rot: rrange(-5,5) };
+    } else {
+      // 정렬 모드에서 옮기면 그 자리에 고정(격자에서 빠져나옴)
+      c.sorted = { x: c.cur.x, y: c.cur.y, rot: rrange(-2.5,2.5) };
+    }
+    applyTransform(c);
+    hideHint();
+  } else {
+    // 거의 안 움직였으면 원위치로 사뿐히 복귀
+    applyTransform(c);
+  }
+  setTimeout(()=> c.el.classList.remove('settling'), 650);
+  drag = null;
+}
+
+/* ============================================================
+   캔버스 팬 (빈 곳 드래그) — 마우스 + 터치(한 손가락)
+   ============================================================ */
+let pan = null;  // { startPX, startPY, baseX, baseY, moved }
+
+function applyView(){
+  canvas.style.transform = `translate(${view.x}px, ${view.y}px)`;
+}
+
+function onStageDown(e){
+  // 카드 위에서 시작한 입력은 카드 드래그로 위임(여기선 무시)
+  if (e.target.closest('.card')) return;
+  // 멀티터치(핀치 등)는 팬에서 제외
+  if (e.touches && e.touches.length > 1) return;
+  const p = pointerXY(e);
+  pan = { startPX: p.x, startPY: p.y, baseX: view.x, baseY: view.y, moved:false };
+  stage.classList.add('is-panning');
+  window.addEventListener('mousemove', onPanMove, { passive:false });
+  window.addEventListener('mouseup', onPanUp);
+  window.addEventListener('touchmove', onPanMove, { passive:false });
+  window.addEventListener('touchend', onPanUp);
+}
+function onPanMove(e){
+  if (!pan) return;
+  const p = pointerXY(e);
+  const dx = p.x - pan.startPX;
+  const dy = p.y - pan.startPY;
+  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) pan.moved = true;
+  view.x = pan.baseX + dx;
+  view.y = pan.baseY + dy;
+  applyView();
+  e.preventDefault();
+}
+function onPanUp(){
+  if (!pan) return;
+  stage.classList.remove('is-panning');
+  window.removeEventListener('mousemove', onPanMove);
+  window.removeEventListener('mouseup', onPanUp);
+  window.removeEventListener('touchmove', onPanMove);
+  window.removeEventListener('touchend', onPanUp);
+  if (pan.moved) hideHint();
+  pan = null;
+}
+
+/* 휠/트랙패드로도 팬 가능(부드럽게) */
+function onWheel(e){
+  // 페이지 스크롤 방지하고 캔버스를 민다
+  e.preventDefault();
+  view.x -= e.deltaX;
+  view.y -= e.deltaY;
+  applyView();
+  hideHint();
+}
+
+/* 원점으로(부드럽게 복귀) */
+function recenter(){
+  // 트랜지션 잠깐 켜서 스르륵
+  canvas.style.transition = 'transform 0.6s cubic-bezier(0.22,0.61,0.36,1)';
+  view = { x: 0, y: 0 };
+  applyView();
+  setTimeout(()=> canvas.style.transition = '', 620);
+}
+
+/* ============================================================
+   포커스(전문 읽기) — 더블클릭 / Esc
+   ============================================================ */
+const focusLayer = document.getElementById('focusLayer');
+const fcQuote = document.getElementById('fcQuote');
+const fcMeta  = document.getElementById('fcMeta');
+const fcTheme = document.getElementById('fcTheme');
+
+function openFocus(c){
+  const s = c.data;
+  fcQuote.textContent = s.text;
+  fcMeta.innerHTML = `<b>${esc(s.author)}</b> · 《${esc(s.work)}》 · ${esc(s.year)}`;
+  fcTheme.textContent = '# ' + s.theme;
+  focusLayer.classList.add('on');
+  focusLayer.setAttribute('aria-hidden', 'false');
+}
+function closeFocus(){
+  focusLayer.classList.remove('on');
+  focusLayer.setAttribute('aria-hidden', 'true');
+}
+focusLayer.addEventListener('click', (e)=>{ if (e.target === focusLayer) closeFocus(); });
+document.getElementById('focusClose').addEventListener('click', closeFocus);
+document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeFocus(); });
+
+/* ============================================================
+   힌트 숨김
+   ============================================================ */
+let hintGone = false;
+function hideHint(){
+  if (hintGone) return;
+  hintGone = true;
+  hintEl.classList.add('hide');
+  setTimeout(()=> hintEl.remove(), 600);
+}
+/* 일정 시간 후 자동으로 사라짐 */
+setTimeout(hideHint, 9000);
+
+/* ============================================================
+   초기화
+   ============================================================ */
+function init(){
+  buildCards();
+
+  // 카드 이벤트 바인딩
+  cards.forEach(c => {
+    c.el.addEventListener('mousedown', (e)=> onCardDown(e, c));
+    c.el.addEventListener('touchstart', (e)=> onCardDown(e, c), { passive:false });
+    // 더블클릭 → 전문 포커스
+    c.el.addEventListener('dblclick', (e)=>{ e.preventDefault(); openFocus(c); });
+  });
+
+  // 무대(빈 곳) 팬
+  stage.addEventListener('mousedown', onStageDown);
+  stage.addEventListener('touchstart', onStageDown, { passive:false });
+  stage.addEventListener('wheel', onWheel, { passive:false });
+
+  // 토글 버튼
+  toggle.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=> setMode(btn.dataset.mode));
+  });
+  // 리센터
+  document.getElementById('recenter').addEventListener('click', recenter);
+
+  // 좌표 계산 → 흩뿌린 상태로 시작(살짝 늦게 등장시켜 들어오는 느낌)
+  computeScatter();
+  // 처음엔 카드들을 중앙에 모았다가 흩뿌리는 등장 연출
+  cards.forEach((c)=>{
+    // 초기 위치를 중앙 근처에 살짝 겹쳐 두고
+    const cx = window.innerWidth/2 - CARD_W/2, cy = window.innerHeight/2 - 70;
+    c.cur = { x: cx + rrange(-20,20), y: cy + rrange(-14,14), rot: rrange(-2,2) };
+    c.el.style.transition = 'none';
+    c.el.style.transform = `translate(${c.cur.x}px, ${c.cur.y}px) rotate(${c.cur.rot}deg)`;
+  });
+  // 다음 프레임에 트랜지션 켜고 제자리(흩뿌리기)로 — 부드럽게 펼쳐짐
+  requestAnimationFrame(()=> requestAnimationFrame(()=>{
+    cards.forEach((c, i)=>{
+      c.el.style.transition = '';
+      setTimeout(()=> applyTransform(c), 80 + i*46);
+    });
+  }));
+
+  applyView();
+}
+
+/* 리사이즈 시 현재 모드 좌표 재계산(자유 이동된 카드는 유지 위해, 흩뿌림만 갱신) */
+let resizeTimer = null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(()=>{
+    if (mode === 'sorted') { computeSorted(); cards.forEach(c=>applyTransform(c)); }
+  }, 180);
+});
+
+init();
+</script>
+</body>
+</html>

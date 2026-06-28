@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>문장 연구소 · 인터랙션 실험 갤러리</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
+<style>
+  /* ===== 토큰 ===== */
+  :root{
+    --bg:#0c0c0e;            /* 깊은 암흑 배경 */
+    --bg-2:#141417;         /* 카드 표면 */
+    --bg-3:#1c1c21;         /* 카드 내부 비주얼 영역 */
+    --ink:#f3efe7;          /* 크림 텍스트 */
+    --ink-2:#a7a29a;        /* 보조 */
+    --ink-3:#6d6862;        /* 약한 */
+    --line:#2a2a30;         /* 경계선 */
+    --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--font);background:var(--bg);color:var(--ink);
+    -webkit-font-smoothing:antialiased;line-height:1.6;overflow-x:hidden;
+  }
+  ::selection{background:#c9a227;color:#000}
+  a{color:inherit;text-decoration:none}
+
+  /* ===== 히어로 ===== */
+  .hero{max-width:1180px;margin:0 auto;padding:72px 32px 40px;position:relative}
+  .eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.34em;color:var(--ink-3);text-transform:uppercase;margin-bottom:20px}
+  .hero h1{font-size:clamp(2.4rem,6vw,4.2rem);font-weight:800;letter-spacing:-.035em;line-height:1.02}
+  .hero h1 em{font-style:normal;color:var(--ink-3)}
+  .manifesto{margin-top:24px;max-width:600px;font-size:1.02rem;color:var(--ink-2);line-height:1.7;word-break:keep-all}
+  .manifesto b{color:var(--ink);font-weight:600}
+  .meta-row{display:flex;gap:26px;margin-top:32px;flex-wrap:wrap;font-size:.82rem;color:var(--ink-3)}
+  .meta-row span b{color:var(--ink);font-weight:700;font-size:.94rem}
+
+  /* ===== 그리드 ===== */
+  .grid{max-width:1180px;margin:0 auto;padding:24px 32px 90px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:920px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:580px){.grid{grid-template-columns:1fr}}
+
+  .card{
+    position:relative;background:var(--bg-2);border:1px solid var(--line);border-radius:18px;
+    padding:0 0 22px;overflow:hidden;cursor:pointer;
+    opacity:0;transform:translateY(22px);
+    transition:transform .4s cubic-bezier(.2,.7,.3,1), border-color .3s, box-shadow .4s;
+  }
+  .card.in{opacity:1;transform:none}
+  .card.live:hover{transform:translateY(-7px);border-color:var(--ac);box-shadow:0 22px 50px rgba(0,0,0,.5), 0 0 0 1px var(--ac)}
+  .card.soon{cursor:default}
+  .card.soon:hover{border-color:#34343c}
+
+  /* 카드 상단 비주얼 영역 */
+  .viz{height:150px;background:var(--bg-3);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--line)}
+  .card.live:hover .viz{background:#202027}
+  .card.soon .viz{opacity:.5}
+
+  .card-body{padding:18px 20px 0}
+  .num{font-size:.76rem;font-weight:800;letter-spacing:.1em;color:var(--ac)}
+  .card.soon .num{color:var(--ink-3)}
+  .titles{display:flex;align-items:baseline;gap:9px;margin-top:9px;flex-wrap:wrap}
+  .titles .ko{font-size:1.18rem;font-weight:700;letter-spacing:-.02em}
+  .titles .en{font-size:.74rem;font-weight:600;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase}
+  .desc{margin-top:10px;font-size:.88rem;color:var(--ink-2);line-height:1.62;word-break:keep-all;min-height:56px}
+
+  .badge{position:absolute;top:14px;right:14px;z-index:3;display:flex;align-items:center;gap:6px;font-size:.68rem;font-weight:700;padding:6px 11px;border-radius:999px;backdrop-filter:blur(6px)}
+  .badge.b-live{background:rgba(0,0,0,.4);color:var(--ac);border:1px solid var(--ac)}
+  .badge.b-soon{background:rgba(0,0,0,.4);color:var(--ink-3);border:1px solid var(--line)}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .card.live .dot{animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .go{display:inline-flex;align-items:center;gap:7px;margin-top:16px;font-size:.84rem;font-weight:700;color:var(--ac)}
+  .go svg{transition:transform .2s}
+  .card.live:hover .go svg{transform:translateX(4px)}
+  .go.soon{color:var(--ink-3)}
+
+  /* ===== 카드별 미니 비주얼 ===== */
+  /* 01 무대 */
+  .v01 .spot{position:absolute;inset:0;background:radial-gradient(circle at 50% 38%, rgba(201,162,39,.28), transparent 60%)}
+  .v01 .qm{font-size:5rem;font-weight:800;color:#c9a227;line-height:1;opacity:.9;font-family:Georgia,serif}
+  .v01 .ln{position:absolute;bottom:38px;left:50%;transform:translateX(-50%);width:46px;height:3px;background:#c9a227;border-radius:2px;opacity:.7}
+  /* 02 밤하늘 */
+  .v02 i{position:absolute;width:5px;height:5px;border-radius:50%;background:#cdd8f3;box-shadow:0 0 8px 1px rgba(140,165,230,.8)}
+  .v02 .s1{left:24%;top:34%}.v02 .s2{left:44%;top:58%}.v02 .s3{left:62%;top:30%}.v02 .s4{left:74%;top:62%}.v02 .s5{left:36%;top:74%}.v02 .s6{left:54%;top:44%;width:7px;height:7px}
+  .v02 svg{position:absolute;inset:0;width:100%;height:100%}
+  .v02 line{stroke:#5b7cc7;stroke-width:1;opacity:.4}
+  .card.live:hover .v02 i{animation:tw 1.4s ease-in-out infinite}
+  @keyframes tw{50%{opacity:.4;transform:scale(.7)}}
+  /* 03 캔버스 */
+  .v03 .pp{position:absolute;width:64px;height:64px;border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,.4)}
+  .v03 .p1{background:#f3ecd9;transform:rotate(-9deg) translate(-30px,4px)}
+  .v03 .p2{background:#e7d9bf;transform:rotate(5deg) translate(0,-6px)}
+  .v03 .p3{background:#dfc9a0;transform:rotate(12deg) translate(30px,6px)}
+  .card.live:hover .v03 .p1{transform:rotate(-14deg) translate(-42px,2px)}
+  .card.live:hover .v03 .p3{transform:rotate(17deg) translate(42px,4px)}
+  .v03 .pp{transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+  /* 04 닦다 */
+  .v04 .fog{font-size:1.5rem;font-weight:700;color:var(--ink);letter-spacing:-.02em;position:relative;z-index:1}
+  .v04 .blur{filter:blur(6px);opacity:.55}
+  .v04 .haze{position:absolute;inset:0;background:linear-gradient(105deg,rgba(180,190,196,.5) 0%,rgba(180,190,196,.5) 42%,transparent 58%);backdrop-filter:blur(1px)}
+  .card.live:hover .v04 .haze{transform:translateX(-30%);transition:transform .6s ease}
+  /* 05 의식 */
+  .v05 .moon{width:62px;height:62px;border-radius:50%;background:radial-gradient(circle at 38% 36%,#e7c8a0,#b5654a);box-shadow:0 0 28px rgba(181,101,74,.5)}
+  .v05 .ring{position:absolute;width:104px;height:104px;border:1px solid rgba(181,101,74,.35);border-radius:50%}
+  /* 06 서가 */
+  .v06{gap:6px}
+  .v06 i{width:13px;border-radius:2px;display:inline-block}
+  .v06 .b1{height:72px;background:#6a8f6b}.v06 .b2{height:92px;background:#7da17e}.v06 .b3{height:64px;background:#5d7d5e}
+  .v06 .b4{height:100px;background:#8fb190;transform:translateY(-8px)}.v06 .b5{height:80px;background:#6a8f6b}.v06 .b6{height:58px;background:#547255}
+  .v06 .b7{height:88px;background:#7da17e}
+  .card.live:hover .v06 .b4{transform:translateY(-16px)}
+  .v06 i{transition:transform .35s}
+  /* 07 필사 */
+  .v07{flex-direction:column;gap:12px}
+  .v07 .ln{width:120px;height:2px;background:var(--ink-3);opacity:.5}
+  .v07 .ln.short{width:78px}
+  .v07 .type{display:flex;align-items:center;gap:2px}
+  .v07 .tx{font-size:1.1rem;font-weight:600;color:var(--ink)}
+  .v07 .caret{width:3px;height:22px;background:#7d6cc9;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+  /* 08 기분 */
+  .v08 .sw{width:150px;height:62px;border-radius:10px;background:linear-gradient(90deg,#d06a8c,#c9a227,#5b7cc7,#6a8f6b);background-size:200% 100%}
+  .card.live:hover .v08 .sw{animation:slide 2s linear infinite}
+  @keyframes slide{to{background-position:200% 0}}
+  /* 09 뽑기 */
+  .v09 .fc{position:absolute;width:48px;height:70px;border-radius:7px;background:linear-gradient(160deg,#2a2a30,#34343c);border:1px solid #46464f;box-shadow:0 6px 16px rgba(0,0,0,.4);transform-origin:bottom center}
+  .v09 .f1{transform:rotate(-22deg) translateY(-2px)}.v09 .f2{transform:rotate(-7deg)}.v09 .f3{transform:rotate(7deg)}.v09 .f4{transform:rotate(22deg) translateY(-2px)}
+  .v09 .f3{background:linear-gradient(160deg,#c2596a,#9c3d4d);border-color:#d0697a}
+  .card.live:hover .v09 .f1{transform:rotate(-30deg) translateY(-6px)}
+  .card.live:hover .v09 .f4{transform:rotate(30deg) translateY(-6px)}
+  .v09 .fc{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+  /* 10 연대기 */
+  .v10 .axis{width:160px;height:2px;background:var(--ink-3);opacity:.45;position:relative}
+  .v10 .axis i{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;background:#4f9aa6;transform:translate(-50%,-50%);box-shadow:0 0 10px rgba(79,154,166,.7)}
+  .v10 .axis i:nth-child(1){left:8%}.v10 .axis i:nth-child(2){left:36%}.v10 .axis i:nth-child(3){left:64%}.v10 .axis i:nth-child(4){left:92%}
+  .v10 .yr{position:absolute;top:18px;font-size:.6rem;color:var(--ink-3)}
+
+  footer{max-width:1180px;margin:0 auto;padding:28px 32px 60px;border-top:1px solid var(--line);color:var(--ink-3);font-size:.8rem;line-height:1.8;word-break:keep-all}
+  footer b{color:var(--ink-2)}
+
+  .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:#26262c;color:var(--ink);padding:13px 22px;border-radius:11px;font-size:.86rem;box-shadow:0 12px 40px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:all .26s;z-index:90}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+  <section class="hero">
+    <div class="eyebrow">Sentence Lab · 문장 연구소</div>
+    <h1>문장을 <em>만지는</em><br />열 가지 방법</h1>
+    <p class="manifesto">
+      문장을 모아 보는 일은 흔하다. 핀터레스트식 카드 그리드는 누구나 만든다.
+      그래서 우리는 질문을 바꿨다 — <b>같은 문장을 어떻게 '경험'하게 할 것인가.</b>
+      아래는 그 답을 찾기 위한 열 개의 인터랙션 실험이다.
+    </p>
+    <div class="meta-row">
+      <span><b>10</b> 컨셉</span>
+      <span><b>4</b> 지금 체험 가능</span>
+      <span><b>6</b> 설계 중</span>
+    </div>
+  </section>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    <b>문장 연구소(Sentence Lab)</b> — 새김(SAEGIM) 독립 프로젝트 · UI/UX 탐색 데모<br />
+    모든 시드 문장은 공유저작물(근대문학·고전) 또는 자체 창작입니다. 라이브 카드를 누르면 새 탭에서 열립니다.
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+/* ===== 10개 컨셉 정의 (기획 지도) ===== */
+const CONCEPTS = [
+  { n:"01", ko:"한 문장의 무대", en:"Stage", ac:"#c9a227", viz:"v01", live:true, href:"concepts/c01-stage.html",
+    desc:"그리드를 버린다. 한 번에 한 문장만, 화면을 가득 채운 거대한 타이포로. 스크롤은 페이지가 아니라 '음미'가 된다." },
+  { n:"02", ko:"문장의 밤하늘", en:"Constellation", ac:"#5b7cc7", viz:"v02", live:true, href:"concepts/c02-constellation.html",
+    desc:"의미가 가까운 문장끼리 별처럼 모인다. 검색하지 않고 우주를 탐험하듯 떠다니며 발견한다. 유사도가 곧 거리." },
+  { n:"03", ko:"문장 책상", en:"Canvas", ac:"#d98c5f", viz:"v03", live:true, href:"concepts/c03-canvas.html",
+    desc:"무한 캔버스 위에 문장 카드를 직접 끌어다 배치한다. 흩뿌리기와 정렬을 오가며 나만의 보드를 만드는 아날로그 촉감." },
+  { n:"04", ko:"문장을 닦다", en:"Reveal", ac:"#8aa0a8", viz:"v04", live:true, href:"concepts/c04-reveal.html",
+    desc:"성에 낀 화면을 손으로 문지르면 문장이 드러난다. 한 문장을 얻기 위해 손을 움직이는, 발견의 의식." },
+  { n:"05", ko:"오늘 한 문장", en:"Ritual", ac:"#b5654a", viz:"v05", live:true, href:"concepts/c05-ritual.html",
+    desc:"하루에 단 하나. 받고, 따라 쓰고, 머문다. 무한 스크롤의 반대편 — 절제가 만드는 명상적 루틴." },
+  { n:"06", ko:"책등의 서가", en:"Spines", ac:"#6a8f6b", viz:"v06", live:true, href:"concepts/c06-spines.html",
+    desc:"출판사의 은유. 색색의 책등이 꽂힌 서가에서 한 권을 뽑으면, 그 책 속 문장이 펼쳐진다." },
+  { n:"07", ko:"따라 쓰는 문장", en:"Tracing", ac:"#7d6cc9", viz:"v07", live:true, href:"concepts/c07-tracing.html",
+    desc:"수집이 아니라 체화. 타자기 리듬으로 문장을 직접 따라 쓰며 내 것으로 만든다. 손끝으로 읽는 문장." },
+  { n:"08", ko:"오늘의 기분으로", en:"Mood", ac:"#d06a8c", viz:"v08", live:true, href:"concepts/c08-mood.html",
+    desc:"먼저 지금의 색과 기분을 고른다. 그러면 거기 어울리는 문장이 큐레이션된다. 감정이 입구가 되는 발견." },
+  { n:"09", ko:"문장 뽑기", en:"Draw", ac:"#c2596a", viz:"v09", live:true, href:"concepts/c09-draw.html",
+    desc:"운세를 뽑듯 카드를 한 장 점지받는다. 우연이 주는 한 문장 — 고르지 않기에 더 오래 남는다." },
+  { n:"10", ko:"문장의 연대기", en:"Timeline", ac:"#4f9aa6", viz:"v10", live:true, href:"concepts/c10-timeline.html",
+    desc:"1920년대 근대문학부터 오늘의 자체 출판까지. 시간축을 거닐며 한국어 문장의 결이 변해온 길을 따라간다." }
+];
+
+/* 카드별 미니 비주얼 마크업 */
+function vizInner(v){
+  switch(v){
+    case "v01": return `<div class="spot"></div><div class="qm">"</div><div class="ln"></div>`;
+    case "v02": return `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="24" y1="34" x2="54" y2="44"/><line x1="54" y1="44" x2="62" y2="30"/><line x1="54" y1="44" x2="44" y2="58"/><line x1="44" y1="58" x2="36" y2="74"/><line x1="62" y1="30" x2="74" y2="62"/></svg><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i><i class="s5"></i><i class="s6"></i>`;
+    case "v03": return `<span class="pp p1"></span><span class="pp p2"></span><span class="pp p3"></span>`;
+    case "v04": return `<div class="haze"></div><div class="fog"><span class="blur">한 점</span> 부끄럼이</div>`;
+    case "v05": return `<div class="ring"></div><div class="moon"></div>`;
+    case "v06": return `<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="b6"></i><i class="b7"></i>`;
+    case "v07": return `<div class="type"><span class="tx">문장을 따라</span><span class="caret"></span></div><div class="ln"></div><div class="ln short"></div>`;
+    case "v08": return `<div class="sw"></div>`;
+    case "v09": return `<span class="fc f1"></span><span class="fc f2"></span><span class="fc f3"></span><span class="fc f4"></span>`;
+    case "v10": return `<div class="axis"><i></i><i></i><i></i><i></i><span class="yr" style="left:4%">1925</span><span class="yr" style="left:86%">2025</span></div>`;
+    default: return "";
+  }
+}
+
+const arrow = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+const lock = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
+
+const grid = document.getElementById("grid");
+grid.innerHTML = CONCEPTS.map(c => `
+  <article class="card ${c.live ? "live" : "soon"}" style="--ac:${c.ac}" data-href="${c.live ? c.href : ""}" data-ko="${c.ko}">
+    <span class="badge ${c.live ? "b-live" : "b-soon"}">${c.live ? '<span class="dot"></span>체험' : lock+'준비 중'}</span>
+    <div class="viz ${c.viz}">${vizInner(c.viz)}</div>
+    <div class="card-body">
+      <div class="num">${c.n}</div>
+      <div class="titles"><span class="ko">${c.ko}</span><span class="en">${c.en}</span></div>
+      <p class="desc">${c.desc}</p>
+      ${c.live
+        ? `<span class="go">체험하기 ${arrow}</span>`
+        : `<span class="go soon">설계 중</span>`}
+    </div>
+  </article>
+`).join("");
+
+/* 진입 stagger 애니메이션 */
+const cards = [...document.querySelectorAll(".card")];
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if(e.isIntersecting){
+      const i = cards.indexOf(e.target);
+      setTimeout(() => e.target.classList.add("in"), (i % 3) * 90 + 40);
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold:.15 });
+cards.forEach(c => io.observe(c));
+
+/* 클릭 처리 */
+let tt;
+function toast(m){ const el=document.getElementById("toast"); el.textContent=m; el.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("show"),2000); }
+grid.addEventListener("click", e => {
+  const card = e.target.closest(".card");
+  if(!card) return;
+  const href = card.dataset.href;
+  if(href) window.open(href, "_blank");
+  else toast(`'${card.dataset.ko}'는 설계 중이에요 — 다음 차례로 만들어볼까요?`);
+});
+</script>
+</body>
+</html>

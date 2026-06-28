@@ -1,0 +1,15 @@
+# OS / 에디터 잡파일
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
+
+# 로그 / 임시
+*.log
+tmp/
+.cache/
+
+# 의존성(현재 없음, 향후 대비)
+node_modules/

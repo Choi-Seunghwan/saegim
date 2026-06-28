@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>따라 쓰는 문장 · 문장 연구소</title>
+<!-- 유일한 외부 의존: Pretendard 폰트 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
+<style>
+  /* ============================================================
+     따라 쓰는 문장 (C07) — Tracing
+     수집이 아니라 체화. 흐릿한 가이드 문장 위로 직접 타이핑하여
+     글자를 하나씩 또렷한 잉크색으로 덮어 쓴다(트레이싱).
+     타자기의 리듬, 손끝으로 읽는 문장. 집중과 사색의 의식.
+     ============================================================ */
+
+  :root {
+    /* ---- 종이와 잉크 ---- */
+    --paper:       #f4f1ea;   /* 따뜻한 미색 종이 바탕 */
+    --paper-deep:  #ece7dc;   /* 종이 그림자/가장자리 */
+    --ink:         #221f1b;   /* 또렷한 먹 잉크(완성된 글자) */
+    --ink-wet:     #100e0b;   /* 막 찍힌 진한 잉크(피크) */
+    --guide:       #cfc8ba;   /* 가이드(따라 쓸 원본) — 연한 회색 */
+    --guide-soft:  #ddd6c8;   /* 아직 멀리 있는 가이드 글자 */
+    --meta:        #8c8475;   /* 출처/메타 텍스트 */
+    --meta-soft:   #aaa294;   /* 더 옅은 메타 */
+    --hair:        rgba(60, 52, 40, 0.10);   /* 가는 구분선 */
+
+    /* ---- 포인트: 먹/보라 ---- */
+    --accent:      #7d6cc9;   /* 보라 포인트 */
+    --accent-deep: #5f4fb0;   /* 진한 보라 */
+    --accent-soft: rgba(125, 108, 201, 0.14);
+    --accent-glow: rgba(125, 108, 201, 0.30);
+
+    /* ---- 오타 ---- */
+    --err:         #c0533f;   /* 틀린 글자의 붉은 기 */
+    --err-soft:    rgba(192, 83, 63, 0.16);
+
+    /* ---- 모션 타이밍 — 타자기의 호흡 ---- */
+    --ease-out:    cubic-bezier(0.22, 0.61, 0.36, 1);
+    --ease-soft:   cubic-bezier(0.40, 0.00, 0.20, 1);
+    --ease-back:   cubic-bezier(0.34, 1.46, 0.44, 1);
+
+    /* ---- 타이포 ---- */
+    --serif-fallback: "Pretendard", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: "Pretendard", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    word-break: keep-all;
+  }
+
+  /* 종이 질감 — 아주 옅은 결과 빛 번짐. 화면 전체를 덮는다. */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(130% 100% at 50% 8%,
+        #faf7f0 0%, transparent 58%),
+      radial-gradient(120% 120% at 50% 120%,
+        var(--paper-deep) 0%, transparent 60%),
+      repeating-linear-gradient(96deg,
+        rgba(120, 96, 60, 0.000) 0px,
+        rgba(120, 96, 60, 0.018) 1.5px,
+        rgba(120, 96, 60, 0.000) 3px);
+  }
+  /* 종이 가장자리의 미세한 비네팅 */
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    box-shadow: inset 0 0 220px rgba(70, 58, 40, 0.10);
+  }
+
+  /* ============================================================
+     보이지 않는 입력 캡처 — 키 입력을 모두 받아 가이드에 덮는다
+     화면 밖이 아니라 무대 위에 투명하게 깔아 모바일 키보드 대응
+     ============================================================ */
+  #capture {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    opacity: 0;
+    border: none;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    resize: none;
+    font-size: 16px;        /* iOS 자동 줌 방지 */
+    -webkit-user-select: text;
+    cursor: text;
+  }
+
+  /* ============================================================
+     무대 — 중앙 정렬, 넓은 여백, 집중의 공간
+     ============================================================ */
+  #stage {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    align-items: stretch;
+    pointer-events: none;   /* 입력은 #capture 가 받음 */
+  }
+
+  /* ---------- 상단 바: 제목 + 진척 지표 ---------- */
+  #topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px clamp(20px, 5vw, 64px) 0;
+    opacity: 0;
+    animation: fadeDown 1.0s var(--ease-out) 0.15s forwards;
+  }
+  .brand {
+    display: flex; align-items: baseline; gap: 10px;
+    user-select: none;
+  }
+  .brand .mark {
+    font-size: 12.5px; letter-spacing: 0.18em;
+    color: var(--meta); font-weight: 600;
+    text-transform: uppercase;
+  }
+  .brand .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+    box-shadow: 0 0 0 0 var(--accent-glow);
+    animation: pulseDot 2.6s var(--ease-soft) infinite;
+  }
+  .brand .ttl {
+    font-size: 13px; letter-spacing: 0.02em;
+    color: var(--ink); font-weight: 600;
+  }
+
+  /* 지표 묶음 */
+  #stats {
+    display: flex; align-items: stretch; gap: 0;
+    user-select: none;
+  }
+  .stat {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 2px 16px;
+    position: relative;
+  }
+  .stat + .stat::before {
+    content: ""; position: absolute; left: 0; top: 18%; bottom: 18%;
+    width: 1px; background: var(--hair);
+  }
+  .stat .num {
+    font-size: 17px; font-weight: 700; line-height: 1;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    transition: color 0.4s var(--ease-soft), transform 0.3s var(--ease-back);
+  }
+  .stat .num.bump { transform: translateY(-2px); }
+  .stat .lbl {
+    margin-top: 5px;
+    font-size: 10px; letter-spacing: 0.1em;
+    color: var(--meta-soft); text-transform: uppercase;
+  }
+  .stat.acc .num { color: var(--accent-deep); }
+
+  /* ---------- 중앙: 글쓰기 판 ---------- */
+  #board {
+    align-self: center;
+    width: 100%;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 clamp(20px, 6vw, 72px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(24px, 4vh, 44px);
+  }
+
+  /* 문장 번호 인덱스 — 페이지처럼 */
+  #pageno {
+    font-size: 12px; letter-spacing: 0.22em;
+    color: var(--meta-soft); font-weight: 600;
+    text-transform: uppercase;
+    user-select: none;
+    opacity: 0;
+    transition: opacity 0.5s var(--ease-soft), transform 0.5s var(--ease-out);
+  }
+  #pageno .cur { color: var(--accent); }
+
+  /* ---- 따라 쓰는 글자 영역 ---- */
+  #tracewrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  #trace {
+    position: relative;
+    font-weight: 600;
+    /* 본문체 느낌의 큰 타이포 + 약한 모노 감성(자간/숫자) */
+    font-size: clamp(27px, 4.4vw, 46px);
+    line-height: 1.62;
+    letter-spacing: 0.005em;
+    text-align: center;
+    max-width: 18em;
+    transition: opacity 0.6s var(--ease-soft), filter 0.6s var(--ease-soft),
+                transform 0.6s var(--ease-out);
+  }
+  /* 문장 라인(줄바꿈 단위) */
+  .line { display: block; }
+  .line.blank { height: 0.5em; }   /* 빈 줄 여유 */
+
+  /* 개별 글자 셀 — 가이드 위에 또렷한 잉크를 덮는다 */
+  .ch {
+    position: relative;
+    display: inline-block;
+    color: var(--guide);            /* 기본: 흐릿한 가이드 */
+    transition: color 0.28s var(--ease-soft), transform 0.28s var(--ease-back),
+                text-shadow 0.4s var(--ease-soft);
+    will-change: color, transform;
+  }
+  /* 멀리 있는(아직 한참 남은) 가이드는 더 옅게 — 시선이 앞쪽에 머물게 */
+  .ch.far { color: var(--guide-soft); }
+  /* 공백 글자: 폭은 유지하되 표시는 비움 */
+  .ch.space { color: transparent; }
+
+  /* 또렷하게 덮인(맞게 친) 글자 — 잉크가 찍힌다 */
+  .ch.done {
+    color: var(--ink);
+  }
+  /* 막 찍힌 글자: 잠깐 진하게 + 살짝 솟았다가 가라앉음(잉크 압인) */
+  .ch.struck {
+    color: var(--ink-wet);
+    animation: ink 0.5s var(--ease-out);
+  }
+  /* 틀린 글자: 부드럽게 흔들리며 붉은 기 */
+  .ch.wrong {
+    color: var(--err);
+    animation: shake 0.42s var(--ease-soft);
+  }
+  .ch.wrong.space {
+    /* 공백을 틀리면 밑에 붉은 자국 */
+    color: transparent;
+  }
+  .ch.wrong.space::after {
+    content: "";
+    position: absolute; left: 12%; right: 12%; bottom: 0.28em;
+    height: 2px; border-radius: 2px;
+    background: var(--err);
+    animation: shake 0.42s var(--ease-soft);
+  }
+
+  /* 현재 커서가 놓인 글자 — 밑에 깜빡이는 캐럿 */
+  .ch.cursor::after {
+    content: "";
+    position: absolute;
+    left: -0.04em; right: -0.04em;
+    bottom: -0.04em;
+    height: 0.085em;
+    min-height: 2px;
+    border-radius: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+    animation: blink 1.05s steps(1, end) infinite;
+  }
+  /* 공백/줄끝 커서도 보이도록 너비 확보용 가짜 글자 너비 유지 */
+  .ch.cursor.space { color: transparent; }
+
+  /* 문장 전체 밑줄(완성 시 그어짐) */
+  #underline {
+    position: relative;
+    width: 0%;
+    height: 2px;
+    margin-top: -6px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+    box-shadow: 0 0 14px var(--accent-glow);
+    opacity: 0;
+    transition: width 0.8s var(--ease-out), opacity 0.5s var(--ease-soft);
+    align-self: center;
+  }
+
+  /* ---- 출처(가이드 아래, 옅게) ---- */
+  #meta {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    opacity: 0;
+    transition: opacity 0.6s var(--ease-soft), transform 0.6s var(--ease-out);
+    user-select: none;
+  }
+  #meta .who {
+    font-size: clamp(13px, 1.6vw, 15px);
+    color: var(--meta); font-weight: 600; letter-spacing: 0.02em;
+  }
+  #meta .src {
+    font-size: 11.5px; color: var(--meta-soft); letter-spacing: 0.06em;
+  }
+  #meta .who b { color: var(--accent-deep); font-weight: 700; }
+
+  /* ---------- 하단: 진행률 바 + 힌트 ---------- */
+  #bottom {
+    padding: 0 clamp(20px, 5vw, 64px) 24px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    opacity: 0;
+    animation: fadeUp 1.0s var(--ease-out) 0.3s forwards;
+  }
+
+  /* 진행률 바 */
+  #progwrap {
+    width: min(440px, 70vw);
+    height: 4px;
+    background: var(--paper-deep);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px var(--hair);
+  }
+  #prog {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+    transition: width 0.18s var(--ease-out);
+  }
+
+  /* 힌트 / 안내 칩 */
+  #hint {
+    font-size: 12.5px; letter-spacing: 0.02em;
+    color: var(--meta);
+    display: flex; align-items: center; gap: 8px;
+    transition: opacity 0.5s var(--ease-soft), transform 0.5s var(--ease-out);
+    user-select: none;
+    text-align: center;
+  }
+  #hint .key {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 1.5em; padding: 1px 6px;
+    font-size: 10.5px; font-weight: 700;
+    color: var(--accent-deep);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-glow);
+    border-radius: 5px;
+  }
+  #hint.fade { opacity: 0; transform: translateY(4px); }
+
+  /* ============================================================
+     체화 완료 — 잔잔한 마감 토스트(벨 느낌)
+     ============================================================ */
+  #done-toast {
+    position: fixed;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(0.92);
+    z-index: 8;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 22px 34px;
+    background: rgba(247, 244, 237, 0.86);
+    backdrop-filter: blur(8px) saturate(1.1);
+    -webkit-backdrop-filter: blur(8px) saturate(1.1);
+    border: 1px solid var(--accent-glow);
+    border-radius: 18px;
+    box-shadow: 0 18px 60px rgba(70, 58, 40, 0.18),
+                0 0 0 1px rgba(255,255,255,0.5) inset;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s var(--ease-out), transform 0.55s var(--ease-back);
+  }
+  #done-toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  #done-toast .ring {
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 2px solid var(--accent);
+    display: grid; place-items: center;
+    position: relative;
+  }
+  #done-toast .ring::before {
+    /* 벨 파동 */
+    content: ""; position: absolute; inset: -4px;
+    border-radius: 50%; border: 2px solid var(--accent);
+    opacity: 0;
+  }
+  #done-toast.show .ring::before {
+    animation: bell 0.9s var(--ease-out);
+  }
+  #done-toast .ring .tick {
+    width: 18px; height: 10px;
+    border-left: 2.5px solid var(--accent-deep);
+    border-bottom: 2.5px solid var(--accent-deep);
+    transform: rotate(-45deg) translate(1px, -2px);
+    transform-origin: center;
+  }
+  #done-toast .big {
+    font-size: 16px; font-weight: 700; color: var(--ink);
+    letter-spacing: 0.03em;
+  }
+  #done-toast .sub {
+    font-size: 11.5px; color: var(--meta); letter-spacing: 0.04em;
+  }
+
+  /* ============================================================
+     전체 완주 — 마지막 화면
+     ============================================================ */
+  #finale {
+    position: fixed; inset: 0; z-index: 9;
+    display: grid; place-items: center;
+    background: radial-gradient(120% 100% at 50% 30%, #faf7f0 0%, var(--paper) 60%, var(--paper-deep) 100%);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.9s var(--ease-out);
+  }
+  #finale.show { opacity: 1; pointer-events: auto; }
+  .fin-card {
+    text-align: center;
+    transform: translateY(14px);
+    transition: transform 0.9s var(--ease-out);
+    padding: 0 24px;
+  }
+  #finale.show .fin-card { transform: translateY(0); }
+  .fin-card .seal {
+    width: 64px; height: 64px; margin: 0 auto 22px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    border: 1.5px solid var(--accent-glow);
+    display: grid; place-items: center;
+    color: var(--accent-deep);
+    font-size: 26px; font-weight: 800;
+  }
+  .fin-card h1 {
+    margin: 0 0 12px;
+    font-size: clamp(24px, 4vw, 34px);
+    color: var(--ink); font-weight: 700; letter-spacing: 0.01em;
+  }
+  .fin-card p {
+    margin: 0 0 28px;
+    font-size: 14.5px; color: var(--meta); line-height: 1.7;
+  }
+  .fin-card .figs {
+    display: flex; justify-content: center; gap: 30px; margin-bottom: 30px;
+  }
+  .fin-card .fig .n {
+    font-size: 28px; font-weight: 800; color: var(--accent-deep);
+    font-variant-numeric: tabular-nums;
+  }
+  .fin-card .fig .l {
+    font-size: 11px; color: var(--meta-soft); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-top: 4px;
+  }
+  .btn {
+    pointer-events: auto;
+    appearance: none; border: none; cursor: pointer;
+    font-family: inherit;
+    font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+    padding: 13px 28px; border-radius: 30px;
+    box-shadow: 0 10px 30px var(--accent-glow);
+    transition: transform 0.25s var(--ease-back), box-shadow 0.25s var(--ease-soft);
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 14px 38px var(--accent-glow); }
+  .btn:active { transform: translateY(0) scale(0.98); }
+
+  /* 모바일 키보드 안내(터치 기기에서만) */
+  #tap-cue {
+    position: fixed; left: 50%; bottom: 92px;
+    transform: translateX(-50%);
+    z-index: 6;
+    font-size: 12px; color: var(--accent-deep); font-weight: 600;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-glow);
+    padding: 8px 16px; border-radius: 22px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s var(--ease-soft);
+  }
+  #tap-cue.show { opacity: 1; }
+
+  /* ============================================================
+     키프레임
+     ============================================================ */
+  @keyframes ink {
+    0%   { transform: translateY(0)   scale(1);    }
+    28%  { transform: translateY(-0.06em) scale(1.07); }
+    100% { transform: translateY(0)   scale(1);    }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    18%  { transform: translateX(-0.07em) rotate(-1.4deg); }
+    40%  { transform: translateX(0.06em)  rotate(1.2deg); }
+    62%  { transform: translateX(-0.045em) rotate(-0.8deg); }
+    82%  { transform: translateX(0.025em) rotate(0.4deg); }
+  }
+  @keyframes blink {
+    0%, 48%   { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+  @keyframes pulseDot {
+    0%   { box-shadow: 0 0 0 0 var(--accent-glow); }
+    70%  { box-shadow: 0 0 0 7px rgba(125,108,201,0); }
+    100% { box-shadow: 0 0 0 0 rgba(125,108,201,0); }
+  }
+  @keyframes bell {
+    0%   { opacity: 0.7; transform: scale(1); }
+    100% { opacity: 0;   transform: scale(1.9); }
+  }
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 모션 최소화 선호 존중 */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.08s !important;
+    }
+    .ch.cursor::after { animation: none; opacity: 1; }
+  }
+
+  /* ============================================================
+     반응형 — 모바일에서 깨지지 않게
+     ============================================================ */
+  @media (max-width: 640px) {
+    #topbar { padding: 16px 18px 0; flex-direction: column; align-items: flex-start; gap: 12px; }
+    #stats { align-self: stretch; justify-content: space-between; }
+    .stat { padding: 2px 10px; flex: 1; }
+    #board { padding: 0 20px; gap: 22px; }
+    #trace { line-height: 1.55; }
+    #bottom { padding: 0 18px 18px; }
+    #progwrap { width: 80vw; }
+    #hint { font-size: 11.5px; }
+  }
+  @media (max-height: 560px) {
+    #board { gap: 14px; }
+    #trace { font-size: clamp(22px, 5vw, 34px); }
+  }
+</style>
+</head>
+<body>
+  <!-- 키 입력 캡처용 보이지 않는 입력(모바일 키보드 호출 포함) -->
+  <textarea id="capture" autocomplete="off" autocorrect="off" autocapitalize="off"
+            spellcheck="false" aria-label="문장 따라 쓰기 입력"></textarea>
+
+  <main id="stage">
+    <!-- 상단 바 -->
+    <header id="topbar">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="mark">Sentence Lab</span>
+        <span class="ttl">따라 쓰는 문장</span>
+      </div>
+      <div id="stats">
+        <div class="stat"><span class="num" id="s-done">0</span><span class="lbl">완성</span></div>
+        <div class="stat acc"><span class="num" id="s-prog">0%</span><span class="lbl">진행</span></div>
+        <div class="stat"><span class="num" id="s-acc">100%</span><span class="lbl">정확도</span></div>
+      </div>
+    </header>
+
+    <!-- 중앙 글쓰기 판 -->
+    <section id="board">
+      <div id="pageno"><span class="cur">01</span> · <span id="total">10</span></div>
+
+      <div id="tracewrap">
+        <div id="trace" aria-live="polite"></div>
+      </div>
+      <div id="underline"></div>
+
+      <div id="meta">
+        <div class="who"></div>
+        <div class="src"></div>
+      </div>
+    </section>
+
+    <!-- 하단: 진행률 + 힌트 -->
+    <footer id="bottom">
+      <div id="progwrap"><div id="prog"></div></div>
+      <div id="hint">
+        <span class="key">↵</span>
+        <span id="hint-text">원본을 따라 쳐보세요</span>
+      </div>
+    </footer>
+  </main>
+
+  <!-- 체화 완료 토스트 -->
+  <div id="done-toast">
+    <div class="ring"><div class="tick"></div></div>
+    <div class="big">체화 완료</div>
+    <div class="sub">다음 문장으로</div>
+  </div>
+
+  <!-- 모바일 입력 유도 -->
+  <div id="tap-cue">화면을 톡 두드려 키보드를 여세요</div>
+
+  <!-- 전체 완주 화면 -->
+  <div id="finale">
+    <div class="fin-card">
+      <div class="seal">✓</div>
+      <h1>열 문장을 모두 따라 썼습니다</h1>
+      <p>수집이 아니라 체화. 손끝으로 읽은 문장은 오래 남습니다.</p>
+      <div class="figs">
+        <div class="fig"><div class="n" id="fin-acc">100%</div><div class="l">평균 정확도</div></div>
+        <div class="fig"><div class="n" id="fin-keys">0</div><div class="l">두드린 글자</div></div>
+      </div>
+      <button class="btn" id="again">처음부터 다시</button>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   따라 쓰는 문장 (C07) — 핵심 로직
+   - 가이드 문장을 글자 셀(.ch)로 펼친다.
+   - 보이지 않는 textarea(#capture)로 키 입력을 받아,
+     기대 글자와 비교하며 하나씩 또렷한 잉크로 덮는다(트레이싱).
+   - 맞으면 진해지고, 틀리면 흔들리며 붉은 기 → 같은 자리에서 재시도.
+   - 한 문장을 완성하면 밑줄 + '체화 완료' 모션 후 다음 문장.
+   ============================================================ */
+(function () {
+  "use strict";
+
+  /* ---- 시드 문장 10개(그대로 인라인) ---- */
+  const SEEDS = [
+    {id:1,text:"죽는 날까지 하늘을 우러러\n한 점 부끄럼이 없기를",author:"윤동주",work:"하늘과 바람과 별과 시",year:"1948",theme:"성찰",keywords:["부끄러움","양심","바람"]},
+    {id:2,text:"나 보기가 역겨워 가실 때에는\n말없이 고이 보내 드리오리다",author:"김소월",work:"진달래꽃",year:"1925",theme:"이별",keywords:["이별","체념","헌신"]},
+    {id:3,text:"우리는 만날 때에 떠날 것을 염려하는 것과 같이,\n떠날 때에 다시 만날 것을 믿습니다",author:"한용운",work:"님의 침묵",year:"1926",theme:"이별",keywords:["만남","이별","믿음"]},
+    {id:4,text:"다시 천고의 뒤에\n백마 타고 오는 초인이 있어",author:"이육사",work:"광야",year:"1945",theme:"의지",keywords:["초인","미래","희생"]},
+    {id:5,text:"박제가 되어 버린 천재를 아시오?",author:"이상",work:"날개",year:"1936",theme:"자의식",keywords:["천재","권태","근대"]},
+    {id:6,text:"계절이 지나가는 하늘에는\n가을로 가득 차 있습니다",author:"윤동주",work:"하늘과 바람과 별과 시",year:"1948",theme:"자연",keywords:["가을","하늘","그리움"]},
+    {id:7,text:"하루라도 책을 읽지 않으면\n입안에 가시가 돋는다",author:"안중근",work:"유묵",year:"1910",theme:"배움",keywords:["독서","수양","단련"]},
+    {id:8,text:"천 리 길도\n한 걸음에서 시작된다",author:"노자",work:"도덕경",year:"고전",theme:"배움",keywords:["시작","한걸음","축적"]},
+    {id:9,text:"문장은 끝내기 위해서가 아니라,\n멈추는 법을 배우기 위해 쓴다",author:"새김 편집부",work:"쉼표의 자리",year:"2024",theme:"쓰기",keywords:["문장","멈춤","여백"]},
+    {id:10,text:"모든 책은 첫 문장에서 한 번,\n마지막 문장에서 다시 태어난다",author:"새김 편집부",work:"첫 문장의 무게",year:"2025",theme:"쓰기",keywords:["첫문장","끝문장","탄생"]}
+  ];
+
+  /* ---- DOM 참조 ---- */
+  const $ = (s) => document.querySelector(s);
+  const capture   = $("#capture");
+  const traceEl   = $("#trace");
+  const underline = $("#underline");
+  const metaWho   = $("#meta .who");
+  const metaSrc   = $("#meta .src");
+  const metaBox   = $("#meta");
+  const pageno    = $("#pageno");
+  const pagenoCur = pageno.querySelector(".cur");
+  const totalEl   = $("#total");
+  const sDone     = $("#s-done");
+  const sProg     = $("#s-prog");
+  const sAcc      = $("#s-acc");
+  const progBar   = $("#prog");
+  const hint      = $("#hint");
+  const hintText  = $("#hint-text");
+  const toast     = $("#done-toast");
+  const finale    = $("#finale");
+  const tapCue    = $("#tap-cue");
+
+  totalEl.textContent = SEEDS.length;
+
+  /* ---- 전역 상태 ---- */
+  let qi = 0;                 // 현재 문장 인덱스
+  let cells = [];             // 현재 문장의 글자 셀 정보 [{el, expected, isSpace, isTypable, done}]
+  let pos = 0;                // 현재 커서가 가리키는(다음 입력 받을) 타이핑 가능한 셀의 글로벌 인덱스
+  let totalKeys = 0;          // 누적 두드린 글자 수(정타+오타)
+  let totalHits = 0;          // 누적 정타 수
+  let completed = 0;          // 완성한 문장 수
+  let locked = false;         // 전환 애니메이션 중 입력 잠금
+  let firstKey = false;       // 첫 입력 여부(힌트 처리)
+  const isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+
+  /* ============================================================
+     1) 문장 펼치기 — 가이드 글자를 셀로 만든다
+     줄바꿈(\n)은 .line 으로, 공백은 폭만 가진 .space 셀로.
+     ============================================================ */
+  function buildSentence(idx) {
+    const seed = SEEDS[idx];
+    traceEl.innerHTML = "";
+    cells = [];
+    pos = 0;
+
+    const lines = seed.text.split("\n");
+    lines.forEach((lineText, li) => {
+      const lineEl = document.createElement("span");
+      lineEl.className = "line";
+
+      // 한 줄을 글자 단위로
+      for (const chr of lineText) {
+        const span = document.createElement("span");
+        span.className = "ch";
+        const isSpace = (chr === " ");
+        if (isSpace) {
+          span.classList.add("space");
+          span.innerHTML = "&nbsp;";
+        } else {
+          span.textContent = chr;
+        }
+        lineEl.appendChild(span);
+        // 모든 보이는 글자는 '타이핑 대상'(공백 포함 — 정확히 따라 쓰게)
+        cells.push({
+          el: span,
+          expected: chr,
+          isSpace: isSpace,
+          done: false
+        });
+      }
+      traceEl.appendChild(lineEl);
+
+      // 마지막 줄이 아니면 줄바꿈 표식(엔터로 넘어감) — 보이지 않는 개행 셀
+      if (li < lines.length - 1) {
+        // 줄 끝에 개행 셀 추가(엔터 입력을 기대). 시각적 폭은 0.
+        const brSpan = document.createElement("span");
+        brSpan.className = "ch newline";
+        brSpan.style.display = "inline-block";
+        brSpan.style.width = "0";
+        lineEl.appendChild(brSpan);
+        cells.push({
+          el: brSpan,
+          expected: "\n",
+          isSpace: false,
+          isNewline: true,
+          done: false
+        });
+      }
+    });
+
+    // 진입 애니메이션 준비
+    traceEl.style.opacity = "0";
+    traceEl.style.transform = "translateY(10px)";
+    traceEl.style.filter = "blur(2px)";
+
+    // 출처 채우기
+    metaWho.innerHTML = `<b>${seed.author}</b> · ${seed.work}`;
+    metaSrc.textContent = `${seed.year} · ${seed.theme}`;
+    pagenoCur.textContent = String(idx + 1).padStart(2, "0");
+
+    // 밑줄 리셋
+    underline.style.transition = "none";
+    underline.style.width = "0%";
+    underline.style.opacity = "0";
+    // 강제 reflow 후 트랜지션 복구
+    void underline.offsetWidth;
+    underline.style.transition = "";
+
+    updateFar();      // 멀리 있는 글자 옅게
+    setCursor(0);     // 커서를 첫 셀에
+    updateProgress();
+
+    // 등장
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        traceEl.style.opacity = "1";
+        traceEl.style.transform = "translateY(0)";
+        traceEl.style.filter = "blur(0)";
+        pageno.style.opacity = "1";
+        pageno.style.transform = "translateY(0)";
+        metaBox.style.opacity = "1";
+        metaBox.style.transform = "translateY(0)";
+      });
+    });
+  }
+
+  /* ============================================================
+     2) 커서 — 다음 입력을 받을 셀에 캐럿 표시
+     ============================================================ */
+  function setCursor(i) {
+    cells.forEach((c, k) => c.el.classList.toggle("cursor", k === i && !c.isNewline));
+    // 개행 셀이 커서 위치면, 그 줄의 마지막 보이는 글자 뒤에 캐럿 느낌을 주기 위해
+    // 직전 셀에 cursor 를 두는 대신 개행 셀 자체엔 표시하지 않음(폭 0이라 안 보임).
+    // 대신 개행 차례임을 힌트로 알림.
+    pos = i;
+    updateFar();
+  }
+
+  /* 시선 집중: 현재 위치에서 많이 떨어진(다음 줄 이후) 가이드는 더 옅게 */
+  function updateFar() {
+    // 현재 커서가 속한 줄을 기준으로, 그 다음 줄부터는 .far
+    // 간단히: pos 이후로 12글자 넘게 떨어지면 far
+    cells.forEach((c, k) => {
+      if (c.done) { c.el.classList.remove("far"); return; }
+      const dist = k - pos;
+      c.el.classList.toggle("far", dist > 14);
+    });
+  }
+
+  /* ============================================================
+     3) 입력 처리 — 기대 글자와 비교
+     ============================================================ */
+  function handleChar(input) {
+    if (locked) return;
+    if (pos >= cells.length) return;
+
+    const cell = cells[pos];
+
+    // 첫 입력에서 힌트 거두기
+    if (!firstKey) {
+      firstKey = true;
+      hint.classList.add("fade");
+      tapCue.classList.remove("show");
+    }
+
+    // 개행 셀 차례인데 일반 문자가 들어온 경우: 엔터를 기대 → 안내(틀림 처리)
+    if (cell.isNewline) {
+      // 엔터가 아니면 오타로 간주하고 흔들 대상이 없으니 힌트만 바꿈
+      flashNewlineHint();
+      registerMiss();
+      return;
+    }
+
+    const expected = cell.expected;
+
+    // 정타 판정: 공백은 공백끼리, 일반 글자는 정확히 일치
+    const correct = (input === expected);
+
+    totalKeys++;
+    if (correct) {
+      totalHits++;
+      strike(cell);
+      advance();
+    } else {
+      miss(cell);
+    }
+    updateProgress();
+  }
+
+  /* 엔터 입력 처리(줄바꿈 셀 통과) */
+  function handleEnter() {
+    if (locked) return;
+    if (pos >= cells.length) return;
+    const cell = cells[pos];
+    if (cell.isNewline) {
+      // 줄바꿈을 올바르게 넘김 — 조용히 통과(정타로 카운트하지 않음: 구조 입력)
+      cell.done = true;
+      cell.el.classList.remove("cursor");
+      hintText.textContent = "이어서 따라 쳐보세요";
+      advance(true);
+    } else {
+      // 줄바꿈 차례가 아닌데 엔터 → 미세한 무시(오타로 보지 않음)
+      bumpHint("아직 줄이 끝나지 않았어요");
+    }
+  }
+
+  /* 정타: 잉크가 찍힌다 */
+  function strike(cell) {
+    cell.done = true;
+    cell.el.classList.remove("wrong", "far", "cursor");
+    cell.el.classList.add("done");
+    // struck 재생을 위해 클래스 토글
+    cell.el.classList.remove("struck");
+    void cell.el.offsetWidth;
+    cell.el.classList.add("struck");
+    // 리듬 박동: 진행 바에 미세한 하이라이트
+    pulseProgress();
+    // 브랜드 점도 살짝 반응
+    bumpStat(sDone, false);
+  }
+
+  /* 오타: 흔들리며 붉은 기, 같은 자리 유지 */
+  function miss(cell) {
+    cell.el.classList.remove("wrong");
+    void cell.el.offsetWidth;
+    cell.el.classList.add("wrong");
+    // 잠시 후 붉은 기 거두기(셀은 그대로 가이드로)
+    clearTimeout(cell._t);
+    cell._t = setTimeout(() => {
+      if (!cell.done) cell.el.classList.remove("wrong");
+    }, 520);
+    bumpHint("천천히, 한 글자씩");
+  }
+
+  /* 일반 미스 카운트(개행 자리 오타 등) */
+  function registerMiss() {
+    totalKeys++;
+    updateProgress();
+  }
+
+  /* 커서 전진 */
+  function advance(skipKeyCount) {
+    let next = pos + 1;
+    // 다음 셀이 이미 done(이론상 없음) 이면 건너뜀
+    while (next < cells.length && cells[next].done) next++;
+
+    if (next >= cells.length) {
+      finishSentence();
+      return;
+    }
+    setCursor(next);
+
+    // 다음이 개행 셀이면 힌트로 엔터 안내
+    if (cells[next].isNewline) {
+      bumpHint("다음 줄 — Enter ↵");
+    } else if (firstKey && hintText.textContent === "원본을 따라 쳐보세요") {
+      // 안전장치
+    }
+  }
+
+  /* ============================================================
+     4) 문장 완성 — 밑줄 + 체화 완료 모션 → 다음
+     ============================================================ */
+  function finishSentence() {
+    locked = true;
+    completed++;
+    setStat(sDone, completed);
+    bumpStat(sDone, true);
+
+    // 커서 제거
+    cells.forEach((c) => c.el.classList.remove("cursor"));
+
+    // 잉크 전체가 한 번 진해지는 마감 느낌
+    traceEl.style.transition = "color 0.5s var(--ease-soft), transform 0.6s var(--ease-out), opacity 0.6s var(--ease-soft)";
+
+    // 밑줄을 글자 폭에 맞춰 긋는다
+    drawUnderline();
+
+    // 체화 완료 토스트
+    showToast();
+
+    updateProgress();
+
+    // 다음 문장으로(또는 완주)
+    const isLast = (qi >= SEEDS.length - 1);
+    setTimeout(() => {
+      hideToast();
+      if (isLast) {
+        showFinale();
+        return;
+      }
+      // 종이 넘김: 현재 문장 위로 살짝 밀려 사라짐
+      traceEl.style.transition = "opacity 0.55s var(--ease-soft), transform 0.6s var(--ease-out), filter 0.55s var(--ease-soft)";
+      traceEl.style.opacity = "0";
+      traceEl.style.transform = "translateY(-22px)";
+      traceEl.style.filter = "blur(3px)";
+      metaBox.style.opacity = "0";
+      metaBox.style.transform = "translateY(-8px)";
+      pageno.style.opacity = "0";
+      underline.style.opacity = "0";
+      underline.style.width = "0%";
+
+      setTimeout(() => {
+        qi++;
+        firstKey = true; // 두 번째 문장부터는 힌트 자동 안내만
+        hintText.textContent = "이어서 따라 쳐보세요";
+        hint.classList.remove("fade");
+        buildSentence(qi);
+        // 힌트는 잠깐 보였다가 다음 입력에 사라지도록
+        setTimeout(() => { if (!hasTypedThis()) hint.classList.remove("fade"); }, 50);
+        locked = false;
+        capture.focus({ preventScroll: true });
+      }, 560);
+    }, 1450);
+  }
+
+  // 현재 문장에 입력이 시작됐는지(전환 직후 false)
+  function hasTypedThis() {
+    return cells.some((c) => c.done);
+  }
+
+  /* 밑줄 긋기 — 텍스트 폭 측정 후 그 너비로 */
+  function drawUnderline() {
+    // trace 의 실제 렌더 폭에 맞춰(가운데 정렬) 밑줄
+    const w = Math.min(traceEl.getBoundingClientRect().width, traceEl.scrollWidth);
+    underline.style.opacity = "1";
+    // 살짝 안쪽으로
+    const target = Math.max(60, w * 0.92);
+    underline.style.width = target + "px";
+  }
+
+  /* ============================================================
+     5) 토스트 / 완주
+     ============================================================ */
+  function showToast() {
+    toast.classList.add("show");
+  }
+  function hideToast() {
+    toast.classList.remove("show");
+  }
+
+  function showFinale() {
+    // 누적 정확도/타수 채우기
+    const acc = totalKeys === 0 ? 100 : Math.round((totalHits / totalKeys) * 100);
+    $("#fin-acc").textContent = acc + "%";
+    $("#fin-keys").textContent = totalKeys;
+    finale.classList.add("show");
+    capture.blur();
+  }
+
+  /* ============================================================
+     6) 지표 갱신
+     ============================================================ */
+  function updateProgress() {
+    // 현재 문장 진행률: done 인 '보이는' 셀 / 전체 보이는 셀
+    const visible = cells.filter((c) => !c.isNewline);
+    const doneCount = visible.filter((c) => c.done).length;
+    const pct = visible.length === 0 ? 0 : Math.round((doneCount / visible.length) * 100);
+    progBar.style.width = pct + "%";
+    setStat(sProg, pct + "%");
+
+    // 정확도(누적)
+    const acc = totalKeys === 0 ? 100 : Math.round((totalHits / totalKeys) * 100);
+    setStat(sAcc, acc + "%");
+  }
+
+  function setStat(el, val) {
+    if (el.textContent !== String(val)) el.textContent = val;
+  }
+  function bumpStat(el, strong) {
+    el.classList.remove("bump");
+    void el.offsetWidth;
+    el.classList.add("bump");
+    setTimeout(() => el.classList.remove("bump"), strong ? 360 : 240);
+  }
+
+  // 진행 바 박동(리듬)
+  let pulseT;
+  function pulseProgress() {
+    progBar.style.filter = "brightness(1.25)";
+    clearTimeout(pulseT);
+    pulseT = setTimeout(() => { progBar.style.filter = ""; }, 140);
+  }
+
+  /* 힌트 일시 변경 */
+  let hintRestore;
+  function bumpHint(msg) {
+    hint.classList.remove("fade");
+    hintText.textContent = msg;
+    clearTimeout(hintRestore);
+    hintRestore = setTimeout(() => {
+      if (firstKey) hint.classList.add("fade");
+    }, 1300);
+  }
+  function flashNewlineHint() {
+    bumpHint("다음 줄 — Enter ↵");
+  }
+
+  /* ============================================================
+     7) 입력 바인딩 — textarea 로 캡처
+     IME(한글 조합) 안정성을 위해 beforeinput/keydown 을 함께 본다.
+     value 는 항상 비워, 한 글자씩만 흐르게 한다.
+     ============================================================ */
+
+  // 조합 중 플래그
+  let composing = false;
+
+  capture.addEventListener("compositionstart", () => { composing = true; });
+  capture.addEventListener("compositionend", (e) => {
+    composing = false;
+    // 조합 완료된 글자(들)를 처리
+    const data = e.data || "";
+    feedString(data);
+    capture.value = "";
+  });
+
+  // 일반 입력(IME 외 또는 조합 비사용 환경)
+  capture.addEventListener("input", (e) => {
+    if (composing) return;          // 조합 중엔 compositionend 에서 처리
+    if (e.isComposing) return;
+    const val = capture.value;
+    if (val) {
+      feedString(val);
+      capture.value = "";
+    }
+  });
+
+  // 엔터/특수키
+  capture.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (composing || e.isComposing) return;
+      handleEnter();
+      return;
+    }
+    // 백스페이스: 트레이싱에선 되돌리지 않음(따라 쓰기 흐름 유지) → 입력만 막음
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      bumpHint("앞으로만 — 멈추지 말고");
+      return;
+    }
+    // Tab 등은 무시
+    if (e.key === "Tab") e.preventDefault();
+  });
+
+  /* 들어온 문자열을 글자 단위로 흘려보냄 */
+  function feedString(str) {
+    for (const ch of str) {
+      if (ch === "\n") { handleEnter(); continue; }
+      handleChar(ch);
+    }
+  }
+
+  /* ============================================================
+     8) 포커스 유지 — 항상 입력을 받게
+     ============================================================ */
+  function keepFocus() {
+    if (finale.classList.contains("show")) return;
+    if (locked) return;
+    capture.focus({ preventScroll: true });
+  }
+
+  // 아무 곳이나 클릭/터치하면 포커스
+  window.addEventListener("pointerdown", (e) => {
+    // 버튼 클릭은 제외
+    if (e.target.closest(".btn")) return;
+    keepFocus();
+    if (isTouch) tapCue.classList.remove("show");
+  });
+  // 포커스 잃으면(모바일 키보드 닫힘 등) 데스크탑은 즉시 복구
+  capture.addEventListener("blur", () => {
+    if (!isTouch) setTimeout(keepFocus, 30);
+    else if (!firstKey && !finale.classList.contains("show")) tapCue.classList.add("show");
+  });
+
+  // 데스크탑: 어디서든 타이핑하면 자동 포커스되도록 키다운 위임
+  window.addEventListener("keydown", (e) => {
+    if (document.activeElement !== capture && !finale.classList.contains("show")) {
+      if (e.key.length === 1 || e.key === "Enter") keepFocus();
+    }
+  });
+
+  /* ============================================================
+     9) 완주 후 다시 시작
+     ============================================================ */
+  $("#again").addEventListener("click", () => {
+    finale.classList.remove("show");
+    qi = 0;
+    totalKeys = 0; totalHits = 0; completed = 0;
+    firstKey = false;
+    setStat(sDone, 0);
+    hintText.textContent = "원본을 따라 쳐보세요";
+    hint.classList.remove("fade");
+    buildSentence(0);
+    locked = false;
+    setTimeout(keepFocus, 100);
+  });
+
+  /* ============================================================
+     10) 시작
+     ============================================================ */
+  buildSentence(0);
+
+  // 첫 진입: 힌트 노출, 모바일은 탭 유도
+  if (isTouch) {
+    setTimeout(() => { if (!firstKey) tapCue.classList.add("show"); }, 900);
+  } else {
+    // 데스크탑은 자동 포커스
+    setTimeout(keepFocus, 400);
+  }
+
+  // 가시성 복귀 시 포커스
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) setTimeout(keepFocus, 60);
+  });
+
+})();
+</script>
+</body>
+</html>

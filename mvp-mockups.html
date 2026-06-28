@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>문장 연구소 · MVP 목업 비교</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
+<style>
+  :root{
+    --bg:#f4f3f1; --surface:#ffffff; --ink:#1d1b18; --ink-2:#6b665f; --ink-3:#9a948b; --line:#e6e2db;
+    --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+  ::selection{background:#2f5d4f;color:#fff}
+
+  header{max-width:1120px;margin:0 auto;padding:60px 32px 8px}
+  .eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.32em;color:var(--ink-3);text-transform:uppercase;margin-bottom:16px}
+  h1{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.05}
+  .sub{margin-top:16px;max-width:560px;font-size:1rem;color:var(--ink-2);word-break:keep-all}
+  .hint{margin-top:18px;display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-3);padding:8px 14px;background:var(--surface);border:1px solid var(--line);border-radius:999px}
+
+  .grid{max-width:1120px;margin:0 auto;padding:34px 32px 80px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+  @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr);gap:28px}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr;max-width:340px}}
+
+  .card{display:flex;flex-direction:column;align-items:center;cursor:pointer;opacity:0;transform:translateY(20px);transition:transform .45s cubic-bezier(.2,.7,.3,1),opacity .45s}
+  .card.in{opacity:1;transform:none}
+
+  .phone{position:relative;width:200px;height:412px;border-radius:30px;overflow:hidden;background:#000;
+    box-shadow:0 10px 30px rgba(20,16,12,.16), 0 2px 6px rgba(20,16,12,.1);border:5px solid #16140f;transition:transform .3s, box-shadow .3s}
+  .card:hover .phone{transform:translateY(-8px);box-shadow:0 26px 54px rgba(20,16,12,.26)}
+  .phone iframe{width:400px;height:804px;border:0;transform:scale(.5);transform-origin:top left;pointer-events:none;background:#fff}
+  .phone .scrim{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:22px;
+    background:linear-gradient(to top,rgba(0,0,0,.36),transparent 42%);opacity:0;transition:opacity .3s}
+  .card:hover .phone .scrim{opacity:1}
+  .open{font-size:.8rem;font-weight:700;color:#fff;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);padding:9px 16px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+
+  .meta{margin-top:20px;text-align:center;padding:0 6px}
+  .vnum{font-size:.72rem;font-weight:800;letter-spacing:.12em;color:var(--dot)}
+  .vtitles{display:flex;align-items:baseline;gap:8px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+  .vko{font-size:1.12rem;font-weight:700;letter-spacing:-.01em}
+  .ven{font-size:.68rem;font-weight:600;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase}
+  .vdesc{margin-top:8px;font-size:.85rem;color:var(--ink-2);line-height:1.6;word-break:keep-all}
+  .swatch{display:inline-flex;gap:5px;margin-top:12px}
+  .swatch i{width:15px;height:15px;border-radius:50%;border:1px solid var(--line)}
+
+  footer{max-width:1120px;margin:0 auto;padding:26px 32px 60px;border-top:1px solid var(--line);color:var(--ink-3);font-size:.8rem;line-height:1.8;word-break:keep-all}
+  footer b{color:var(--ink-2)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Sentence Lab · MVP Mockups</div>
+    <h1>같은 앱, 네 가지 옷</h1>
+    <p class="sub">모바일 웹앱 전제로 핵심 화면(홈·발견·서랍·포착·상세)을 동일하게 설계하고, 네 가지 디자인 방향으로 입혔어요. 어느 결이 '문장 연구소'다운지 비교해 보세요.</p>
+    <div class="hint">● 미리보기는 실제 동작 화면 · 카드를 누르면 새 탭에서 직접 조작</div>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    <b>문장 연구소</b> — 새김(SAEGIM) 독립 프로젝트 · MVP 디자인 탐색<br />
+    공통 골격: 하단 탭(홈·발견·서랍) + 플로팅 포착 버튼 · 포착→서랍→재발견 루프 · 저장 상태 유지(localStorage).
+  </footer>
+
+<script>
+/* 4개 디자인 방향 */
+const VERSIONS = [
+  { n:"V1", ko:"따뜻한 종이", en:"Editorial Warm", file:"mockups/v1-editorial.html", dot:"#2f5d4f",
+    sw:["#f6f1e8","#2f5d4f","#2a2520"], desc:"출판사의 서재 같은 따뜻함. 오래 머물고 소장하고 싶은 톤." },
+  { n:"V2", ko:"미니멀 모노", en:"Quiet Mono", file:"mockups/v2-mono.html", dot:"#1b1b1f",
+    sw:["#ffffff","#1b1b1f","#9a948b"], desc:"군더더기 없는 정제된 도구. 빠르고 효율적인 생산성 감성." },
+  { n:"V3", ko:"다크 무대", en:"Dark Stage", file:"mockups/v3-darkstage.html", dot:"#c9a227",
+    sw:["#0e0e10","#c9a227","#f3efe7"], desc:"밤에 펼치는 문장 극장. 몰입과 집중, 고급스러운 어둠." },
+  { n:"V4", ko:"소프트 파스텔", en:"Soft Pastel", file:"mockups/v4-pastel.html", dot:"#d06a8c",
+    sw:["#f5eef6","#d06a8c","#6a8f6b"], desc:"문장마다 감정의 색. 다정하고 산뜻한 일기장 같은 친근함." }
+];
+
+const grid = document.getElementById("grid");
+grid.innerHTML = VERSIONS.map(v => `
+  <article class="card" data-file="${v.file}" style="--dot:${v.dot}">
+    <div class="phone">
+      <iframe src="${v.file}" loading="lazy" title="${v.ko} 미리보기" scrolling="no"></iframe>
+      <div class="scrim"><span class="open">열어서 조작하기 ↗</span></div>
+    </div>
+    <div class="meta">
+      <div class="vnum">${v.n}</div>
+      <div class="vtitles"><span class="vko">${v.ko}</span><span class="ven">${v.en}</span></div>
+      <p class="vdesc">${v.desc}</p>
+      <span class="swatch">${v.sw.map(c=>`<i style="background:${c}"></i>`).join("")}</span>
+    </div>
+  </article>
+`).join("");
+
+/* 클릭 시 새 탭으로 전체 화면 열기 */
+grid.addEventListener("click", e => {
+  const card = e.target.closest(".card");
+  if(card) window.open(card.dataset.file, "_blank");
+});
+
+/* 진입 stagger */
+const cards = [...document.querySelectorAll(".card")];
+const io = new IntersectionObserver((es) => {
+  es.forEach(en => { if(en.isIntersecting){ const i = cards.indexOf(en.target); setTimeout(()=>en.target.classList.add("in"), i*100); io.unobserve(en.target); } });
+}, { threshold:.1 });
+cards.forEach(c => io.observe(c));
+</script>
+</body>
+</html>

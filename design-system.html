@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>새김 · 기획 · 디자인 시스템</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
+<style>
+  :root{
+    /* SAEGIM 정전(SSOT) 토큰 — app.html 기준으로 단일화 (문서 dialect 이름은 유지) */
+    --paper:#F4EEE1; --surface:#FBF7EE; --ink:#2A2521; --ink-2:#6f665a; --ink-3:#a89e8d;
+    --line:#e4dac6; --line-2:#EFE7D6; --accent:#2F5D50; --accent-2:#9A7B4F; --gold:#b08738;
+    --bg:#EFE7D6;
+    --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo",sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--font);background:var(--bg);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--accent);color:#fff}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+
+  /* ===== 레이아웃 ===== */
+  .wrap{display:flex;max-width:1280px;margin:0 auto;min-height:100vh}
+  aside{position:sticky;top:0;align-self:flex-start;width:248px;height:100vh;overflow-y:auto;
+    padding:30px 22px;border-right:1px solid var(--line);background:var(--paper);flex-shrink:0}
+  main{flex:1;min-width:0;padding:46px 52px 100px;background:var(--surface)}
+  @media(max-width:880px){
+    .wrap{flex-direction:column}
+    aside{position:static;width:auto;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+    main{padding:32px 22px 80px}
+  }
+
+  /* ===== 사이드 네비 ===== */
+  .brand{display:flex;flex-direction:column;line-height:1;margin-bottom:6px}
+  .brand .ko{font-size:1.6rem;font-weight:800;letter-spacing:-.02em}
+  .brand .en{font-size:.56rem;font-weight:700;letter-spacing:.34em;color:var(--ink-3);margin-top:5px}
+  .brand-sub{font-size:.74rem;color:var(--ink-2);margin-bottom:24px}
+  nav a{display:block;padding:8px 12px;border-radius:9px;font-size:.88rem;font-weight:600;color:var(--ink-2);margin-bottom:2px;transition:all .14s}
+  nav a:hover{background:var(--line-2);color:var(--ink)}
+  nav a.on{background:var(--accent);color:#fff}
+  nav .grp{font-size:.66rem;font-weight:700;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase;margin:18px 12px 7px}
+  .nav-foot{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);font-size:.72rem;color:var(--ink-3);line-height:1.7}
+
+  /* ===== 섹션 ===== */
+  section{margin-bottom:64px;scroll-margin-top:24px}
+  .sec-tag{font-size:.7rem;font-weight:700;letter-spacing:.16em;color:var(--accent-2);text-transform:uppercase}
+  h2{font-size:1.9rem;font-weight:800;letter-spacing:-.025em;margin:8px 0 6px}
+  h3{font-size:1.14rem;font-weight:800;margin:30px 0 12px;letter-spacing:-.01em}
+  h4{font-size:.95rem;font-weight:700;margin:18px 0 8px;color:var(--ink-2)}
+  p{color:var(--ink-2);margin-bottom:12px;max-width:760px;word-break:keep-all}
+  .lead{font-size:1.05rem;color:var(--ink-2);max-width:760px}
+  strong{color:var(--ink);font-weight:700}
+  .divider{height:1px;background:var(--line);margin:40px 0}
+  ul.clean{list-style:none;max-width:760px}
+  ul.clean li{position:relative;padding-left:18px;margin-bottom:8px;color:var(--ink-2);word-break:keep-all}
+  ul.clean li::before{content:"";position:absolute;left:2px;top:11px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+  ul.clean li b{color:var(--ink)}
+
+  /* ===== 카드(문서용 패널) ===== */
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:680px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  /* ===== 컬러 스와치 ===== */
+  .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+  .sw{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+  .sw .chip{height:60px}
+  .sw .meta{padding:9px 11px}
+  .sw .nm{font-size:.8rem;font-weight:700}
+  .sw .hex{font-size:.72rem;color:var(--ink-3);font-family:var(--serif)}
+  .theme-dots{display:flex;flex-wrap:wrap;gap:9px;margin-top:6px}
+  .theme-dots span{display:inline-flex;align-items:center;gap:7px;font-size:.8rem;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);padding:6px 11px 6px 8px;border-radius:999px}
+  .theme-dots i{width:16px;height:16px;border-radius:50%}
+
+  /* ===== 타이포 샘플 ===== */
+  .type-row{display:flex;align-items:baseline;gap:16px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+  .type-row .lab{width:120px;flex-shrink:0;font-size:.74rem;color:var(--ink-3);font-weight:600}
+  .t-display{font-size:2.4rem;font-weight:800;letter-spacing:-.03em}
+  .t-h1{font-size:1.7rem;font-weight:800;letter-spacing:-.02em}
+  .t-h2{font-size:1.2rem;font-weight:700}
+  .t-body{font-size:1rem}
+  .t-cap{font-size:.8rem;color:var(--ink-3)}
+  .t-serif{font-family:var(--serif);font-size:1.5rem;font-style:italic;color:var(--accent)}
+
+  /* ===== 컴포넌트 갤러리 ===== */
+  .comp{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .btn-solid{background:var(--accent);color:#fff;padding:11px 20px;border-radius:11px;font-weight:700;font-size:.9rem}
+  .btn-ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:10px 19px;border-radius:11px;font-weight:700;font-size:.9rem}
+  .btn-carve{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:11px;font-weight:700;font-size:.9rem}
+  .chip-x{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:.84rem;font-weight:600;color:var(--ink-2)}
+  .chip-x.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* 문장 카드 미니 */
+  .card-mini{width:200px;background:linear-gradient(150deg,#34503f,#28412f);color:#f3eee2;border-radius:14px;padding:20px;box-shadow:0 10px 22px rgba(40,55,40,.22)}
+  .card-mini .q{font-size:1.04rem;font-weight:600;line-height:1.5;word-break:keep-all}
+  .card-mini .by{font-size:.74rem;opacity:.8;margin-top:14px}
+  /* 작가 카드 미니 */
+  .auth-mini{width:150px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px;text-align:center}
+  .auth-mini .av{width:46px;height:46px;border-radius:50%;background:var(--accent);color:#fff;font-family:var(--serif);font-weight:800;font-size:1.1rem;display:flex;align-items:center;justify-content:center;margin:0 auto 9px}
+  .auth-mini .nm{font-size:.9rem;font-weight:800}
+  .auth-mini .ro{font-size:.68rem;color:var(--accent);font-weight:700;margin-top:2px}
+  /* 탭바 미니 */
+  .tabbar-mini{display:flex;align-items:center;justify-content:space-around;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px 8px;max-width:330px}
+  .tabbar-mini .t{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.6rem;font-weight:700;color:var(--ink-3)}
+  .tabbar-mini .t.on{color:var(--accent)}
+  .tabbar-mini .fab{width:38px;height:38px;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transform:translateY(-6px)}
+
+  /* ===== 와이어프레임 ===== */
+  .wire{background:repeating-linear-gradient(45deg,#faf7f0,#faf7f0 8px,#f3eee2 8px,#f3eee2 16px);
+    border:1.5px dashed #c9bfa8;border-radius:14px;padding:12px;width:230px;flex-shrink:0}
+  .wb{border:1.4px solid #b9ad92;background:#fffdf7;border-radius:7px;padding:9px;margin-bottom:8px;font-size:.72rem;font-weight:600;color:#8a7f66;text-align:center}
+  .wb.tall{padding:24px 9px}
+  .wb.h{background:#ece3cf}
+  .wb.row{display:flex;gap:6px}
+  .wb.row .c{flex:1;border:1.2px solid #c5b994;border-radius:5px;padding:10px 4px;background:#fff;font-size:.62rem;color:#9a8e70}
+  .wb.accent{background:#e7ede8;border-color:#9db3a5;color:#2F5D50}
+  .screen-block{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:8px}
+  .screen-text{flex:1;min-width:260px}
+  /* 데모 컨테이너(세 번째 자식)를 맨 위·전체폭·중앙으로 — 와이어/설명은 그 아래로 재정렬 */
+  .screen-block > div:nth-child(3){order:-1;flex-basis:100%;display:flex;flex-direction:column;align-items:center;margin-bottom:24px}
+
+  /* ===== iframe 폰 데모 — 실제 크기로 크게(축소 없음), 깨짐 방지 ===== */
+  .demo-phone{width:408px;max-width:100%;height:818px;border-radius:46px;overflow:hidden;border:9px solid #1c1812;background:#000;
+    box-shadow:0 26px 60px rgba(28,20,12,.34)}
+  .demo-phone iframe{width:100%;height:100%;border:0;display:block;background:var(--paper)}
+  .demo-cap{font-size:.8rem;color:var(--ink-3);margin-top:12px;text-align:center}
+  .demo-link{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;font-weight:700;color:var(--accent);margin-top:6px}
+
+  .pill{display:inline-block;font-size:.66rem;font-weight:700;padding:3px 9px;border-radius:6px;background:var(--accent);color:#fff;vertical-align:middle;margin-left:6px}
+  .pill.soon{background:var(--ink-3)}
+  .pill.b2b{background:var(--accent-2)}
+
+  table.spec{width:100%;border-collapse:collapse;margin:10px 0;font-size:.86rem;max-width:760px}
+  table.spec th,table.spec td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.spec th{color:var(--ink-3);font-weight:700;font-size:.74rem;letter-spacing:.04em;text-transform:uppercase}
+  table.spec td b{color:var(--ink)}
+
+  /* ===== ERD 다이어그램 ===== */
+  .erd{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:14px 0;max-width:760px}
+  .erd-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .erd-box{flex:0 0 auto;border-radius:11px;padding:12px 16px;font-weight:800;font-size:.95rem;color:#fff;line-height:1.2;text-align:center}
+  .erd-box small{display:block;font-size:.62rem;font-weight:600;opacity:.82;margin-top:3px;letter-spacing:.02em}
+  .b-acct{background:var(--accent-2)} .b-coll{background:var(--accent)} .b-card{background:var(--ink)}
+  .erd-rel{font-size:.78rem;font-weight:700;color:var(--ink-3);white-space:nowrap}
+  .erd-note{margin-top:14px;font-size:.8rem;color:var(--ink-2);line-height:1.7;word-break:keep-all}
+  @media(max-width:680px){.erd-row{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- ===== 사이드 네비 ===== -->
+  <aside>
+    <div class="brand"><span class="ko">새김</span><span class="en">SAEGIM</span></div>
+    <div class="brand-sub">기획 · 디자인 시스템</div>
+    <nav id="nav">
+      <a href="#overview">개요</a>
+      <div class="grp">Foundation</div>
+      <a href="#design">디자인 시스템</a>
+      <a href="#ia">정보구조</a>
+      <div class="grp">Screens</div>
+      <a href="#home">홈 · 큐레이션</a>
+      <a href="#search">검색</a>
+      <a href="#discover">발견 · 릴스</a>
+      <a href="#editor">카드 에디터</a>
+      <a href="#shelf">서가 · 컬렉션</a>
+      <a href="#viewer">컬렉션 뷰어</a>
+      <a href="#me">나 · 서랍</a>
+      <div class="grp">System</div>
+      <a href="#cards">카드 시스템</a>
+      <a href="#roadmap">로드맵</a>
+    </nav>
+    <div class="nav-foot">새김(SAEGIM) 독립 프로젝트<br/>v0.1 · 2026-06-26<br/>기획/디자인 단계</div>
+  </aside>
+
+  <!-- ===== 콘텐츠 ===== -->
+  <main>
+    <!-- 개요 -->
+    <section id="overview">
+      <div class="sec-tag">Overview</div>
+      <h2>새김 — 문장을 카드로, 발견하고 새기다</h2>
+      <p class="lead">새김은 좋은 문장을 <strong>카드로 만들어 발견하고 마음에 새기는</strong> 서비스다. 핀터레스트식 단순 나열이 아니라, 문장을 작가·책·테마라는 맥락에 얹어 탐험하게 하는 <strong>깊이 있는 문장 큐레이션 플랫폼</strong>이며, 좋아하는 작가·카피라이터를 구독하는 가벼운 소셜이 더해진다.</p>
+      <div class="grid2" style="margin-top:20px">
+        <div class="panel">
+          <h4>한 줄 정의</h4>
+          <p style="margin:0">문장을 카드로 만들어 발견하고 새기는 곳. 깊은 큐레이션 + 가벼운 작가 구독.</p>
+        </div>
+        <div class="panel">
+          <h4>무게중심</h4>
+          <p style="margin:0">깊은 큐레이션 플랫폼. 문장·독서 애호가·카피라이터라는 또렷한 니치. 입구는 릴스로 가볍게, '가볍게 들어와 깊게 빠지는' 구조.</p>
+        </div>
+        <div class="panel">
+          <h4>타겟</h4>
+          <p style="margin:0">독서·문구 애호가, 카피라이터·기획자, 일상의 문구·아이디어를 기록·공유하려는 미디어 세대.</p>
+        </div>
+        <div class="panel">
+          <h4>브랜드 '새김'</h4>
+          <p style="margin:0">① 문장을 <i>마음에 새기다</i>(소장) ② 글자를 <i>새겨 남기다</i>(판각 = 출판 어원, 새김 정체성). 동사 '새기다'.</p>
+        </div>
+      </div>
+
+      <h3>핵심 루프</h3>
+      <div class="panel">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:800;font-size:1.02rem;color:var(--ink)">
+          <span style="color:var(--accent)">발견·포착</span> <span style="color:var(--ink-3)">→</span>
+          <span style="color:var(--accent)">새김(소장)</span> <span style="color:var(--ink-3)">→</span>
+          <span style="color:var(--accent)">재발견(피드·추천)</span> <span style="color:var(--ink-3)">→</span>
+          <span style="color:var(--accent)">활용·공유</span> <span style="color:var(--ink-3)">↻</span>
+        </div>
+        <p style="margin:12px 0 0;font-size:.9rem">문장을 만나고(발견) 만들어(포착) 서랍에 새기면, 추천·피드로 다시 떠오르고(재발견), 검색·공유로 활용되며 다시 새 문장으로 순환한다.</p>
+      </div>
+
+      <h3>통합 데모 <span class="pill">app.html</span></h3>
+      <div class="panel">
+        <p style="margin:0">흩어져 있던 화면을 <b>하나의 실행 가능한 앱</b>으로 엮었다 — <b>saegim/app.html</b>. 하단 5탭(홈·발견·＋포착·서가·나)으로 전환되고, 카드·컬렉션을 누르면 상세 시트가 열리며, 새기기·구독·팔로우가 실제로 동작한다(localStorage 저장). 아래 각 <i>화면(Screen)</i> 섹션의 폰 데모는 모두 이 통합 앱을 해당 화면(<code>#home · #discover · #shelf · #me</code>)으로 띄운 것이다. 포착(＋)은 카드 에디터로 연결된다.</p>
+        <a class="demo-link" href="saegim/app.html" target="_blank" style="margin-top:10px">통합 앱 새 탭으로 열기 ↗</a>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 디자인 시스템 -->
+    <section id="design">
+      <div class="sec-tag">Foundation</div>
+      <h2>디자인 시스템</h2>
+      <p class="lead">정체성은 <strong>따뜻한 종이 + 모던</strong>. 출판의 물성(종이·잉크·각인)에 미디어 세대의 카드·릴스 문법을 얹는다.</p>
+
+      <h3>컬러</h3>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#F4EEE1;border-bottom:1px solid var(--line)"></div><div class="meta"><div class="nm">Cream 크림 배경</div><div class="hex">#F4EEE1</div></div></div>
+        <div class="sw"><div class="chip" style="background:#FBF7EE;border-bottom:1px solid var(--line)"></div><div class="meta"><div class="nm">Paper 카드·시트</div><div class="hex">#FBF7EE</div></div></div>
+        <div class="sw"><div class="chip" style="background:#2A2521"></div><div class="meta"><div class="nm">Ink 본문</div><div class="hex">#2A2521</div></div></div>
+        <div class="sw"><div class="chip" style="background:#2F5D50"></div><div class="meta"><div class="nm">Green 딥그린</div><div class="hex">#2F5D50</div></div></div>
+        <div class="sw"><div class="chip" style="background:#9A7B4F"></div><div class="meta"><div class="nm">Sepia 세피아</div><div class="hex">#9A7B4F</div></div></div>
+        <div class="sw"><div class="chip" style="background:#B23B30"></div><div class="meta"><div class="nm">Stamp 도장 주홍</div><div class="hex">#B23B30</div></div></div>
+        <div class="sw"><div class="chip" style="background:#B08738"></div><div class="meta"><div class="nm">Gold 금박</div><div class="hex">#B08738</div></div></div>
+        <div class="sw"><div class="chip" style="background:#E4DAC6"></div><div class="meta"><div class="nm">Line 경계</div><div class="hex">#E4DAC6</div></div></div>
+      </div>
+      <h4>테마 컬러 (문장 분위기)</h4>
+      <div class="theme-dots">
+        <span><i style="background:#cfe0d4"></i>위로</span><span><i style="background:#e2d3da"></i>이별</span>
+        <span><i style="background:#e8ddbe"></i>시작</span><span><i style="background:#cfd4e6"></i>밤</span>
+        <span><i style="background:#ead2b6"></i>용기</span><span><i style="background:#d6dadc"></i>고독</span>
+        <span><i style="background:#ecd2d0"></i>사랑</span><span><i style="background:#d6e2c8"></i>성장</span>
+      </div>
+
+      <h3>타이포그래피</h3>
+      <p>본문은 <strong>Pretendard</strong>, 강조·인용엔 세리프(Georgia)를 섞어 문학적 결을 낸다. 한글은 <code>word-break:keep-all</code>로 어절 단위 줄바꿈.</p>
+      <div class="panel">
+        <div class="type-row"><span class="lab">Display · 800</span><span class="t-display">새김</span></div>
+        <div class="type-row"><span class="lab">H1 · 800</span><span class="t-h1">문장을 카드로</span></div>
+        <div class="type-row"><span class="lab">H2 · 700</span><span class="t-h2">오늘의 문장</span></div>
+        <div class="type-row"><span class="lab">Body · 400</span><span class="t-body">좋은 문장을 발견하고 마음에 새깁니다.</span></div>
+        <div class="type-row"><span class="lab">Caption</span><span class="t-cap">윤동주 · 하늘과 바람과 별과 시</span></div>
+        <div class="type-row" style="border:0"><span class="lab">Serif 강조</span><span class="t-serif">&ldquo;Saegim&rdquo;</span></div>
+      </div>
+
+      <h3>컴포넌트</h3>
+      <div class="panel">
+        <h4>버튼 · 칩</h4>
+        <div class="comp">
+          <button class="btn-solid">구독</button>
+          <button class="btn-ghost">이어서 보기</button>
+          <button class="btn-carve">＋ 새기기</button>
+          <span class="chip-x on">전체</span>
+          <span class="chip-x">시인</span>
+          <span class="chip-x">카피라이터</span>
+        </div>
+        <h4 style="margin-top:22px">카드 · 작가 · 탭바</h4>
+        <div class="comp" style="align-items:flex-start">
+          <div class="card-mini"><div class="q">문장은 끝내기 위해서가 아니라, 멈추는 법을 배우기 위해 쓴다</div><div class="by">새김 편집부 · 쉼표의 자리</div></div>
+          <div class="auth-mini"><div class="av">윤</div><div class="nm">윤동주</div><div class="ro">시인</div></div>
+          <div>
+            <div class="tabbar-mini">
+              <div class="t on">홈</div><div class="t">발견</div><div class="fab">＋</div><div class="t">서가</div><div class="t">나</div>
+            </div>
+            <div class="demo-cap">하단 5탭 + 포착 FAB</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>톤 &amp; 보이스</h3>
+      <ul class="clean">
+        <li>차분하고 사려 깊게. 과장·호들갑 없이, 문장에게 자리를 내어준다.</li>
+        <li>행위 동사는 '새기다 · 담다 · 줍다 · 곁에 두다'. '좋아요'보다 <b>'새기기'</b>가 중심 행위.</li>
+        <li>출판사의 신뢰 — 출처를 분명히, 큐레이션에 전문성을.</li>
+      </ul>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 정보구조 -->
+    <section id="ia">
+      <div class="sec-tag">Foundation</div>
+      <h2>정보구조 (IA)</h2>
+      <p class="lead">하단 5탭. 새김만의 강점(발견·새김)이 메인, 작가 구독은 양념. 서랍은 메인에서 내려 '나' 안에 둔다.</p>
+      <table class="spec">
+        <tr><th>탭</th><th>역할</th><th>핵심</th></tr>
+        <tr><td><b>홈 · 탐색</b></td><td>쇼핑몰식 큐레이션 진열</td><td>오늘의 문장 · 테마 · 작가 · 컬렉션 · 신간</td></tr>
+        <tr><td><b>발견 · 릴스</b></td><td>세로 스와이프 몰입 탐색</td><td>한 장씩 만나기 · 새기기 · 구독</td></tr>
+        <tr><td><b>＋ 포착</b></td><td>카드 에디터(서비스 심장)</td><td>배경·글자·꾸밈으로 카드 발행</td></tr>
+        <tr><td><b>서가 · 컬렉션</b></td><td>컬렉션(문장 묶음) 갤러리 탐색</td><td>무드·정렬·에디터픽 · 공식 계정 구독</td></tr>
+        <tr><td><b>나</b></td><td>프로필 + 서랍(히든)</td><td>새긴 문장 티켓 · 발행물 · 통계</td></tr>
+      </table>
+      <p style="margin-top:14px;font-size:.9rem;color:var(--ink-3)">SNS는 '작가 구독'으로만. 일반인 팔로우·댓글·좋아요 경쟁은 배제하거나 최소.</p>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 홈 -->
+    <section id="home">
+      <div class="sec-tag">Screen 01</div>
+      <h2>홈 · 큐레이션 탐색</h2>
+      <p class="lead">서비스의 메인 정보. 문장을 작가·테마·컬렉션·신간이라는 맥락에 얹어 진열하는 '쇼핑몰 홈' 구조 — '모음'이 아니라 '탐험'.</p>
+      <div class="screen-block">
+        <div class="wire">
+          <div class="wb h">헤더 · 로고 · 검색</div>
+          <div class="wb tall accent">히어로 — 오늘의 문장</div>
+          <div class="wb row"><div class="c">테마</div><div class="c">테마</div><div class="c">테마</div></div>
+          <div class="wb row"><div class="c">작가</div><div class="c">작가</div><div class="c">작가</div></div>
+          <div class="wb row"><div class="c">컬렉션</div><div class="c">컬렉션</div></div>
+          <div class="wb">신간 속 문장 · 당신을 위한</div>
+          <div class="wb h">탭바</div>
+        </div>
+        <div class="screen-text">
+          <h4>목적</h4>
+          <p>들어오자마자 '오늘의 문장'을 만나고, 취향대로 탐색을 시작하게 한다.</p>
+          <h4>핵심 진열대</h4>
+          <ul class="clean">
+            <li><b>오늘의 문장</b> — 큐레이션 히어로 카드</li>
+            <li><b>테마로 둘러보기</b> — 위로·이별·시작·밤…</li>
+            <li><b>지금 뜨는 작가 / 이주의 카피라이터</b> — 구독 진입</li>
+            <li><b>큐레이터 컬렉션 · 신간 속 문장</b> — 출판 연계</li>
+          </ul>
+        </div>
+        <div>
+          <div class="demo-phone"><iframe src="saegim/app.html#home" loading="lazy" title="홈 데모"></iframe></div>
+          <div class="demo-cap">통합 데모 · app.html#home (홈 탭)</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 검색 -->
+    <section id="search">
+      <div class="sec-tag">Screen 00-1</div>
+      <h2>검색 · 계정·컬렉션·문장</h2>
+      <p class="lead">홈 상단 검색 아이콘으로 진입. 평등 계정·컬렉션·문장을 한곳에서 찾는 <strong>계정 발견의 주 경로</strong> — 서가에서 분리했다.</p>
+      <div class="screen-block">
+        <div class="wire">
+          <div class="wb h">← · 검색창</div>
+          <div class="wb row"><div class="c">전체</div><div class="c">계정</div><div class="c">컬렉션</div><div class="c">문장</div></div>
+          <div class="wb">최근 검색 · 무드 칩 (빈 입력)</div>
+          <div class="wb">계정 결과 — 아바타·인증✓·구독</div>
+          <div class="wb row"><div class="c">컬렉션</div><div class="c">컬렉션</div></div>
+          <div class="wb">문장 결과</div>
+        </div>
+        <div class="screen-text">
+          <h4>통합 결과</h4>
+          <ul class="clean">
+            <li><b>계정</b> — 평등 계정(인증 ✓는 상태) · 바로 구독</li>
+            <li><b>컬렉션</b> — 탭하면 컬렉션 뷰어로</li>
+            <li><b>문장</b> — 탭하면 문장 상세로</li>
+          </ul>
+          <h4>빈 입력 · 좁히기</h4>
+          <ul class="clean">
+            <li>최근 검색 · <b>무드로 찾기</b> 칩 · 인기 컬렉션</li>
+            <li>세그먼트(전체/계정/컬렉션/문장)로 결과 좁히기</li>
+          </ul>
+        </div>
+        <div>
+          <div class="demo-phone"><iframe src="saegim/app.html#search" loading="lazy" title="검색 데모"></iframe></div>
+          <div class="demo-cap">통합 데모 · app.html#search</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 발견 -->
+    <section id="discover">
+      <div class="sec-tag">Screen 02</div>
+      <h2>발견 · 릴스</h2>
+      <p class="lead">위아래로 스와이프하며 문장을 한 장씩 몰입해 만나는 탐색. 손가락이 멈추지 않는 릴스의 리듬에 문장을 얹는다.</p>
+      <div class="screen-block">
+        <div class="wire">
+          <div class="wb tall accent" style="padding:40px 9px">문장 카드<br/>(풀스크린)</div>
+          <div class="wb row"><div class="c">작가·구독</div><div class="c">새기기 / ♡ / 공유</div></div>
+          <div class="wb h">탭바</div>
+        </div>
+        <div class="screen-text">
+          <h4>목적</h4>
+          <p>가벼운 입구. 구독한 계정의 문장과 큐레이션이 섞여 흐른다.</p>
+          <h4>인터랙션</h4>
+          <ul class="clean">
+            <li>세로 스냅 스와이프(휠·터치·키보드)</li>
+            <li>우측 레일 — <b>새기기</b>(서랍), 좋아요, 공유</li>
+            <li>긴 글은 <b>카드 안에서 스크롤</b>해 읽기</li>
+          </ul>
+          <p style="font-size:.86rem;color:var(--ink-3)">원형: 컨셉 01 무대(gallery.html)</p>
+        </div>
+        <div>
+          <div class="demo-phone"><iframe src="saegim/app.html#discover" loading="lazy" title="발견 데모"></iframe></div>
+          <div class="demo-cap">통합 데모 · app.html#discover (발견 탭)</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 에디터 -->
+    <section id="editor">
+      <div class="sec-tag">Screen 03 · 서비스의 심장</div>
+      <h2>카드 에디터 · 포착</h2>
+      <p class="lead">문장을 적고 배경·글자·꾸밈으로 카드를 만들어 발행한다. 인스타 스토리 에디터처럼, '만드는 재미'가 있는 새김의 핵심 창작 도구.</p>
+      <div class="screen-block">
+        <div class="wire">
+          <div class="wb h">✕ · 카드 만들기 · 발행</div>
+          <div class="wb row"><div class="c">＋ 페이지</div><div class="c">긴 글 스크롤</div></div>
+          <div class="wb tall accent" style="padding:36px 9px">카드 캔버스<br/>(실시간 편집)</div>
+          <div class="wb row"><div class="c">배경</div><div class="c">글자</div><div class="c">꾸밈</div><div class="c">출처</div></div>
+        </div>
+        <div class="screen-text">
+          <h4>도구</h4>
+          <ul class="clean">
+            <li><b>배경</b> — 단색·그라데이션·패턴·이미지</li>
+            <li><b>글자</b> — 폰트·크기·색·정렬</li>
+            <li><b>꾸밈</b> — 따옴표·도장·스티커(드래그 배치)</li>
+            <li><b>출처</b> — 저자·책 + <span class="pill b2b">B2B</span> 책 연결</li>
+          </ul>
+          <h4>한 종류 + 페이지</h4>
+          <p>카드는 한 종류(스토리 카드 없음). 긴 글은 <b>카드 안 스크롤</b>, 여러 장은 <b>＋페이지로 추가해 컬렉션</b>으로 발행 — 1장도 1장 컬렉션.</p>
+        </div>
+        <div>
+          <div class="demo-phone"><iframe src="saegim/editor.html" loading="lazy" title="에디터 데모"></iframe></div>
+          <div class="demo-cap">라이브 데모 · saegim/editor.html</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 서가 -->
+    <section id="shelf">
+      <div class="sec-tag">Screen 04</div>
+      <h2>서가 · 컬렉션 갤러리</h2>
+      <p class="lead">서가는 <strong>사람을 찾는 곳이 아니라 문장 묶음(컬렉션)을 탐색하는 곳</strong>이다. 콘텐츠 중심 — 일반 사용자는 컬렉션·문장으로 기여하되 팔로우 대상이 되지 않고, 구독·노출되는 주체는 <strong>공식·인증 계정</strong>(작가·출판사·에디터 픽)뿐이다.</p>
+      <div class="screen-block">
+        <div class="wire">
+          <div class="wb h">검색 — 컬렉션·문장·테마</div>
+          <div class="wb row"><div class="c">발행처✓</div><div class="c">발행처✓</div><div class="c">＋</div></div>
+          <div class="wb tall accent">에디터 픽 — 오늘의 컬렉션</div>
+          <div class="wb row"><div class="c">무드 칩</div><div class="c">인기/최신</div></div>
+          <div class="wb row"><div class="c">컬렉션</div><div class="c">컬렉션</div></div>
+          <div class="wb row"><div class="c">컬렉션</div><div class="c">컬렉션</div></div>
+          <div class="wb h">탭바</div>
+        </div>
+        <div class="screen-text">
+          <h4>왜 '컬렉션 갤러리'인가</h4>
+          <ul class="clean">
+            <li>'누구나 큐레이터(기여)' ↔ '일반인 팔로우 배제'의 충돌 해소 — <b>기여는 누구나, 팔로우는 공식 계정만</b></li>
+            <li>타인을 캐릭터 호칭으로 부르지 않는다 — 컬렉션 만든 이는 <b>닉네임 크레딧</b> 정도</li>
+          </ul>
+          <h4>탐색 축 (콘텐츠 중심)</h4>
+          <ul class="clean">
+            <li><b>무드 칩</b> — 밤·위로·이별·시작·고독·사랑·성장·비</li>
+            <li><b>정렬</b> — 인기순 ↔ 최신순</li>
+            <li><b>에디터 픽 히어로</b> — 오늘의 공식 컬렉션</li>
+            <li><s>구독한 발행처 행</s> — <b>제거됨</b>: 모두 동등한 계정이라 추천 근거가 약함. 계정 발견은 <b>검색</b>으로</li>
+          </ul>
+          <h4>컬렉션 카드 → 상세 시트</h4>
+          <ul class="clean">
+            <li>대표 문장 · 제목 · 문장 수 · ♡ 새김 수 · 발행처(✓)</li>
+            <li>탭하면 <b>보드 상세 시트</b> — 설명·문장 모음·팔로우</li>
+          </ul>
+          <p style="font-size:.86rem;color:var(--ink-3)">공식·인증 계정(작가·출판사·에디터 픽)의 프로필은 <a class="demo-link" href="saegim/curator.html" target="_blank" style="margin:0">큐레이터 페이지 ↗</a> 형태로 진입 — 일반 사용자에겐 적용하지 않음.</p>
+        </div>
+        <div>
+          <div class="demo-phone"><iframe src="saegim/app.html#shelf" loading="lazy" title="서가 컬렉션 갤러리 데모"></iframe></div>
+          <div class="demo-cap">통합 데모 · app.html#shelf (서가 탭)</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 컬렉션 뷰어 -->
+    <section id="viewer">
+      <div class="sec-tag">Screen 04-1</div>
+      <h2>컬렉션 뷰어 · 2D 넘기기</h2>
+      <p class="lead">컬렉션을 열면 풀스크린 뷰어로 들어간다. <strong>가로</strong>로 같은 컬렉션 안 문장(8~10장)을 넘기고, <strong>세로</strong>로 다음 컬렉션으로 이동한다 — 인스타 캐러셀과 릴스를 한 화면에서 합친 격자 탐색.</p>
+      <div class="screen-block">
+        <div class="wire">
+          <div class="wb h">제목 · 제작자(계정✓) · n/N</div>
+          <div class="wb tall accent" style="padding:40px 9px">문장 카드<br/>← 가로 →</div>
+          <div class="wb">우측 진행 네비 · 도트 → 막대</div>
+          <div class="wb row"><div class="c">팔로우</div><div class="c">♡</div><div class="c">새기기</div></div>
+          <div class="wb">▼ 세로 = 다음 컬렉션</div>
+        </div>
+        <div class="screen-text">
+          <h4>두 축</h4>
+          <ul class="clean">
+            <li><b>가로 스와이프</b> — 같은 컬렉션 안 문장 페이지(8~10장)</li>
+            <li><b>세로 스와이프</b> — 다음/이전 컬렉션으로 이동(페이지 리셋)</li>
+            <li><b>우측 진행 네비</b> — 현재 위치를 도트→막대로 표시, 탭 이동</li>
+          </ul>
+          <h4>상단 · 하단</h4>
+          <ul class="clean">
+            <li>상단: 컬렉션 제목 · 제작자 계정(<b>인증 배지 ✓</b>는 상태 표시) · 현재 n/N</li>
+            <li>하단: 컬렉션 팔로우 · 좋아요 · 새기기</li>
+          </ul>
+          <p style="font-size:.86rem;color:var(--ink-3)">키보드 ←→(페이지)·↑↓(컬렉션), 휠·드래그 지원</p>
+        </div>
+        <div>
+          <div class="demo-phone"><iframe src="saegim/collection.html" loading="lazy" title="컬렉션 2D 뷰어 데모"></iframe></div>
+          <div class="demo-cap">라이브 데모 · saegim/collection.html</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 나 -->
+    <section id="me">
+      <div class="sec-tag">Screen 05</div>
+      <h2>나 · 서랍</h2>
+      <p class="lead">프로필과 내가 새긴 문장 서랍. 서랍은 메인 탭에서 내려 여기 안에 둔다 — 새긴 문장이 '티켓'으로 쏟아져 손으로 뒤적이는 보조 공간.</p>
+      <div class="screen-block">
+        <div class="wire">
+          <div class="wb h">프로필 · 통계</div>
+          <div class="wb row"><div class="c">새김 수</div><div class="c">발행 수</div><div class="c">구독 수</div></div>
+          <div class="wb tall">서랍 — 티켓 뒤적이기</div>
+          <div class="wb row"><div class="c">발행</div><div class="c">발행</div><div class="c">발행</div></div>
+          <div class="wb h">탭바</div>
+        </div>
+        <div class="screen-text">
+          <h4>서랍(티켓)</h4>
+          <ul class="clean">
+            <li>새긴 문장이 절취선·펀치홀 <b>티켓</b>으로 쌓임</li>
+            <li>맨 위 티켓을 좌우로 밀어 <b>뒤적이기</b>(덱 스와이프)</li>
+            <li>새김만의 물성 — 디지털 속 아날로그 손맛</li>
+          </ul>
+          <a class="demo-link" href="saegim/app.html#drawer" target="_blank">통합 앱에서 서랍 열기 ↗</a>
+        </div>
+        <div>
+          <div class="demo-phone"><iframe src="saegim/app.html#me" loading="lazy" title="나 데모"></iframe></div>
+          <div class="demo-cap">통합 데모 · app.html#me (나 탭)</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 카드 시스템 -->
+    <section id="cards">
+      <div class="sec-tag">System</div>
+      <h2>카드 시스템 · 데이터 구조</h2>
+      <p class="lead">카드는 새김의 <strong>원자 단위이자 사용자의 창작물</strong>이다. <strong>카드는 한 종류</strong> — 스토리 카드는 없앴다. 긴 글은 카드 안에서 스크롤하고, 여러 장은 컬렉션으로 묶어 발행한다.</p>
+
+      <h3>카드 ↔ 컬렉션 <span class="pill">1:N</span></h3>
+      <p>발행 단위는 늘 <strong>컬렉션</strong>이다. 카드 한 장도 '1장짜리 컬렉션'으로 발행된다 — 인스타 게시물(캐러셀)과 같은 구조. 카드는 한 컬렉션에 속한다(중복 없음, 큐레이션은 복제).</p>
+      <div class="erd">
+        <div class="erd-row">
+          <div class="erd-box b-acct">계정<small>Account</small></div>
+          <span class="erd-rel">소유 ▶</span>
+          <div class="erd-box b-coll">컬렉션<small>Collection</small></div>
+          <span class="erd-rel">1 ──&lt; N</span>
+          <div class="erd-box b-card">카드<small>Card · 페이지</small></div>
+        </div>
+        <div class="erd-note">발행 = 컬렉션(≥1장) · 발견(릴스) = 개별 카드 흐름 · 서랍(새김) = 카드 참조 · 구독 = 계정 ↔ 계정 · 컬렉션 뷰어 = 가로(카드)·세로(컬렉션)</div>
+      </div>
+
+      <h3>카드 한 종류 (스토리 제거)</h3>
+      <div class="grid2" style="margin-top:8px">
+        <div class="panel">
+          <h4>짧은 문장 <span class="pill">기본</span></h4>
+          <p>한 문장을 배경·타이포·꾸밈으로 완성. 발견 릴스의 기본 단위.</p>
+          <div class="card-mini" style="margin-top:6px"><div class="q">계절이 지나가는 하늘에는 가을로 가득 차 있습니다</div><div class="by">윤동주 · 별 헤는 밤</div></div>
+        </div>
+        <div class="panel">
+          <h4>긴 글 = 카드 내 스크롤</h4>
+          <p>별도 타입 없이, 긴 글은 같은 카드 안에서 스크롤해 읽는다(에디터에서 폰트·크기 조정).</p>
+          <div class="card-mini" style="margin-top:6px;height:150px;overflow:hidden;position:relative">
+            <div class="q" style="font-size:.92rem">그날 밤, 그는 오래 미뤄둔 첫 문장을 썼다. 문장은 길을 알지 못했지만, 손은 이미 다음 줄을 향하고 있었다. 끝을 모른 채 시작하는 일에도 용기가 필요하다는 것을…</div>
+            <div style="position:absolute;left:0;right:0;bottom:0;height:50px;background:linear-gradient(transparent,#28412f)"></div>
+          </div>
+        </div>
+      </div>
+
+      <h3>에디터 도구</h3>
+      <table class="spec">
+        <tr><th>도구</th><th>옵션</th></tr>
+        <tr><td><b>배경</b></td><td>단색(종이 6·딥 4) · 그라데이션 4 · 패턴 3 · 이미지 프리셋</td></tr>
+        <tr><td><b>글자</b></td><td>입력 · 크기 슬라이더 · 굵기 · 정렬 · 색 · 고딕/명조 (긴 글은 스크롤)</td></tr>
+        <tr><td><b>꾸밈</b></td><td>따옴표 · 밑줄 · 刻 도장 · 스티커 — 드래그 자유 배치</td></tr>
+        <tr><td><b>페이지</b></td><td><b>＋ 페이지 추가 → 컬렉션</b> · 순서 정렬 · 커버 지정</td></tr>
+        <tr><td><b>출처</b></td><td>저자 · 책 · 연도 · <span class="pill b2b">B2B</span> 책 연결</td></tr>
+      </table>
+
+      <h3>데이터 모델</h3>
+      <table class="spec">
+        <tr><th>엔티티</th><th>필드</th></tr>
+        <tr><td><b>카드 Card</b></td><td>본문 · 배경·스타일·꾸밈 · 출처 · <b>컬렉션 id(소속)</b> · 순서 · 임베딩</td></tr>
+        <tr><td><b>컬렉션 Collection</b></td><td>제목 · 무드 · 작성자(계정) · <b>카드 목록(순서)</b> · 커버 · 공개여부 · 생성유형(창작/큐레이션)</td></tr>
+        <tr><td><b>계정 Account</b></td><td>프로필 · 상호 구독 그래프 · 서랍 · 발행 컬렉션 · 인증 상태(공식/공인) — 평등</td></tr>
+        <tr><td><b>출처 Source</b></td><td>유형(책/웹/직접/출판사) · 제목 · 저자 · URL</td></tr>
+        <tr><td><b>AI</b></td><td>sentencify 임베딩 → 취향 피드 · 유사 추천</td></tr>
+      </table>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 로드맵 -->
+    <section id="roadmap">
+      <div class="sec-tag">System</div>
+      <h2>로드맵</h2>
+      <p class="lead">기술은 <strong>웹앱(모바일 뷰 고정)</strong> + WebView 래핑 출시. 데스크톱 UI 부담을 줄이고 한 폭으로 집중한다.</p>
+      <div class="grid2" style="margin-top:18px">
+        <div class="panel">
+          <h4 style="color:var(--accent)">MVP — 넣을 것</h4>
+          <ul class="clean">
+            <li>카드 에디터(단일 카드 + 페이지)</li>
+            <li>발견(릴스) · 홈(큐레이션)</li>
+            <li>서가(컬렉션 갤러리) · 서랍(나 안)</li>
+            <li>새기기 · 발행 · 큐레이션 시드</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h4 style="color:var(--ink-3)">나중에</h4>
+          <ul class="clean">
+            <li>댓글 · DM · 알림 고도화</li>
+            <li>사진 OCR 포착</li>
+            <li>부가 뷰(별자리·연대기)</li>
+            <li>B2B 콘솔 · 광고 상품</li>
+          </ul>
+        </div>
+      </div>
+      <h3>단계</h3>
+      <table class="spec">
+        <tr><th>단계</th><th>초점</th></tr>
+        <tr><td><b>Phase 1 · 새기기 루프</b></td><td>카드 에디터 + 발견 + 서랍. 혼자서도 가치(만들고·발견하고·새긴다)</td></tr>
+        <tr><td><b>Phase 2 · 큐레이션</b></td><td>홈 진열 + 작가 구독 + 추천 피드(sentencify 임베딩)</td></tr>
+        <tr><td><b>Phase 3 · 생태계</b></td><td>작가·출판사 발행(B2B) · 외부 공유 바이럴 · 커뮤니티</td></tr>
+      </table>
+      <h3>콜드스타트 · 시드</h3>
+      <div class="panel">
+        <p style="margin:0">빈 피드를 피하려 출발은 큐레이션이 떠받친다 — 공유저작물(1962년 이전 작고 작가)·고전·자체 창작으로 채운 <b>'에디터 픽' 공식 계정</b>과 작가·출판사 협업. 소스: 위키문헌·공유마당·한국고전종합DB·Project Gutenberg. <b>현대물은 저자 라이선스만</b>, 실제 런칭 전 법률 검토 권장.</p>
+      </div>
+      <div style="margin-top:30px;padding:20px 24px;background:var(--accent);color:#f3eee2;border-radius:16px;max-width:760px">
+        <div style="font-weight:800;font-size:1.05rem">한 줄 요약</div>
+        <p style="margin:6px 0 0;color:#e8ece5">새김은 <b style="color:#fff">문장을 카드로 만들어 발견하고 새기는</b> 깊은 큐레이션 플랫폼이다. 카드가 심장, 발견과 서랍이 강점, 작가 구독이 양념.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* 스크롤 스파이 — 현재 섹션 네비 하이라이트 */
+const links=[...document.querySelectorAll('#nav a')];
+const secs=links.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const spy=()=>{
+  let cur=secs[0];
+  const y=window.scrollY+120;
+  for(const s of secs){ if(s.offsetTop<=y) cur=s; }
+  links.forEach(a=>a.classList.toggle('on', a.getAttribute('href')==='#'+cur.id));
+};
+window.addEventListener('scroll',spy,{passive:true}); window.addEventListener('load',spy);
+</script>
+</body>
+</html>

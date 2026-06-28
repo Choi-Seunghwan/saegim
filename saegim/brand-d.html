@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>새김 · D 먹과 빛 — 다크 심야 감성</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;700&family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#141119; --panel:#1E1A24; --elev:#262130;
+    --line:rgba(244,238,246,.10); --line2:rgba(244,238,246,.16);
+    --ink:#F1ECF1; --sub:#A79FB0; --dim:#6E6678;
+    --amber:#E6B873; --amber-soft:rgba(230,184,115,.16); --moon:#9FB6D6;
+    --sans:'Pretendard',system-ui,sans-serif;
+    --serif:'Hahmlet','Nanum Myeongjo',serif;
+    /* 배경 프리셋(다크) */
+    --c-mid:radial-gradient(120% 85% at 50% 0%,#2A2333,#16131C);
+    --c-moon:radial-gradient(120% 85% at 50% 0%,#1F2A3C,#11131D);
+    --c-lamp:radial-gradient(120% 90% at 50% 8%,#34241A,#1A130E);
+    --c-new:linear-gradient(160deg,#1B1623,#241B2C);
+    --c-dawn:linear-gradient(160deg,#281A1E,#15131A 70%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.62;
+    -webkit-font-smoothing:antialiased;padding:0 0 90px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+
+  header{padding:60px 0 26px;text-align:center;position:relative}
+  header::before{content:"";position:absolute;top:-10%;left:50%;transform:translateX(-50%);
+    width:480px;height:280px;background:radial-gradient(closest-side,rgba(230,184,115,.13),transparent);pointer-events:none}
+  .kicker{font-size:12px;letter-spacing:.32em;color:var(--amber);font-weight:700;position:relative}
+  header h1{font-family:var(--serif);font-weight:700;font-size:40px;margin:14px 0 8px;letter-spacing:-.01em;position:relative}
+  header p{color:var(--sub);font-size:15px;max-width:580px;margin:0 auto;position:relative}
+
+  section{margin-top:42px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+  .sec-no{font-family:var(--serif);font-size:14px;color:var(--amber);font-weight:700}
+  .sec-head h2{font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .sec-head .note{margin-left:auto;font-size:12.5px;color:var(--dim)}
+  .star{color:var(--amber);font-weight:800}
+
+  /* 워드마크 */
+  .wm-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .wm-card{background:var(--c-mid);border:1px solid var(--line);border-radius:20px;padding:40px 26px;text-align:center;position:relative;overflow:hidden}
+  .wm-card .lbl{position:absolute;top:12px;left:14px;font-size:11px;font-weight:700;color:var(--sub);background:rgba(255,255,255,.06);padding:3px 9px;border-radius:999px}
+  .wm1{font-family:var(--serif);font-size:52px;color:var(--ink);display:inline-block}
+  .wm1 b{color:var(--amber);font-weight:400}
+  .wm2{font-family:var(--serif);font-size:52px;color:var(--ink);display:inline-block;padding-bottom:9px;position:relative}
+  .wm2::after{content:"";position:absolute;left:8%;right:8%;bottom:0;height:3px;border-radius:3px;
+    background:linear-gradient(90deg,transparent,var(--amber),transparent)}
+  .wm-en{font-family:var(--serif);font-size:15px;color:var(--sub);letter-spacing:.22em;margin-top:14px}
+  .wm-cap{font-size:12.5px;color:var(--dim);margin-top:10px}
+
+  /* 팔레트 */
+  .pal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+  .sw{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+  .sw .chip{height:64px;border-bottom:1px solid var(--line)}
+  .sw .meta{padding:9px 11px}
+  .sw .nm{font-size:13px;font-weight:700}
+  .sw .hx{font-size:11.5px;color:var(--sub);font-variant-numeric:tabular-nums}
+  .sw .role{font-size:11px;color:var(--dim);margin-top:2px}
+
+  /* 배경 프리셋 */
+  .grad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .grad{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel)}
+  .grad .sky{height:96px;position:relative}
+  .grad .sky .pick{position:absolute;top:8px;right:8px;font-size:10px;font-weight:800;color:#1a1620;background:var(--amber);padding:2px 7px;border-radius:999px}
+  .grad .meta{padding:9px 12px}
+  .grad .nm{font-size:13.5px;font-weight:700}
+  .grad .nm em{font-style:normal;color:var(--dim);font-weight:600;font-size:11.5px;margin-left:5px}
+  .grad .desc{font-size:11.5px;color:var(--sub);margin-top:1px}
+
+  /* 타이포 */
+  .type-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;display:flex;flex-direction:column;gap:18px}
+  .type-row{display:grid;grid-template-columns:120px 1fr;gap:18px;align-items:baseline;padding-bottom:16px;border-bottom:1px solid var(--line)}
+  .type-row:last-child{border-bottom:none;padding-bottom:0}
+  .type-row .role{font-size:12px;color:var(--sub);font-weight:700;line-height:1.5}
+  .type-row .role b{display:block;color:var(--ink);font-size:13px}
+  .smp-serif{font-family:var(--serif);font-size:26px;color:var(--ink);line-height:1.45}
+  .smp-serif-l{font-family:var(--serif);font-weight:400;font-size:21px;color:var(--sub)}
+  .smp-sans{font-family:var(--sans);font-size:15px;color:#cbc3d0}
+
+  /* 카드 템플릿 */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:14px}
+  .card{aspect-ratio:4/5;border-radius:18px;overflow:hidden;position:relative;display:flex;
+    align-items:center;justify-content:center;text-align:center;padding:22px;border:1px solid var(--line)}
+  .card q{quotes:none;font-family:var(--serif);font-size:19px;line-height:1.55;color:var(--ink);display:block;text-wrap:balance}
+  .card .by{position:absolute;left:0;right:0;bottom:14px;font-size:11px;color:var(--sub);letter-spacing:.04em}
+  .card .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);
+    margin-top:14px;box-shadow:0 0 10px 1px rgba(230,184,115,.6)}
+
+  /* UI 적용 */
+  .ui-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .ui{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .ui h4{font-size:13.5px;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+  .ui h4::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px rgba(230,184,115,.7)}
+  .ui p{font-size:13px;color:var(--sub)}
+  .demo{margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{font-family:var(--sans);font-weight:600;font-size:13px;padding:9px 18px;border-radius:999px;border:none;cursor:default}
+  .btn.fill{background:var(--amber);color:#1a1620}
+  .btn.ghost{background:transparent;border:1.5px solid var(--amber);color:var(--amber)}
+  .pill{font-size:11.5px;padding:5px 11px;border-radius:999px;background:var(--amber-soft);color:var(--amber);border:1px solid rgba(230,184,115,.28)}
+  .icoact{display:flex;gap:14px;align-items:center}
+  .ico{width:36px;height:36px;border-radius:50%;background:var(--elev);display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:16px}
+  .ico.on{background:var(--amber);color:#1a1620;box-shadow:0 0 14px rgba(230,184,115,.5)}
+
+  /* 보이스 */
+  .voice{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+  .voice .words{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .voice .words span{font-family:var(--serif);font-size:14px;padding:5px 14px;border-radius:999px;background:var(--c-mid);border:1px solid var(--line);color:var(--ink)}
+  .mc{display:grid;grid-template-columns:130px 1fr;gap:9px 16px;font-size:13.5px}
+  .mc dt{color:var(--sub);font-weight:700}
+  .mc dd{color:var(--ink);font-family:var(--serif)}
+
+  /* 비교/요약 */
+  .reco{background:linear-gradient(160deg,#221A24,#181722);border:1px solid var(--line2);border-radius:20px;padding:26px 28px}
+  .reco h3{font-family:var(--serif);font-size:21px;margin-bottom:14px}
+  .reco .vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+  .reco .vs div{border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .reco .vs h5{font-size:13px;color:var(--amber);margin-bottom:6px}
+  .reco .vs p{font-size:13px;color:var(--sub)}
+  .reco ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .reco li{font-size:14px;color:#cdc5d2;padding-left:24px;position:relative}
+  .reco li::before{content:"✦";position:absolute;left:0;color:var(--amber)}
+  .reco li b{color:var(--ink)}
+  .reco .q{margin-top:18px;font-size:14px;font-weight:700;color:var(--ink)}
+
+  @media(max-width:680px){
+    .wm-row{grid-template-columns:1fr}
+    .type-row{grid-template-columns:1fr;gap:6px}
+    .reco .vs{grid-template-columns:1fr}
+    header h1{font-size:32px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">ALT DIRECTION · 먹과 빛</div>
+    <h1>심야 감성, 다크</h1>
+    <p>C(밝은 파스텔)의 정반대편. 깊은 먹빛 위에 촛불 같은 빛 한 점. 밤에 읽는 문장처럼, 몰입되고 프리미엄한 톤이에요. ✦ = 추천.</p>
+  </header>
+
+  <!-- 01 워드마크 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">01</span><h2>워드마크</h2><span class="note">명조의 무게 + 빛 한 점</span></div>
+    <div class="wm-row">
+      <div class="wm-card">
+        <span class="lbl">안 1 · 불빛</span>
+        <div class="wm1">새김<b>·</b></div>
+        <div class="wm-en">SAEGIM</div>
+        <div class="wm-cap">멀리 켜진 불빛 같은 앰버 점.</div>
+      </div>
+      <div class="wm-card" style="background:var(--c-lamp)">
+        <span class="lbl">안 2 · 빛 밑줄 <span class="star">✦</span></span>
+        <div class="wm2">새김</div>
+        <div class="wm-en">SAEGIM</div>
+        <div class="wm-cap">어둠에 그은 한 줄의 빛 = 새김. 명조라 더 단단해요.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 팔레트 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">02</span><h2>핵심 팔레트</h2><span class="note">먹빛 층 + 앰버 한 점</span></div>
+    <div class="pal-grid">
+      <div class="sw"><div class="chip" style="background:#141119"></div><div class="meta"><div class="nm">밤먹 <span class="star">✦</span></div><div class="hx">#141119</div><div class="role">앱 배경</div></div></div>
+      <div class="sw"><div class="chip" style="background:#1E1A24"></div><div class="meta"><div class="nm">패널</div><div class="hx">#1E1A24</div><div class="role">카드·시트</div></div></div>
+      <div class="sw"><div class="chip" style="background:#262130"></div><div class="meta"><div class="nm">상승면</div><div class="hx">#262130</div><div class="role">버튼·칩 바탕</div></div></div>
+      <div class="sw"><div class="chip" style="background:#E6B873"></div><div class="meta"><div class="nm">촛불앰버 <span class="star">✦</span></div><div class="hx">#E6B873</div><div class="role">주 포인트·빛</div></div></div>
+      <div class="sw"><div class="chip" style="background:#9FB6D6"></div><div class="meta"><div class="nm">달빛블루</div><div class="hx">#9FB6D6</div><div class="role">차가운 보조(달빛 카드)</div></div></div>
+      <div class="sw"><div class="chip" style="background:#F1ECF1"></div><div class="meta"><div class="nm">달빛백</div><div class="hx">#F1ECF1</div><div class="role">문장 글자</div></div></div>
+      <div class="sw"><div class="chip" style="background:#A79FB0"></div><div class="meta"><div class="nm">안개보라</div><div class="hx">#A79FB0</div><div class="role">보조 텍스트</div></div></div>
+    </div>
+  </section>
+
+  <!-- 03 배경 프리셋 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">03</span><h2>배경 프리셋</h2><span class="note">밤의 여러 표정</span></div>
+    <div class="grad-grid">
+      <div class="grad"><div class="sky" style="background:var(--c-mid)"><span class="pick">✦ 주조</span></div><div class="meta"><div class="nm">심야 <em>Midnight</em></div><div class="desc">먹보라 + 은은한 위 글로우.</div></div></div>
+      <div class="grad"><div class="sky" style="background:var(--c-moon)"></div><div class="meta"><div class="nm">달빛 <em>Moonlight</em></div><div class="desc">차가운 청록먹. 고요·거리감.</div></div></div>
+      <div class="grad"><div class="sky" style="background:var(--c-lamp)"><span class="pick">✦ 웜</span></div><div class="meta"><div class="nm">등불 <em>Lamplight</em></div><div class="desc">따뜻한 갈먹. 다정·몰입.</div></div></div>
+      <div class="grad"><div class="sky" style="background:var(--c-new)"></div><div class="meta"><div class="nm">그믐 <em>Newmoon</em></div><div class="desc">거의 검정. 미니멀·여백.</div></div></div>
+      <div class="grad"><div class="sky" style="background:var(--c-dawn)"></div><div class="meta"><div class="nm">여명 <em>Daybreak</em></div><div class="desc">검정→붉은먹. 끝/시작.</div></div></div>
+    </div>
+  </section>
+
+  <!-- 04 타이포 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">04</span><h2>타이포 시스템</h2><span class="note">고대비 명조로 빛나게</span></div>
+    <div class="type-card">
+      <div class="type-row"><div class="role"><b>카드 문장 <span class="star">✦</span></b>주인공 · Hahmlet(고대비 명조)</div><div class="smp-serif">밤이 깊을수록<br>문장이 또렷해진다</div></div>
+      <div class="type-row"><div class="role"><b>인용·부제</b>Hahmlet Light</div><div class="smp-serif-l">담담하게 가라앉는 가는 명조</div></div>
+      <div class="type-row"><div class="role"><b>UI·본문</b>Pretendard</div><div class="smp-sans">버튼·메뉴·설명은 또렷한 산세리프로. 다크에서도 가독성을 안정적으로 잡아줍니다.</div></div>
+    </div>
+  </section>
+
+  <!-- 05 카드 템플릿 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">05</span><h2>카드 템플릿</h2><span class="note">빛은 글자에, 배경은 어둠에</span></div>
+    <div class="cards">
+      <div class="card" style="background:var(--c-mid)"><div><q>밤이 깊을수록<br>문장이 또렷해진다</q><div class="dot"></div></div></div>
+      <div class="card" style="background:var(--c-moon)"><q>혼자인 밤에도<br>곁에 두는 말</q><span class="by">— 새김</span></div>
+      <div class="card" style="background:var(--c-lamp)"><q>오래 켜둔 등불처럼<br>마음에 남는다</q><span class="by">— 새김</span></div>
+      <div class="card" style="background:var(--c-new)"><q>다 말하지 않아도<br>남는 것이 있다</q></div>
+      <div class="card" style="background:var(--c-dawn)"><q>오늘의 나에게<br>밑줄 하나</q></div>
+      <div class="card" style="background:var(--c-mid)"><q>고요가 길어질수록<br>또렷해지는 것들</q><span class="by">— 새김</span></div>
+    </div>
+  </section>
+
+  <!-- 06 UI 적용 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">06</span><h2>UI 적용</h2><span class="note">어둠 바탕 · 앰버 한 점 · 빛 글로우</span></div>
+    <div class="ui-grid">
+      <div class="ui"><h4>버튼</h4><p>채움=앰버(글자 어둡게), 외곽선=앰버.</p><div class="demo"><span class="btn fill">발행</span><span class="btn ghost">새기기</span></div></div>
+      <div class="ui"><h4>새김(저장)</h4><p>활성 시 앰버로 살짝 빛남(글로우). 큰 모션은 없음.</p><div class="demo icoact"><span class="ico">♡</span><span class="ico on">✓</span><span style="font-size:12.5px;color:var(--sub)">탭하면 켜짐</span></div></div>
+      <div class="ui"><h4>태그·메타</h4><p>앰버 소프트 칩. 자기 말(0~3).</p><div class="demo"><span class="pill"># 심야</span><span class="pill"># 여운</span></div></div>
+      <div class="ui"><h4>배경·질감</h4><p>앱 배경=밤먹. 카드 18~22px 라운드, 크롬은 어두운 프로스트. 옅은 그레인(노이즈)으로 깊이.</p></div>
+    </div>
+  </section>
+
+  <!-- 07 보이스 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">07</span><h2>보이스 &amp; 마이크로카피</h2><span class="note">해요체 · 담담하게 · 여운</span></div>
+    <div class="voice">
+      <div class="words"><span>깊다</span><span>고요</span><span>몰입</span><span>여운</span><span>곁</span></div>
+      <dl class="mc">
+        <dt>새김(저장)</dt><dd>마음에 새겼어요</dd>
+        <dt>발행</dt><dd>오늘의 한 줄을 남겼어요</dd>
+        <dt>빈 서랍</dt><dd>아직 새긴 글이 없어요. 오래 남길 문장을 담아보세요.</dd>
+        <dt>발견 안내</dt><dd>다음 글로</dd>
+        <dt>구독</dt><dd>곁에 둘게요</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- 비교/요약 -->
+  <section>
+    <div class="reco">
+      <h3>C vs D — 무엇이 다른가</h3>
+      <div class="vs">
+        <div><h5>C · 소프트 감성(현재)</h5><p>낮의 파스텔 하늘, 둥근 명조. 밝고 다정·공유 친화. 진입 문턱이 낮아 대중적.</p></div>
+        <div><h5>D · 먹과 빛(대안)</h5><p>밤의 먹빛, 고대비 명조 + 앰버 한 점. 몰입·프리미엄·시네마틱. 더 또렷하고 인상적.</p></div>
+      </div>
+      <ul>
+        <li><b>추천 배경:</b> 주조 <b>심야(Midnight)</b> + 웜 <b>등불(Lamplight)</b>, 차가운 톤은 <b>달빛(Moonlight)</b>.</li>
+        <li><b>포인트는 촛불앰버(#E6B873) 하나</b>, 글자/포인트에만 빛처럼 절제.</li>
+        <li><b>타이포는 Hahmlet(고대비 명조)</b> — 흰 글자가 어둠에서 가장 빛나는 조합.</li>
+        <li><b>워드마크는 '빛 밑줄' 안(✦)</b> — 어둠에 그은 한 줄의 빛.</li>
+      </ul>
+      <p class="q">C로 확정할까요, 아니면 이 D(또는 C낮+D밤 다크모드로 둘 다)로 갈까요?</p>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
