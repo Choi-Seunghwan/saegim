@@ -322,6 +322,9 @@ body{
 .book-link .bk-t .t{ font-size:12.5px; font-weight:800; color:var(--green); }
 .book-link .bk-t .s{ font-size:10.5px; color:var(--ink-2); margin-top:1px; font-weight:600; }
 .book-link .bk-badge{ font-size:9px; font-weight:800; color:var(--sepia); background:rgba(154,160,208,.14); padding:3px 7px; border-radius:999px; letter-spacing:.04em; }
+.bg-imgadd{ display:inline-flex; align-items:center; gap:8px; padding:11px 14px; border-radius:12px; background:var(--cream-2); color:var(--ink); font-family:var(--font); font-size:13px; font-weight:800; cursor:pointer; }
+.bg-imgadd svg{ width:17px; height:17px; }
+.bg-imgadd:active{ transform:scale(.97); }
 .qs-rail{ display:flex; flex-direction:column; gap:9px; }
 .qs-chip{ background:var(--cream); border:1px solid var(--line); border-radius:12px; padding:11px 13px; cursor:pointer; text-align:left; transition:.16s var(--ease); }
 .qs-chip:active{ transform:scale(.98); }
@@ -465,7 +468,9 @@ body{
           <div class="p-label">단색 · 어두운 톤</div><div class="swatch-row" id="bgSolidDeep"></div>
           <div class="p-label">그라데이션</div><div class="swatch-row" id="bgGrad"></div>
           <div class="p-label">패턴 · 질감</div><div class="swatch-row" id="bgPattern"></div>
-          <div class="p-label">이미지 프리셋</div><div class="swatch-row" id="bgImage"></div>
+          <div class="p-label">이미지</div>
+          <label class="bg-imgadd" id="bgImgAdd"><input type="file" id="bgImgInput" accept="image/*" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15l-5-5L5 21"/><path d="M3 5h18v14H3z"/><circle cx="8.5" cy="9" r="1.5"/></svg><span>이미지 추가 (카드에 꽉 차게)</span></label>
+          <div class="swatch-row" id="bgImage" style="margin-top:9px"></div>
           <div class="p-label">배경 어둡게 · 딤</div>
           <div class="dim-row"><input type="range" id="bgDim" min="0" max="0.6" step="0.02" value="0"><span class="dim-val" id="bgDimVal">0%</span></div>
         </div>
@@ -475,16 +480,16 @@ body{
           <input class="cap-in" id="srcWork" type="text" placeholder="책 · 출처" maxlength="30">
           <div class="book-link" id="bookLink">
             <div class="bk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
-            <div class="bk-t"><div class="t">책 연결</div><div class="s">작가·출판사 전용</div></div>
-            <div class="bk-badge">B2B</div>
+            <div class="bk-t"><div class="t">책 연결</div><div class="s">작가·출판사 도서 연결</div></div>
+            <div class="bk-badge">준비 중</div>
           </div>
         </div>
         <div class="panel" id="panel-title">
-          <div class="p-label">제목 <span style="font-weight:500;color:var(--ink-3)">· 선택</span></div>
-          <input class="cap-in" id="collTitleInput" type="text" placeholder="비우면 첫 문장이 제목" maxlength="30">
+          <div class="p-label">제목 <span style="font-weight:500;color:var(--ink-3)">· 비우면 첫 문장이 제목이 돼요</span></div>
+          <input class="cap-in" id="collTitleInput" type="text" placeholder="첫 문장이 제목이 돼요" maxlength="30">
         </div>
         <div class="panel" id="panel-tag">
-          <div class="p-label">태그 <span style="font-weight:500;color:var(--ink-3)">· 검색·추천용 (카드엔 안 보임)</span></div>
+          <div class="p-label">태그 <span style="font-weight:500;color:var(--ink-3)">· 검색·추천용</span></div>
           <div class="tag-list" id="tagList"></div>
           <input class="cap-in" id="tagInput" type="text" placeholder="키워드 입력 후 Enter · 최대 3" maxlength="12">
         </div>
@@ -580,6 +585,12 @@ function syncBgControls(){ const col=$('#bgColor'); if(col && /^#[0-9a-fA-F]{6}$
 $('#bgColor').addEventListener('input', e=>{ P.bg=e.target.value; P.bgLight=isLight(P.bg); $$('.swatch').forEach(x=>x.classList.remove('on')); applyBg(); autoTextColor(); save(); });
 /* 딤(배경 어둡게) 슬라이더 */
 $('#bgDim').addEventListener('input', e=>{ P.dim=parseFloat(e.target.value)||0; $('#bgDimVal').textContent=Math.round(P.dim*100)+'%'; applyBg(); save(); });
+/* 배경 이미지 직접 삽입 — 카드에 꽉 차게(center/cover) */
+$('#bgImgInput').addEventListener('change', e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>{ P.bg=`url('${r.result}') center/cover`; P.bgLight=false; if(!(+P.dim>0)) P.dim=0.34; $$('.swatch').forEach(x=>x.classList.remove('on')); applyBg(); autoTextColor(); syncBgControls(); save(); toast('이미지 배경 적용','카드에 꽉 차게 맞췄어요'); };
+  r.readAsDataURL(f); e.target.value='';
+});
 function autoTextColor(){ const darkDef=!P.bgLight && P.textColor==='#38323F'; const lightDef=P.bgLight && P.textColor==='#F4EFF6'; if(darkDef) P.textColor='#F4EFF6'; if(lightDef) P.textColor='#38323F'; applyTextColorVar(); renderEditColors(); }
 function applyTextColorVar(){ $('#canvas').style.setProperty('--cv-text', P.textColor); }
 
@@ -719,7 +730,7 @@ $('#editPop').addEventListener('input', e=>{ if(e.target.id!=='editSize') return
 /* ============================================================ 출처 ============================================================ */
 $('#srcAuthor').addEventListener('input', e=>{ P.author=e.target.value; renderCanvas(); save(); });
 $('#srcWork').addEventListener('input', e=>{ P.work=e.target.value; renderCanvas(); save(); });
-$('#bookLink').addEventListener('click', ()=> toast('책 연결은 작가·출판사 전용','B2B 확장에서 실제 도서와 이어요'));
+$('#bookLink').addEventListener('click', ()=> toast('책 연결은 준비 중','작가·출판사 도서 연결을 준비하고 있어요'));
 
 /* ============================================================ 바텀시트(도구) ============================================================ */
 const SHEET_TITLE = { title:'제목', bg:'배경', src:'출처', tag:'태그' };
@@ -733,7 +744,7 @@ function renderTags(){
 function addTag(v){ v=(v||'').trim().replace(/^#/,''); if(!v) return; if(!Array.isArray(S.tags)) S.tags=[]; if(S.tags.length>=3){ toast('태그는 3개까지'); return; } if(S.tags.includes(v)) return; S.tags.push(v); renderTags(); save(); }
 $('#tagInput').addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===','){ e.preventDefault(); addTag(e.target.value); e.target.value=''; } });
 $('#tagList').addEventListener('click', e=>{ const b=e.target.closest('[data-rmtag]'); if(!b)return; S.tags.splice(+b.dataset.rmtag,1); renderTags(); save(); });
-function openTool(name){ $$('.panel').forEach(p=>p.classList.toggle('on', p.id==='panel-'+name)); $('#sheetTitle').textContent=SHEET_TITLE[name]||''; $('#sheetScrim').classList.add('on'); $('#sheet').classList.add('on'); }
+function openTool(name){ $$('.panel').forEach(p=>p.classList.toggle('on', p.id==='panel-'+name)); $('#sheetTitle').textContent=SHEET_TITLE[name]||''; if(name==='title'){ const t0=((S.pages[0]&&S.pages[0].text)||'').trim(); const ph=t0?t0.split('\n')[0].slice(0,30):'첫 문장이 제목이 돼요'; const ci=$('#collTitleInput'); if(ci) ci.placeholder=ph; } $('#sheetScrim').classList.add('on'); $('#sheet').classList.add('on'); }
 function closeSheet(){ $('#sheetScrim').classList.remove('on'); $('#sheet').classList.remove('on'); }
 $$('[data-tool]').forEach(b=> b.addEventListener('click', ()=> openTool(b.dataset.tool)));
 /* 제목(글 전체 메타) — 선택 입력 */
