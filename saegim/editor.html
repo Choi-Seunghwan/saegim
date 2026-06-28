@@ -475,20 +475,18 @@ body{
           <input class="cap-in" id="srcWork" type="text" placeholder="책 · 출처" maxlength="30">
           <div class="book-link" id="bookLink">
             <div class="bk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
-            <div class="bk-t"><div class="t">책 연결하기</div><div class="s">작가·출판사라면 실제 도서와 이어요</div></div>
+            <div class="bk-t"><div class="t">책 연결</div><div class="s">작가·출판사 전용</div></div>
             <div class="bk-badge">B2B</div>
           </div>
         </div>
         <div class="panel" id="panel-title">
-          <div class="p-label">제목 <span style="font-weight:500;color:var(--ink-3)">· 선택. 여러 장을 엮을 땐 제목이 도움돼요</span></div>
-          <input class="cap-in" id="collTitleInput" type="text" placeholder="제목 (비우면 첫 문장이 제목이 돼요)" maxlength="30">
-          <div class="deco-hint">제목은 카드엔 새기지 않고, 둘러보기·상세에서 글의 이름으로 보여요</div>
+          <div class="p-label">제목 <span style="font-weight:500;color:var(--ink-3)">· 선택</span></div>
+          <input class="cap-in" id="collTitleInput" type="text" placeholder="비우면 첫 문장이 제목" maxlength="30">
         </div>
         <div class="panel" id="panel-tag">
-          <div class="p-label">태그 <span style="font-weight:500;color:var(--ink-3)">· 내 말로 다는 힌트 (검색·유사 추천용, 최대 3개·선택)</span></div>
+          <div class="p-label">태그 <span style="font-weight:500;color:var(--ink-3)">· 검색·추천용 (카드엔 안 보임)</span></div>
           <div class="tag-list" id="tagList"></div>
-          <input class="cap-in" id="tagInput" type="text" placeholder="태그 입력 후 Enter (예: 새벽, 위안)" maxlength="12">
-          <div class="deco-hint">결(테마)은 따로 고르지 않아요 — 비슷한 문장은 자동으로 이어집니다</div>
+          <input class="cap-in" id="tagInput" type="text" placeholder="키워드 입력 후 Enter · 최대 3" maxlength="12">
         </div>
       </div>
     </div>
@@ -729,7 +727,7 @@ const SHEET_TITLE = { title:'제목', bg:'배경', src:'출처', tag:'태그' };
    비슷한 문장 묶기/추천은 의미 임베딩(백엔드)에 맡김(프로토타입은 클라 similar 대체). */
 function renderTags(){
   const list=$('#tagList'); if(!list) return;
-  list.innerHTML = (S.tags||[]).map((t,i)=>`<span class="tag-chip">#${escapeHtml(t)}<button data-rmtag="${i}" aria-label="삭제">×</button></span>`).join('');
+  list.innerHTML = (S.tags||[]).map((t,i)=>`<span class="tag-chip">${escapeHtml(t)}<button data-rmtag="${i}" aria-label="삭제">×</button></span>`).join('');
   const inp=$('#tagInput'); if(inp) inp.style.display = (S.tags&&S.tags.length>=3)?'none':'';
 }
 function addTag(v){ v=(v||'').trim().replace(/^#/,''); if(!v) return; if(!Array.isArray(S.tags)) S.tags=[]; if(S.tags.length>=3){ toast('태그는 3개까지'); return; } if(S.tags.includes(v)) return; S.tags.push(v); renderTags(); save(); }

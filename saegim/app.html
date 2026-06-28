@@ -2129,7 +2129,7 @@ function renderFeedSheet(){
       <div class="who"><div class="nm">${esc(c.pub)} ${vbadge(c.pub)}</div><div class="rl">${ttl?esc(ttl):role}</div></div>
     </div>
     <div class="fs-sec"><div class="fs-lbl">출처</div><div class="fs-val">${src||'직접 새긴 글'}</div></div>
-    ${tags.length?`<div class="fs-sec"><div class="fs-lbl">태그</div><div class="fs-tags">${tags.map(t=>`<span class="fs-tag">#${esc(t)}</span>`).join('')}</div></div>`:''}
+    ${tags.length?`<div class="fs-sec"><div class="fs-lbl">태그</div><div class="fs-tags">${tags.map(t=>`<span class="fs-tag">${esc(t)}</span>`).join('')}</div></div>`:''}
     <div class="fs-rows">
       <button class="fs-row" data-fa="share"><span class="t">${shareSvg()}공유하기</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
       <button class="fs-row" data-fa="link"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>링크 복사</span><span class="soon">준비 중</span></button>
@@ -2526,7 +2526,7 @@ function openDetail(id){
       <div class="who"><div class="w">${esc(s.author)} ${vbadge(s.author)}</div><div class="a">『${esc(s.work)}』</div></div>
       <button class="sub-btn ${subbed?'on':''}" data-sub="${esc(s.author)}">${subbed?'구독중':'구독'}</button>
     </div>
-    ${((s.theme&&s.theme!=='일상') || (s.keywords&&s.keywords.length)) ? `<div class="sd-tags">${(s.theme&&s.theme!=='일상')?`<span class="sd-tag mood">${esc(s.theme)}</span>`:''}${(s.keywords||[]).map(t=>`<span class="sd-tag">#${esc(t)}</span>`).join('')}</div>` : ''}
+    ${((s.theme&&s.theme!=='일상') || (s.keywords&&s.keywords.length)) ? `<div class="sd-tags">${(s.theme&&s.theme!=='일상')?`<span class="sd-tag mood">${esc(s.theme)}</span>`:''}${(s.keywords||[]).map(t=>`<span class="sd-tag">${esc(t)}</span>`).join('')}</div>` : ''}
     <div class="sd-actions">
       <button class="sd-act primary ${carved?'done':''}" data-sd-carve="${id}">${carved?sealSvg():carveSvg()}<span>${carved?'새김 완료':'새기기'}</span></button>
       <button class="sd-act" data-sd-share="${id}">${shareSvg()}<span>공유</span></button>
