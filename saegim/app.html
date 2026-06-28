@@ -241,7 +241,7 @@ body{
 /* 작가 바 — 하단 좌측, 투명 컴팩트 칩(제목과 위계 분리) */
 .reel-author{
   position:absolute; left:12px; bottom:calc(112px + env(safe-area-inset-bottom)); z-index:8;
-  max-width:calc(100% - 84px);
+  min-width:92px; max-width:calc(100% - 84px);
   display:inline-flex; align-items:center; gap:7px;
   background:rgba(252,251,252,.3); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
   border:none; border-radius:999px; padding:5px 8px;
@@ -1522,7 +1522,9 @@ let drawerQuery = '';
 function refreshDrawerData(){ if(curView==='drawer') enterDrawer(); }
 
 function carvedSentences(){
-  let arr = state.carved.map(c=>{ const s=byId(c.id); return s?{...s, _at:c.at}:null; }).filter(Boolean);
+  const _pg=publishedGroups();
+  const _titleOf=id=>{ for(const g of _pg) if(g.cards.some(x=>x.id===id)) return (g.title||'').trim()||lines((g.cards.find(x=>x.id===id)||{}).text||'')[0]; return null; };
+  let arr = state.carved.map(c=>{ const s=byId(c.id); return s?{...s, _at:c.at, _title:_titleOf(c.id)}:null; }).filter(Boolean);
   if(drawerQuery){
     const q=drawerQuery.toLowerCase();
     arr = arr.filter(s=> (s.text+s.author+s.work+(s.theme||'')).toLowerCase().includes(q));
@@ -1532,15 +1534,21 @@ function carvedSentences(){
   return arr;
 }
 
+function drawerCardHTML(s){
+  const bg = s.comp ? composedBg(s) : `linear-gradient(155deg,${toneOf(s.theme).a},${toneOf(s.theme).b})`;
+  const tc = s.comp ? composedTextColor(s) : '#FBF8FC';
+  const title = (s._title||'').trim() || s.work || lines(s.text)[0] || '';
+  return `<button class="shelf-card" data-pt="sent" data-id="${s.id}" style="background:${bg}; --cv-text:${tc}"><div class="sq">${esc(s.text)}</div><div class="sfoot"><div class="st2">${esc(title)}</div><div class="sm2">${miniAuthor(s.author)}</div></div></button>`;
+}
 function enterDrawer(){
   const arr = carvedSentences();
-  $('#drawerSub').textContent = state.carved.length? `간직한 글 ${state.carved.length}개 · 나만 봐요` : '내가 간직한 글 · 나만 보는 보관함';
+  $('#drawerSub').textContent = state.carved.length? `간직한 글 ${state.carved.length}개` : '내가 간직한 글';
   const empty = arr.length===0;
   $('#drawerEmpty').classList.toggle('on', empty);
   const g=$('#drawerGrid');
   if(empty){ g.innerHTML=''; return; }
   // 새김 미리보기 = 프로필/둘러보기와 동일한 shelf-card(문장 단위) 재사용
-  g.innerHTML = arr.map(s=> postCardHTML({s})).join('');
+  g.innerHTML = arr.map(s=> drawerCardHTML(s)).join('');
 }
 
 /* 카드 탭 → 카드 상세 페이지(발견 피드) */
@@ -1760,7 +1768,8 @@ function feedUpdate(){
   if($('#feedSheet').classList.contains('on')) renderFeedSheet();   // 패널 열려 있으면 동기화
   const subbed=state.subs.includes(c.pub);
   const role = c.mine ? '내 글' : (verifyOf(c.pub)?vlabel(c.pub):'글');
-  $('#feedAuthor').innerHTML = `<div class="avatar sm" style="${avStyle(c.pub)}">${esc(initial(c.pub))}</div><div class="who"><div class="nm">${esc(c.pub)} ${vbadge(c.pub)}</div></div>${c.mine?'':`<button class="sub-btn ${subbed?'on':''}" data-sub="${esc(c.pub)}">${subbed?'구독중':'구독'}</button>`}`;
+  const _dn=(c.pub===ME||c.pub==='나')?displayName():c.pub;
+  $('#feedAuthor').innerHTML = `<div class="avatar sm" style="${avStyle(_dn)}">${esc(initial(_dn))}</div><div class="who"><div class="nm">${esc(_dn)} ${vbadge(c.pub)}</div></div>${c.mine?'':`<button class="sub-btn ${subbed?'on':''}" data-sub="${esc(c.pub)}">${subbed?'구독중':'구독'}</button>`}`;
   const sb=$('#feedAuthor [data-sub]'); if(sb) sb.addEventListener('click', ev=>{ ev.stopPropagation(); toggleSub(c.pub, sb); });
   // 제목 = 글의 이름표(작가 바와 분리). 현재 문장과 같으면 숨김(단일 자동제목 중복 방지)
   const curSent=((c.composed&&c.cards)?((c.cards[cvPi]||{}).text||''):((c.q[cvPi]||[])[0]||'')).trim();
@@ -1953,7 +1962,7 @@ function accountSentenceCount(name, isMe){
 }
 /* 서가 카드 — 컬렉션/문장을 종이 카드(명조)로 */
 /* 미리보기용 작성자 칩(아바타+이름) — 홈·둘러보기 미리보기에서 사용 */
-function miniAuthor(name){ return `<span class="mini-au"><span class="mini-av" style="${avStyle(name)}">${esc(initial(name))}</span><span class="mini-nm">${esc(name)}${vbadge(name)}</span></span>`; }
+function miniAuthor(name){ const dn=(name===ME||name==='나')?displayName():name; return `<span class="mini-au"><span class="mini-av" style="${avStyle(dn)}">${esc(initial(dn))}</span><span class="mini-nm">${esc(dn)}${vbadge(name)}</span></span>`; }
 /* 미리보기 카드 지표 — 좋아요(♡)만(댓글은 미노출: 정보 과다 방지). 넘침은 fmtNum으로 줄임 */
 function collMetrics(c, idx){ return `<span class="mtr">${heartSvg(false)} ${fmtNum(c.saves||0)}</span>`; }
 /* 프로필 그리드 카드 — 작성자 미노출(프로필에서 이미 특정됨), 문장 그대로 */
