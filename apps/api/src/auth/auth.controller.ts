@@ -1,14 +1,36 @@
-import { Controller, Get, Headers, Post, Query, Redirect, Res } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Post, Query, Redirect, Res } from "@nestjs/common";
 import type { Response } from "express";
+import { EmailAuthService } from "./email-auth.service.js";
 import { GoogleOAuthService } from "./google-oauth.service.js";
 import { SessionCookieService } from "./session-cookie.service.js";
 
 @Controller("auth")
 export class AuthController {
   constructor(
+    private readonly emailAuthService: EmailAuthService,
     private readonly googleOAuthService: GoogleOAuthService,
     private readonly sessionCookieService: SessionCookieService
   ) {}
+
+  @Post("signup")
+  async signup(@Body() body: unknown, @Res({ passthrough: true }) response?: Response) {
+    const result = await this.emailAuthService.signup(body ?? {});
+    response?.setHeader("Set-Cookie", this.sessionCookieService.createSessionCookie(result.accountId));
+
+    return {
+      item: result.item
+    };
+  }
+
+  @Post("login")
+  async login(@Body() body: unknown, @Res({ passthrough: true }) response?: Response) {
+    const result = await this.emailAuthService.login(body ?? {});
+    response?.setHeader("Set-Cookie", this.sessionCookieService.createSessionCookie(result.accountId));
+
+    return {
+      item: result.item
+    };
+  }
 
   @Get("google")
   @Redirect()

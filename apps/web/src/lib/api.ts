@@ -26,6 +26,12 @@ interface AuthSessionResponse {
   accountId: string | null;
 }
 
+interface EmailAuthInput {
+  email: string;
+  password: string;
+  displayName?: string;
+}
+
 async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
@@ -41,10 +47,41 @@ async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`새김 API 요청 실패: ${response.status}`);
+    let message = `새김 API 요청 실패: ${response.status}`;
+
+    try {
+      const errorBody = (await response.json()) as { message?: unknown };
+      if (typeof errorBody.message === "string") {
+        message = errorBody.message;
+      } else if (Array.isArray(errorBody.message) && typeof errorBody.message[0] === "string") {
+        message = errorBody.message[0];
+      }
+    } catch {
+      // JSON 오류 본문이 아니면 기본 상태 메시지를 사용한다.
+    }
+
+    throw new Error(message);
   }
 
   return response.json() as Promise<T>;
+}
+
+export async function signupWithEmail(input: EmailAuthInput): Promise<AccountProfile> {
+  const data = await fetchJson<ItemResponse<AccountProfile>>("/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return data.item;
+}
+
+export async function loginWithEmail(input: EmailAuthInput): Promise<AccountProfile> {
+  const data = await fetchJson<ItemResponse<AccountProfile>>("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return data.item;
 }
 
 export async function fetchAuthSession(signal?: AbortSignal): Promise<AuthSessionResponse> {

@@ -34,7 +34,9 @@ import {
   followAccount,
   getGoogleOAuthStartUrl,
   likePost,
+  loginWithEmail,
   logoutSession,
+  signupWithEmail,
   uncarvePost,
   unlikePost,
   unfollowAccount,
@@ -49,8 +51,9 @@ type AuthSheetIntent = "default" | "capture" | "profile";
 type AuthMode = "login" | "signup";
 type AuthSubmitInput = {
   mode: AuthMode;
-  displayName?: string;
-  email?: string;
+  displayName: string;
+  email: string;
+  password: string;
 };
 type EditorialPageKind = "notice" | "event" | "ad";
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
@@ -483,29 +486,6 @@ function accountWithProfileInput(account: AccountProfile, input: UpdateAccountIn
   };
 }
 
-function handleFromEmail(email: string | undefined) {
-  const localPart = email?.trim().split("@")[0]?.trim().toLowerCase();
-  if (!localPart) return "";
-
-  const normalized = localPart.replace(/[^a-z0-9._-]/g, "").replace(/^[._-]+|[._-]+$/g, "");
-  return normalized || "";
-}
-
-function accountWithAuthInput(account: AccountProfile, input: AuthSubmitInput | undefined): AccountProfile {
-  if (!input || input.mode !== "signup") {
-    return account;
-  }
-
-  const displayName = input.displayName?.trim();
-  const handle = handleFromEmail(input.email);
-
-  return {
-    ...account,
-    ...(displayName ? { displayName } : {}),
-    ...(handle ? { handle } : {})
-  };
-}
-
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -843,14 +823,24 @@ export function SaegimShell() {
     return false;
   }
 
-  function enterApp(input?: AuthSubmitInput) {
+  async function enterApp(input: AuthSubmitInput) {
     const intent = authSheetIntent;
-    const nextAccount = accountWithAuthInput(currentAccount, input);
+    const nextAccount =
+      input.mode === "signup"
+        ? await signupWithEmail({
+            displayName: input.displayName,
+            email: input.email,
+            password: input.password
+          })
+        : await loginWithEmail({
+            email: input.email,
+            password: input.password
+          });
 
     setCurrentAccount(nextAccount);
     replaceAccount(nextAccount);
     setEntryState("signed-in");
-    setUsesLocalAuth(true);
+    setUsesLocalAuth(false);
     setSelectedProfileId(nextAccount.id);
     setAuthSheetIntent(null);
 
@@ -1553,7 +1543,7 @@ function AuthSheet({
 }: {
   initialMode: AuthMode;
   onClose: () => void;
-  onEnter: (input: AuthSubmitInput) => void;
+  onEnter: (input: AuthSubmitInput) => Promise<void>;
   onGoogleLogin: () => void;
 }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -1561,16 +1551,34 @@ function AuthSheet({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isSignup = mode === "signup";
-  const submitLabel = isSignup ? "가입하기" : "로그인";
+  const submitLabel = isSubmitting ? "확인 중" : isSignup ? "가입하기" : "로그인";
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onEnter({
-      mode,
-      displayName,
-      email
-    });
+    setSubmitError("");
+
+    if (isSignup && !agreed) {
+      setSubmitError("약관 동의가 필요해요.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await onEnter({
+        mode,
+        displayName,
+        email,
+        password
+      });
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "로그인을 다시 시도해 주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -1624,7 +1632,9 @@ function AuthSheet({
             </label>
           ) : null}
 
-          <button className="auth-btn" type="submit">
+          {submitError ? <p className="auth-error">{submitError}</p> : null}
+
+          <button className="auth-btn" disabled={isSubmitting} type="submit">
             {submitLabel}
           </button>
         </form>
@@ -1642,7 +1652,13 @@ function AuthSheet({
 
         <div className="auth-alt">
           {isSignup ? "이미 계정이 있으신가요?" : "아직 계정이 없으신가요?"}{" "}
-          <button type="button" onClick={() => setMode(isSignup ? "login" : "signup")}>
+          <button
+            type="button"
+            onClick={() => {
+              setSubmitError("");
+              setMode(isSignup ? "login" : "signup");
+            }}
+          >
             {isSignup ? "로그인" : "회원가입"}
           </button>
         </div>

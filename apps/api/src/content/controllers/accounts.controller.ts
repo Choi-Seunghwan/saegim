@@ -3,7 +3,7 @@ import { ContentService } from "../content.service.js";
 import type { UpdateAccountInput } from "../content.types.js";
 
 function accountContext(accountIdHint?: string, cookieHeader?: string) {
-  return accountIdHint?.trim() || cookieHeader;
+  return cookieHeader?.includes("saegim_session=") ? cookieHeader : accountIdHint?.trim() || cookieHeader;
 }
 
 @Controller("accounts")
