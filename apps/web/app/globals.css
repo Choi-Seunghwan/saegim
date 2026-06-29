@@ -278,6 +278,12 @@ button {
   cursor: pointer;
 }
 
+.account-chip button.is-subscribed,
+.writer-bar button.is-subscribed {
+  background: rgba(56, 50, 63, 0.1);
+  color: var(--ink);
+}
+
 .avatar {
   width: 38px;
   height: 38px;

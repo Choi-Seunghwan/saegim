@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Patch } from "@nestjs/common";
+import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Patch, Post as HttpPost } from "@nestjs/common";
 import { ContentService } from "../content.service.js";
 import type { UpdateAccountInput } from "../content.types.js";
 
@@ -19,5 +19,15 @@ export class AccountsController {
   @Get("recommended")
   getRecommendedAccounts(@Headers("x-saegim-account-id") accountIdHint?: string) {
     return this.contentService.getRecommendedAccounts(accountIdHint);
+  }
+
+  @HttpPost(":accountId/follow")
+  followAccount(@Param("accountId") accountId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
+    return this.contentService.followAccount(accountId, accountIdHint);
+  }
+
+  @HttpDelete(":accountId/follow")
+  unfollowAccount(@Param("accountId") accountId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
+    return this.contentService.unfollowAccount(accountId, accountIdHint);
   }
 }

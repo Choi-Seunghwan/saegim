@@ -55,6 +55,16 @@ export async function updateCurrentAccount(input: UpdateAccountInput): Promise<A
   return data.item;
 }
 
+export async function followAccount(accountId: string): Promise<AccountProfile> {
+  const data = await fetchJson<ItemResponse<AccountProfile>>(`/accounts/${accountId}/follow`, { method: "POST" });
+  return data.item;
+}
+
+export async function unfollowAccount(accountId: string): Promise<AccountProfile> {
+  const data = await fetchJson<ItemResponse<AccountProfile>>(`/accounts/${accountId}/follow`, { method: "DELETE" });
+  return data.item;
+}
+
 export function getGoogleOAuthStartUrl() {
   return `${API_BASE_URL}/auth/google`;
 }

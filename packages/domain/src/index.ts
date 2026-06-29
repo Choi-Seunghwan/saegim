@@ -42,6 +42,11 @@ export interface AccountProfile {
   verification: VerificationState;
   postCount: number;
   writingFriendCount: number;
+  viewerState?: AccountViewerState;
+}
+
+export interface AccountViewerState {
+  subscribed: boolean;
 }
 
 export interface SentenceCard {

@@ -20,10 +20,28 @@ const accountInclude = Prisma.validator<Prisma.AccountInclude>()({
     }
   }
 });
+function accountIncludeForViewer(accountId: string) {
+  return Prisma.validator<Prisma.AccountInclude>()({
+    _count: {
+      select: {
+        posts: true,
+        followerRelations: true
+      }
+    },
+    followerRelations: {
+      where: {
+        followerId: accountId
+      },
+      select: {
+        id: true
+      }
+    }
+  });
+}
 function postIncludeForAccount(accountId: string) {
   return Prisma.validator<Prisma.PostInclude>()({
     author: {
-      include: accountInclude
+      include: accountIncludeForViewer(accountId)
     },
     cards: {
       orderBy: {
@@ -56,6 +74,9 @@ function postIncludeForAccount(accountId: string) {
 
 type AccountWithCounts = Prisma.AccountGetPayload<{
   include: typeof accountInclude;
+}>;
+type AccountWithViewer = Prisma.AccountGetPayload<{
+  include: ReturnType<typeof accountIncludeForViewer>;
 }>;
 
 type PostWithRelations = Prisma.PostGetPayload<{
@@ -363,6 +384,55 @@ export class ContentRepository {
     };
   }
 
+  async followAccount(accountId: string, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    await this.assertFollowableAccount(accountId, currentAccountId);
+
+    await this.prisma.follow.upsert({
+      where: {
+        followerId_followingId: {
+          followerId: currentAccountId,
+          followingId: accountId
+        }
+      },
+      update: {},
+      create: {
+        followerId: currentAccountId,
+        followingId: accountId
+      }
+    });
+
+    return this.getAccountProfile(accountId, currentAccountId);
+  }
+
+  async unfollowAccount(accountId: string, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    await this.assertFollowableAccount(accountId, currentAccountId);
+
+    const existingFollow = await this.prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentAccountId,
+          followingId: accountId
+        }
+      },
+      select: { id: true }
+    });
+
+    if (existingFollow) {
+      await this.prisma.follow.delete({
+        where: {
+          followerId_followingId: {
+            followerId: currentAccountId,
+            followingId: accountId
+          }
+        }
+      });
+    }
+
+    return this.getAccountProfile(accountId, currentAccountId);
+  }
+
   async getRecommendedAccounts(accountIdHint?: string) {
     const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const accounts = await this.prisma.account.findMany({
@@ -371,7 +441,7 @@ export class ContentRepository {
           not: currentAccountId
         }
       },
-      include: accountInclude,
+      include: accountIncludeForViewer(currentAccountId),
       orderBy: [{ verification: "desc" }, { createdAt: "asc" }]
     });
 
@@ -412,6 +482,36 @@ export class ContentRepository {
     if (!post) {
       throw new NotFoundException("글을 찾을 수 없어요.");
     }
+  }
+
+  private async assertFollowableAccount(accountId: string, currentAccountId: string) {
+    if (accountId === currentAccountId) {
+      throw new BadRequestException("자기 자신은 구독할 수 없어요.");
+    }
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { id: true }
+    });
+
+    if (!account) {
+      throw new NotFoundException("계정을 찾을 수 없어요.");
+    }
+  }
+
+  private async getAccountProfile(accountId: string, currentAccountId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: accountIncludeForViewer(currentAccountId)
+    });
+
+    if (!account) {
+      throw new NotFoundException("계정을 찾을 수 없어요.");
+    }
+
+    return {
+      item: this.toAccountProfile(account)
+    };
   }
 
   private async getCurrentAuthor(currentAccountId: string) {
@@ -460,15 +560,16 @@ export class ContentRepository {
       viewerState: {
         liked: post.likes.length > 0,
         carved: post.carves.length > 0,
-        subscribed: false,
+        subscribed: this.isSubscribedAccount(post.author) ?? false,
         likeCount: post.likeCountCache,
         commentCount: post.commentCountCache
       }
     };
   }
 
-  private toAccountProfile(account: AccountWithCounts): AccountProfile {
+  private toAccountProfile(account: AccountWithCounts | AccountWithViewer): AccountProfile {
     const seedAccount = seedAccounts.find((item) => item.id === account.id);
+    const subscribed = this.isSubscribedAccount(account);
 
     return {
       id: account.id,
@@ -479,8 +580,13 @@ export class ContentRepository {
       postCount: Math.max(seedAccount?.postCount ?? 0, account._count.posts),
       writingFriendCount: Math.max(seedAccount?.writingFriendCount ?? 0, account._count.followerRelations),
       ...(account.photoUrl ? { photoUrl: account.photoUrl } : {}),
-      ...(account.bio ? { bio: account.bio } : {})
+      ...(account.bio ? { bio: account.bio } : {}),
+      ...(typeof subscribed === "boolean" ? { viewerState: { subscribed } } : {})
     };
+  }
+
+  private isSubscribedAccount(account: AccountWithCounts | AccountWithViewer) {
+    return "followerRelations" in account ? account.followerRelations.length > 0 : undefined;
   }
 
   private toContentSource(card: PostWithRelations["cards"][number]): ContentSource {

@@ -50,6 +50,14 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.updateCurrentAccount(input, accountIdHint);
   }
 
+  followAccount(accountId: string, accountIdHint?: string) {
+    return this.contentRepository.followAccount(accountId, accountIdHint);
+  }
+
+  unfollowAccount(accountId: string, accountIdHint?: string) {
+    return this.contentRepository.unfollowAccount(accountId, accountIdHint);
+  }
+
   getRecommendedAccounts(accountIdHint?: string) {
     return this.contentRepository.getRecommendedAccounts(accountIdHint);
   }

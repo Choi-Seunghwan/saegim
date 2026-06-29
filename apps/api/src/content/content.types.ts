@@ -1,6 +1,10 @@
 import type { seedAccounts, seedPostBundles } from "./seed-data.js";
 
-export type AccountProfile = (typeof seedAccounts)[number];
+export type AccountProfile = (typeof seedAccounts)[number] & {
+  viewerState?: {
+    subscribed: boolean;
+  };
+};
 export type PostBundle = (typeof seedPostBundles)[number];
 export type SentenceCard = PostBundle["cards"][number];
 export type CardComposition = SentenceCard["comp"];

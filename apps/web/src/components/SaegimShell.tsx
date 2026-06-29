@@ -10,10 +10,12 @@ import {
   fetchCurrentAccount,
   fetchFeed,
   fetchRecommendedAccounts,
+  followAccount,
   getGoogleOAuthStartUrl,
   likePost,
   uncarvePost,
   unlikePost,
+  unfollowAccount,
   updateCurrentAccount
 } from "../lib/api";
 import { sampleAccounts, samplePosts } from "../lib/sample-data";
@@ -55,6 +57,28 @@ export function SaegimShell() {
     setPosts((currentPosts) => currentPosts.map((item) => (item.post.id === post.post.id ? post : item)));
   }
 
+  function replaceAccount(account: AccountProfile) {
+    setAccounts((currentAccounts) => currentAccounts.map((item) => (item.id === account.id ? account : item)));
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.author.id === account.id
+          ? {
+              ...post,
+              author: account,
+              viewerState: {
+                ...post.viewerState,
+                liked: post.viewerState?.liked ?? false,
+                carved: post.viewerState?.carved ?? false,
+                subscribed: account.viewerState?.subscribed ?? false,
+                likeCount: post.viewerState?.likeCount ?? 0,
+                commentCount: post.viewerState?.commentCount ?? 0
+              }
+            }
+          : post
+      )
+    );
+  }
+
   function enterApp(nextEntryState: Exclude<EntryState, "gate">) {
     setEntryState(nextEntryState);
     window.localStorage.setItem(ENTRY_STATE_STORAGE_KEY, nextEntryState);
@@ -93,6 +117,15 @@ export function SaegimShell() {
     const updatedAccount = await updateCurrentAccount(input);
     setCurrentAccount(updatedAccount);
     setIsEditingProfile(false);
+  }
+
+  async function handleToggleFollow(accountId: string, subscribed: boolean) {
+    try {
+      const updatedAccount = subscribed ? await unfollowAccount(accountId) : await followAccount(accountId);
+      replaceAccount(updatedAccount);
+    } catch {
+      // 구독은 관계 액션이라 실패 시 화면 상태를 그대로 둔다.
+    }
   }
 
   useEffect(() => {
@@ -137,7 +170,15 @@ export function SaegimShell() {
 
   const content = useMemo(() => {
     if (activeTab === "discover") {
-      return <DiscoverView post={featuredPost} onToggleCarve={handleToggleCarve} onToggleLike={handleToggleLike} />;
+      return (
+        <DiscoverView
+          currentAccountId={currentAccount.id}
+          post={featuredPost}
+          onToggleCarve={handleToggleCarve}
+          onToggleFollow={handleToggleFollow}
+          onToggleLike={handleToggleLike}
+        />
+      );
     }
     if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
     if (activeTab === "shelf") return <ShelfView posts={posts} />;
@@ -152,7 +193,14 @@ export function SaegimShell() {
         <ProfileView account={currentAccount} onEdit={() => setIsEditingProfile(true)} onLogout={leaveApp} />
       );
     }
-    return <HomeView post={featuredPost} accounts={accounts} onOpenDiscover={() => setActiveTab("discover")} />;
+    return (
+      <HomeView
+        post={featuredPost}
+        accounts={accounts}
+        onOpenDiscover={() => setActiveTab("discover")}
+        onToggleFollow={handleToggleFollow}
+      />
+    );
   }, [accounts, activeTab, currentAccount, featuredPost, isEditingProfile, posts]);
 
   return (
@@ -266,11 +314,13 @@ function AuthGate({
 function HomeView({
   post,
   accounts,
-  onOpenDiscover
+  onOpenDiscover,
+  onToggleFollow
 }: {
   post: PostBundle;
   accounts: AccountProfile[];
   onOpenDiscover: () => void;
+  onToggleFollow: (accountId: string, subscribed: boolean) => void;
 }) {
   return (
     <div className="view-stack">
@@ -284,16 +334,27 @@ function HomeView({
           <h2>추천 글벗</h2>
         </div>
         <div className="account-rail">
-          {accounts.map((account) => (
-            <article className="account-chip" key={account.id}>
-              <div className="avatar">{account.displayName.slice(0, 1)}</div>
-              <div>
-                <strong>{account.displayName}</strong>
-                <p>{account.tagline}</p>
-              </div>
-              <button type="button">구독</button>
-            </article>
-          ))}
+          {accounts.map((account) => {
+            const isSubscribed = account.viewerState?.subscribed ?? false;
+
+            return (
+              <article className="account-chip" key={account.id}>
+                <div className="avatar">{account.displayName.slice(0, 1)}</div>
+                <div>
+                  <strong>{account.displayName}</strong>
+                  <p>{account.tagline}</p>
+                </div>
+                <button
+                  className={isSubscribed ? "is-subscribed" : undefined}
+                  type="button"
+                  aria-pressed={isSubscribed}
+                  onClick={() => onToggleFollow(account.id, isSubscribed)}
+                >
+                  {isSubscribed ? "구독중" : "구독"}
+                </button>
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>
@@ -301,16 +362,22 @@ function HomeView({
 }
 
 function DiscoverView({
+  currentAccountId,
   post,
   onToggleCarve,
+  onToggleFollow,
   onToggleLike
 }: {
+  currentAccountId: string;
   post: PostBundle;
   onToggleCarve: (post: PostBundle) => void;
+  onToggleFollow: (accountId: string, subscribed: boolean) => void;
   onToggleLike: (post: PostBundle) => void;
 }) {
   const card = post.cards[0]!;
   const viewerState = post.viewerState;
+  const isOwnPost = post.author.id === currentAccountId;
+  const isSubscribed = viewerState?.subscribed ?? false;
 
   return (
     <article className="discover-view">
@@ -321,7 +388,16 @@ function DiscoverView({
       <div className="writer-bar">
         <div className="avatar">{post.author.displayName.slice(0, 1)}</div>
         <strong>{post.author.displayName}</strong>
-        <button type="button">구독</button>
+        {isOwnPost ? null : (
+          <button
+            className={isSubscribed ? "is-subscribed" : undefined}
+            type="button"
+            aria-pressed={isSubscribed}
+            onClick={() => onToggleFollow(post.author.id, isSubscribed)}
+          >
+            {isSubscribed ? "구독중" : "구독"}
+          </button>
+        )}
       </div>
       <aside className="action-rail" aria-label="글 행동">
         <button
