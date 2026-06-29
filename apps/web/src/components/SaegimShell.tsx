@@ -7,6 +7,7 @@ import type { AccountProfile, CreatePostInput, PostBundle } from "@saegim/domain
 import {
   carvePost,
   createPost,
+  fetchCurrentAccount,
   fetchFeed,
   fetchRecommendedAccounts,
   likePost,
@@ -33,6 +34,9 @@ export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
   const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
+  const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
+    sampleAccounts.find((account) => account.id === "acct-me") ?? sampleAccounts[0]!
+  );
   const featuredPost = posts[0] ?? samplePosts[0]!;
 
   function handlePostPublished(post: PostBundle) {
@@ -67,9 +71,10 @@ export function SaegimShell() {
 
     async function loadInitialData() {
       try {
-        const [nextPosts, nextAccounts] = await Promise.all([
+        const [nextPosts, nextAccounts, nextCurrentAccount] = await Promise.all([
           fetchFeed(controller.signal),
-          fetchRecommendedAccounts(controller.signal)
+          fetchRecommendedAccounts(controller.signal),
+          fetchCurrentAccount(controller.signal)
         ]);
 
         if (nextPosts.length > 0) {
@@ -79,6 +84,8 @@ export function SaegimShell() {
         if (nextAccounts.length > 0) {
           setAccounts(nextAccounts);
         }
+
+        setCurrentAccount(nextCurrentAccount);
       } catch {
         // API가 아직 꺼져 있어도 프로토타입 샘플로 첫 화면을 유지한다.
       }
@@ -94,9 +101,9 @@ export function SaegimShell() {
     }
     if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
     if (activeTab === "shelf") return <ShelfView posts={posts} />;
-    if (activeTab === "me") return <ProfileView />;
+    if (activeTab === "me") return <ProfileView account={currentAccount} />;
     return <HomeView post={featuredPost} accounts={accounts} onOpenDiscover={() => setActiveTab("discover")} />;
-  }, [accounts, activeTab, featuredPost, posts]);
+  }, [accounts, activeTab, currentAccount, featuredPost, posts]);
 
   return (
     <main className="app-shell" aria-label="새김 앱">
@@ -342,15 +349,17 @@ function ShelfView({ posts }: { posts: PostBundle[] }) {
   );
 }
 
-function ProfileView() {
+function ProfileView({ account }: { account: AccountProfile }) {
   return (
     <section className="profile-view">
       <div className="profile-head">
-        <div className="avatar large">나</div>
+        <div className="avatar large">{account.displayName.slice(0, 1)}</div>
         <div>
-          <h2>나의 서재</h2>
-          <p>한 줄을 곁에 두는 사람</p>
-          <small>글 0개 · 글벗 0</small>
+          <h2>{account.displayName}</h2>
+          <p>{account.tagline}</p>
+          <small>
+            글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
+          </small>
         </div>
       </div>
       <button className="primary-button ghost" type="button">

@@ -6,6 +6,10 @@ interface ListResponse<T> {
   items: T[];
 }
 
+interface ItemResponse<T> {
+  item: T;
+}
+
 async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
@@ -30,6 +34,11 @@ export async function fetchFeed(signal?: AbortSignal): Promise<PostBundle[]> {
 export async function fetchRecommendedAccounts(signal?: AbortSignal): Promise<AccountProfile[]> {
   const data = await fetchJson<ListResponse<AccountProfile>>("/accounts/recommended", signal ? { signal } : {});
   return data.items;
+}
+
+export async function fetchCurrentAccount(signal?: AbortSignal): Promise<AccountProfile> {
+  const data = await fetchJson<ItemResponse<AccountProfile>>("/accounts/me", signal ? { signal } : {});
+  return data.item;
 }
 
 export async function createPost(input: CreatePostInput): Promise<PostBundle> {
