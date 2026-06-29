@@ -47,6 +47,11 @@ type EntryState = "guest" | "signed-in";
 type InfoSheetState = { postId: string };
 type AuthSheetIntent = "default" | "capture" | "profile";
 type AuthMode = "login" | "signup";
+type AuthSubmitInput = {
+  mode: AuthMode;
+  displayName?: string;
+  email?: string;
+};
 type EditorialPageKind = "notice" | "event" | "ad";
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
 type MainReturnTab = Exclude<TabKey, "capture">;
@@ -478,6 +483,29 @@ function accountWithProfileInput(account: AccountProfile, input: UpdateAccountIn
   };
 }
 
+function handleFromEmail(email: string | undefined) {
+  const localPart = email?.trim().split("@")[0]?.trim().toLowerCase();
+  if (!localPart) return "";
+
+  const normalized = localPart.replace(/[^a-z0-9._-]/g, "").replace(/^[._-]+|[._-]+$/g, "");
+  return normalized || "";
+}
+
+function accountWithAuthInput(account: AccountProfile, input: AuthSubmitInput | undefined): AccountProfile {
+  if (!input || input.mode !== "signup") {
+    return account;
+  }
+
+  const displayName = input.displayName?.trim();
+  const handle = handleFromEmail(input.email);
+
+  return {
+    ...account,
+    ...(displayName ? { displayName } : {}),
+    ...(handle ? { handle } : {})
+  };
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -666,6 +694,7 @@ export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("home");
   const [entryState, setEntryState] = useState<EntryState>("guest");
+  const [usesLocalAuth, setUsesLocalAuth] = useState(false);
   const [authSheetIntent, setAuthSheetIntent] = useState<AuthSheetIntent | null>(null);
   const [authSheetInitialMode, setAuthSheetInitialMode] = useState<AuthMode>("login");
   const [isSearching, setIsSearching] = useState(false);
@@ -814,10 +843,15 @@ export function SaegimShell() {
     return false;
   }
 
-  function enterApp() {
+  function enterApp(input?: AuthSubmitInput) {
     const intent = authSheetIntent;
+    const nextAccount = accountWithAuthInput(currentAccount, input);
+
+    setCurrentAccount(nextAccount);
+    replaceAccount(nextAccount);
     setEntryState("signed-in");
-    setSelectedProfileId(currentAccount.id);
+    setUsesLocalAuth(true);
+    setSelectedProfileId(nextAccount.id);
     setAuthSheetIntent(null);
 
     if (intent === "capture") {
@@ -869,6 +903,7 @@ export function SaegimShell() {
     setDetailReturnTarget(null);
     setSelectedProfileId(currentAccount.id);
     setEntryState("guest");
+    setUsesLocalAuth(false);
     setAuthSheetIntent(null);
   }
 
@@ -1154,6 +1189,7 @@ export function SaegimShell() {
         const session = await fetchAuthSession(controller.signal);
         if (session.authenticated) {
           setEntryState("signed-in");
+          setUsesLocalAuth(false);
         }
       } catch {
         // 세션이 없거나 API가 꺼져 있어도 게스트 탐색은 유지한다.
@@ -1182,7 +1218,7 @@ export function SaegimShell() {
           setAccounts(nextAccounts);
         }
 
-        if (entryState === "signed-in") {
+        if (entryState === "signed-in" && !usesLocalAuth) {
           const nextCurrentAccount = await fetchCurrentAccount(controller.signal);
           setCurrentAccount(nextCurrentAccount);
           setSelectedProfileId(nextCurrentAccount.id);
@@ -1194,7 +1230,7 @@ export function SaegimShell() {
 
     void loadInitialData();
     return () => controller.abort();
-  }, [entryState]);
+  }, [entryState, usesLocalAuth]);
 
   useEffect(() => {
     setActiveCardIndex((currentIndex) => Math.min(currentIndex, Math.max(activePost.cards.length - 1, 0)));
@@ -1517,7 +1553,7 @@ function AuthSheet({
 }: {
   initialMode: AuthMode;
   onClose: () => void;
-  onEnter: () => void;
+  onEnter: (input: AuthSubmitInput) => void;
   onGoogleLogin: () => void;
 }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -1530,7 +1566,11 @@ function AuthSheet({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onEnter();
+    onEnter({
+      mode,
+      displayName,
+      email
+    });
   }
 
   return (
