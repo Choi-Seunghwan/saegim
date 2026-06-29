@@ -40,3 +40,8 @@ export interface PostComment {
   body: string;
   createdAt: string;
 }
+
+export interface SearchResult {
+  accounts: AccountProfile[];
+  posts: PostBundle[];
+}

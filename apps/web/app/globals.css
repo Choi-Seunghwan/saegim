@@ -92,6 +92,7 @@ button {
 .section,
 .capture-view,
 .drawer-view,
+.search-view,
 .profile-view,
 .profile-edit-view,
 .auth-gate,
@@ -209,6 +210,13 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+button.post-card {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
 }
 
 .page-badge {
@@ -667,6 +675,99 @@ button {
 
 .drawer-empty {
   padding: 18px 2px;
+  font-size: 14px;
+}
+
+.search-head {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-input {
+  display: grid;
+  gap: 6px;
+}
+
+.search-input span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.search-input input {
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  outline: 0;
+  background: rgba(56, 50, 63, 0.06);
+  color: var(--ink);
+  padding: 0 14px;
+  font: inherit;
+}
+
+.search-input input:focus {
+  box-shadow: 0 0 0 3px rgba(56, 50, 63, 0.1);
+}
+
+.search-section {
+  display: grid;
+  gap: 10px;
+}
+
+.search-section h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.search-account-list {
+  display: grid;
+  gap: 8px;
+}
+
+.search-account-row {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border-radius: 8px;
+  background: rgba(56, 50, 63, 0.04);
+}
+
+.search-account-row strong,
+.search-account-row p,
+.search-account-row small,
+.search-empty {
+  margin: 0;
+}
+
+.search-account-row p,
+.search-account-row small,
+.search-empty {
+  color: var(--muted);
+}
+
+.search-account-row p,
+.search-account-row small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.search-post-button {
+  min-height: 190px;
+  display: inline-flex;
+  margin: 0 0 10px;
+}
+
+.search-post-button p {
+  font-size: 20px;
+}
+
+.search-empty {
+  padding: 8px 2px;
   font-size: 14px;
 }
 

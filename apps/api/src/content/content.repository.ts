@@ -11,6 +11,7 @@ import type {
   CreatePostInput,
   PostComment,
   PostBundle,
+  SearchResult,
   UpdateAccountInput
 } from "./content.types.js";
 
@@ -217,6 +218,83 @@ export class ContentRepository {
 
     return {
       items: carves.map((carve) => this.toPostBundle(carve.post))
+    };
+  }
+
+  async search(query: string | undefined, accountIdHint?: string): Promise<SearchResult> {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    const normalizedQuery = typeof query === "string" ? query.trim() : "";
+    const accountIncludeWithViewer = accountIncludeForViewer(currentAccountId);
+    const postInclude = postIncludeForAccount(currentAccountId);
+
+    if (!normalizedQuery) {
+      const [accounts, posts] = await Promise.all([
+        this.prisma.account.findMany({
+          where: {
+            id: {
+              not: currentAccountId
+            }
+          },
+          include: accountIncludeWithViewer,
+          orderBy: [{ verification: "desc" }, { createdAt: "asc" }],
+          take: 6
+        }),
+        this.prisma.post.findMany({
+          where: {
+            visibility: "PUBLIC"
+          },
+          include: postInclude,
+          orderBy: [{ likeCountCache: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+          take: 8
+        })
+      ]);
+
+      return {
+        accounts: accounts.map((account) => this.toAccountProfile(account)),
+        posts: posts.map((post) => this.toPostBundle(post))
+      };
+    }
+
+    const [accounts, posts] = await Promise.all([
+      this.prisma.account.findMany({
+        where: {
+          id: {
+            not: currentAccountId
+          },
+          OR: [
+            { handle: { contains: normalizedQuery, mode: "insensitive" } },
+            { displayName: { contains: normalizedQuery, mode: "insensitive" } },
+            { tagline: { contains: normalizedQuery, mode: "insensitive" } },
+            { bio: { contains: normalizedQuery, mode: "insensitive" } }
+          ]
+        },
+        include: accountIncludeWithViewer,
+        orderBy: [{ verification: "desc" }, { createdAt: "asc" }],
+        take: 8
+      }),
+      this.prisma.post.findMany({
+        where: {
+          visibility: "PUBLIC",
+          OR: [
+            { title: { contains: normalizedQuery, mode: "insensitive" } },
+            {
+              cards: {
+                some: {
+                  text: { contains: normalizedQuery, mode: "insensitive" }
+                }
+              }
+            }
+          ]
+        },
+        include: postInclude,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 12
+      })
+    ]);
+
+    return {
+      accounts: accounts.map((account) => this.toAccountProfile(account)),
+      posts: posts.map((post) => this.toPostBundle(post))
     };
   }
 

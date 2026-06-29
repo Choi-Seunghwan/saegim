@@ -134,6 +134,11 @@ export interface CommentMutationResult {
   post: PostBundle;
 }
 
+export interface SearchResult {
+  accounts: AccountProfile[];
+  posts: PostBundle[];
+}
+
 export interface FollowRelation {
   followerId: SaegimId;
   followingId: SaegimId;

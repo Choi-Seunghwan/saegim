@@ -1,4 +1,4 @@
-import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Post as HttpPost } from "@nestjs/common";
+import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Post as HttpPost, Query } from "@nestjs/common";
 import { ContentService } from "../content.service.js";
 import type { CreateCommentInput, CreatePostInput } from "../content.types.js";
 
@@ -19,6 +19,11 @@ export class PostsController {
   @Get("drawer")
   getDrawer(@Headers("x-saegim-account-id") accountIdHint?: string) {
     return this.contentService.getDrawer(accountIdHint);
+  }
+
+  @Get("search")
+  search(@Query("q") query?: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
+    return this.contentService.search(query, accountIdHint);
   }
 
   @Get("posts/:postId")

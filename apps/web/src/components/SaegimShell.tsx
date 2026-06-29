@@ -13,6 +13,7 @@ import {
   fetchDrawer,
   fetchFeed,
   fetchRecommendedAccounts,
+  fetchSearch,
   followAccount,
   getGoogleOAuthStartUrl,
   likePost,
@@ -50,6 +51,7 @@ function formatCommentDate(value: string) {
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [entryState, setEntryState] = useState<EntryState>("gate");
+  const [isSearching, setIsSearching] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
@@ -62,6 +64,7 @@ export function SaegimShell() {
 
   function handlePostPublished(post: PostBundle) {
     setPosts((currentPosts) => [post, ...currentPosts.filter((item) => item.post.id !== post.post.id)]);
+    setIsSearching(false);
     setActiveTab("discover");
   }
 
@@ -99,6 +102,7 @@ export function SaegimShell() {
 
   function leaveApp() {
     setActiveTab("home");
+    setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setCommentPost(null);
@@ -108,6 +112,7 @@ export function SaegimShell() {
 
   function selectTab(tab: TabKey) {
     setActiveTab(tab);
+    setIsSearching(false);
     setCommentPost(null);
 
     if (tab !== "me") {
@@ -153,6 +158,15 @@ export function SaegimShell() {
     }
   }
 
+  function openPost(post: PostBundle) {
+    setPosts((currentPosts) => [post, ...currentPosts.filter((item) => item.post.id !== post.post.id)]);
+    setIsSearching(false);
+    setIsEditingProfile(false);
+    setIsViewingDrawer(false);
+    setCommentPost(null);
+    setActiveTab("discover");
+  }
+
   useEffect(() => {
     const savedEntryState = window.localStorage.getItem(ENTRY_STATE_STORAGE_KEY);
     if (savedEntryState === "guest" || savedEntryState === "signed-in") {
@@ -194,6 +208,10 @@ export function SaegimShell() {
   }, [entryState]);
 
   const content = useMemo(() => {
+    if (isSearching) {
+      return <SearchView onClose={() => setIsSearching(false)} onOpenPost={openPost} />;
+    }
+
     if (activeTab === "discover") {
       return (
         <DiscoverView
@@ -236,7 +254,7 @@ export function SaegimShell() {
         onToggleFollow={handleToggleFollow}
       />
     );
-  }, [accounts, activeTab, currentAccount, featuredPost, isEditingProfile, isViewingDrawer, posts]);
+  }, [accounts, activeTab, currentAccount, featuredPost, isEditingProfile, isSearching, isViewingDrawer, posts]);
 
   return (
     <main className="app-shell" aria-label="새김 앱">
@@ -247,7 +265,15 @@ export function SaegimShell() {
           <>
             <header className="topbar">
               <div className="wordmark">새김</div>
-              <button className="icon-button" type="button" aria-label="검색">
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="검색"
+                onClick={() => {
+                  setCommentPost(null);
+                  setIsSearching(true);
+                }}
+              >
                 ⌕
               </button>
             </header>
@@ -347,6 +373,119 @@ function AuthGate({
         로그인 없이 둘러보기
       </button>
     </section>
+  );
+}
+
+function SearchView({
+  onClose,
+  onOpenPost
+}: {
+  onClose: () => void;
+  onOpenPost: (post: PostBundle) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [accounts, setAccounts] = useState<AccountProfile[]>([]);
+  const [posts, setPosts] = useState<PostBundle[]>([]);
+  const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadSearch() {
+      try {
+        setStatus("loading");
+        setError("");
+        const result = await fetchSearch(query, controller.signal);
+        setAccounts(result.accounts);
+        setPosts(result.posts);
+        setStatus("idle");
+      } catch {
+        if (!controller.signal.aborted) {
+          setStatus("idle");
+          setError("검색 결과를 불러올 수 없어요.");
+        }
+      }
+    }
+
+    void loadSearch();
+    return () => controller.abort();
+  }, [query]);
+
+  const isEmpty = status !== "loading" && accounts.length === 0 && posts.length === 0;
+
+  return (
+    <section className="search-view">
+      <div className="search-head">
+        <button className="back-icon" type="button" onClick={onClose} aria-label="검색 닫기">
+          ←
+        </button>
+        <label className="search-input">
+          <span>검색</span>
+          <input
+            autoFocus
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="계정·글 검색"
+            value={query}
+          />
+        </label>
+      </div>
+
+      {accounts.length > 0 ? (
+        <section className="search-section">
+          <h2>계정</h2>
+          <div className="search-account-list">
+            {accounts.map((account) => (
+              <article className="search-account-row" key={account.id}>
+                <div className="avatar">{account.displayName.slice(0, 1)}</div>
+                <div>
+                  <strong>{account.displayName}</strong>
+                  <p>{account.tagline}</p>
+                  <small>
+                    글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
+                  </small>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {posts.length > 0 ? (
+        <section className="search-section">
+          <h2>글</h2>
+          <div className="masonry">
+            {posts.map((post) => (
+              <PostResultButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {status === "loading" ? <p className="search-empty">찾는 중</p> : null}
+      {isEmpty ? <p className="search-empty">아직 맞는 결과가 없어요.</p> : null}
+      {error ? <p className="search-empty">{error}</p> : null}
+    </section>
+  );
+}
+
+function PostResultButton({ post, onOpenPost }: { post: PostBundle; onOpenPost: (post: PostBundle) => void }) {
+  const card = post.cards[0]!;
+
+  return (
+    <button
+      className="post-card search-post-button"
+      type="button"
+      onClick={() => onOpenPost(post)}
+      style={{ background: card.comp.bg, color: card.comp.textColor }}
+    >
+      {post.post.cardCount > 1 ? <span className="page-badge">{post.post.cardCount}장</span> : null}
+      <p>{card.text}</p>
+      <footer>
+        <strong>{post.post.title}</strong>
+        <span>♡ {post.viewerState?.likeCount.toLocaleString("ko-KR") ?? 0}</span>
+      </footer>
+    </button>
   );
 }
 

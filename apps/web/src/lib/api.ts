@@ -5,6 +5,7 @@ import type {
   CreatePostInput,
   PostBundle,
   PostComment,
+  SearchResult,
   UpdateAccountInput
 } from "@saegim/domain";
 
@@ -52,6 +53,16 @@ export async function fetchRecommendedAccounts(signal?: AbortSignal): Promise<Ac
 export async function fetchDrawer(signal?: AbortSignal): Promise<PostBundle[]> {
   const data = await fetchJson<ListResponse<PostBundle>>("/drawer", signal ? { signal } : {});
   return data.items;
+}
+
+export async function fetchSearch(query: string, signal?: AbortSignal): Promise<SearchResult> {
+  const searchParams = new URLSearchParams();
+  if (query.trim()) {
+    searchParams.set("q", query.trim());
+  }
+
+  const queryString = searchParams.toString();
+  return fetchJson<SearchResult>(`/search${queryString ? `?${queryString}` : ""}`, signal ? { signal } : {});
 }
 
 export async function fetchCurrentAccount(signal?: AbortSignal): Promise<AccountProfile> {

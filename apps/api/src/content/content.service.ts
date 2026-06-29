@@ -22,6 +22,10 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getDrawer(accountIdHint);
   }
 
+  search(query: string | undefined, accountIdHint?: string) {
+    return this.contentRepository.search(query, accountIdHint);
+  }
+
   getPost(postId: string, accountIdHint?: string) {
     return this.contentRepository.getPost(postId, accountIdHint);
   }
