@@ -601,28 +601,36 @@ textarea:focus-visible {
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 6px;
+  gap: 7px;
+  justify-items: start;
   margin-top: auto;
   font-size: 11px;
   opacity: 0.88;
 }
 
 .shelf-card.has-page-badge .sfoot {
-  padding-right: 44px;
+  padding-right: 0;
 }
 
 .shelf-card .sm2 {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
   min-width: 0;
+  max-width: 100%;
   font-size: 11px;
   line-height: 1.25;
 }
 
+.shelf-card.has-page-badge .sm2 {
+  padding-right: 44px;
+}
+
 .shelf-card .sby,
 .shelf-card .mtr {
+  max-width: 100%;
   min-width: 0;
   display: inline-flex;
   align-items: center;
@@ -634,11 +642,11 @@ textarea:focus-visible {
 }
 
 .shelf-card .dot {
-  opacity: 0.52;
+  display: none;
 }
 
 .shelf-card .account-name {
-  max-width: 116px;
+  max-width: 100%;
 }
 
 .shelf-card .account-name .official-mark {
@@ -652,6 +660,7 @@ textarea:focus-visible {
 }
 
 .shelf-card .st2 {
+  width: 100%;
   color: inherit;
   font-size: 15.5px;
   font-weight: 800;
@@ -766,12 +775,21 @@ textarea:focus-visible {
 }
 
 .home-acct > button:not(.account-chip-main) {
-  width: 100%;
-  min-height: 31px;
-  margin-top: 10px;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--ink-strong);
+  justify-self: center;
+  min-width: 74px;
+  min-height: 30px;
+  margin-top: 12px;
+  padding: 0 15px;
+  border-radius: 999px;
+  background: var(--ink-strong);
+  color: #fff;
+  font-size: 12.5px;
+  box-shadow: 0 8px 18px -12px rgba(22, 18, 26, 0.7);
+  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.home-acct > button:not(.account-chip-main):active {
+  transform: scale(0.96);
 }
 
 .account-chip > button:not(.account-chip-main).is-subscribed,
@@ -1072,8 +1090,8 @@ textarea:focus-visible {
   max-width: calc(100% - 84px);
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 8px;
+  gap: 5px;
+  padding: 5px 7px;
   border-radius: 999px;
   background: rgba(252, 251, 252, 0.3);
   backdrop-filter: blur(12px);
@@ -1092,8 +1110,12 @@ textarea:focus-visible {
 }
 
 .writer-bar > button:not(.writer-identity) {
-  min-height: 30px;
-  padding: 0 11px;
+  min-height: 27px;
+  padding: 0 10px;
+  background: rgba(53, 48, 57, 0.82);
+  color: #fff;
+  font-size: 12.5px;
+  box-shadow: 0 8px 16px -12px rgba(22, 18, 26, 0.85);
 }
 
 .writer-identity {
@@ -3265,18 +3287,28 @@ textarea:focus-visible {
 .profile-sub {
   flex: 0 0 auto;
   align-self: center;
-  padding: 8px 15px;
+  min-height: 30px;
+  padding: 0 12px;
   border-radius: 999px;
-  background: rgba(56, 50, 63, 0.08);
-  color: var(--ink-strong);
-  font-size: 12.5px;
+  background: var(--ink-strong);
+  color: #fff;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
+  box-shadow: 0 8px 18px -13px rgba(22, 18, 26, 0.65);
 }
 
 .profile-sub.is-subscribed {
+  background: rgba(56, 50, 63, 0.08);
   color: var(--muted);
+  box-shadow: none;
+}
+
+.profile-sub.ghost {
+  background: rgba(56, 50, 63, 0.08);
+  color: var(--ink-strong);
+  box-shadow: none;
 }
 
 .profile-posts {
