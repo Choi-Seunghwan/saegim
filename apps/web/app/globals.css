@@ -582,17 +582,14 @@ textarea:focus-visible {
 }
 
 .home-rail .shelf-card .sq {
-  -webkit-line-clamp: 3;
+  display: block;
 }
 
 .shelf-card .sq {
   position: relative;
   z-index: 1;
-  display: -webkit-box;
+  display: block;
   margin: 0;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
   line-height: 1.5;
   white-space: pre-line;
   word-break: keep-all;
@@ -655,13 +652,14 @@ textarea:focus-visible {
 }
 
 .shelf-card .st2 {
-  overflow: hidden;
   color: inherit;
   font-size: 15.5px;
   font-weight: 800;
   letter-spacing: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .page-badge {
@@ -1863,6 +1861,16 @@ textarea:focus-visible {
   height: 32px;
   border-radius: 999px;
   background: rgba(56, 50, 63, 0.12);
+}
+
+.capture-page-delete svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .capture-bottom {

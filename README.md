@@ -57,6 +57,7 @@ API 기본 조회 계약:
 - `PATCH /accounts/me` — 현재 계정 프로필 수정
 - `GET /accounts/:accountId` — 계정 상세 + 공개 글 목록
 - `GET /accounts/recommended`
+- `GET /accounts/following` — 현재 계정이 구독중인 계정 목록
 - `POST /posts` — PostgreSQL 저장
 - `POST /posts/:postId/like` / `DELETE /posts/:postId/like`
 - `POST /posts/:postId/carve` / `DELETE /posts/:postId/carve`

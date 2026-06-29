@@ -635,6 +635,25 @@ export class ContentRepository {
     };
   }
 
+  async getFollowingAccounts(accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    const follows = await this.prisma.follow.findMany({
+      where: {
+        followerId: currentAccountId
+      },
+      include: {
+        following: {
+          include: accountIncludeForViewer(currentAccountId)
+        }
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+    });
+
+    return {
+      items: follows.map((follow) => this.toAccountProfile(follow.following))
+    };
+  }
+
   private async findPosts(orderBy: Prisma.PostOrderByWithRelationInput[], currentAccountId: string) {
     return this.prisma.post.findMany({
       where: {

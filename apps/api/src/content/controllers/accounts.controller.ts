@@ -35,6 +35,14 @@ export class AccountsController {
     return this.contentService.getRecommendedAccounts(accountContext(accountIdHint, cookieHeader));
   }
 
+  @Get("following")
+  getFollowingAccounts(
+    @Headers("x-saegim-account-id") accountIdHint?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.getFollowingAccounts(accountContext(accountIdHint, cookieHeader));
+  }
+
   @Get(":accountId")
   getAccountDetail(
     @Param("accountId") accountId: string,

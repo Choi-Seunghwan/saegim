@@ -65,6 +65,11 @@ export async function fetchRecommendedAccounts(signal?: AbortSignal): Promise<Ac
   return data.items;
 }
 
+export async function fetchFollowingAccounts(signal?: AbortSignal): Promise<AccountProfile[]> {
+  const data = await fetchJson<ListResponse<AccountProfile>>("/accounts/following", signal ? { signal } : {});
+  return data.items;
+}
+
 export async function fetchDrawer(signal?: AbortSignal): Promise<PostBundle[]> {
   const data = await fetchJson<ListResponse<PostBundle>>("/drawer", signal ? { signal } : {});
   return data.items;

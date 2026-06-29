@@ -81,4 +81,8 @@ export class ContentService implements OnModuleInit {
   getRecommendedAccounts(accountIdHint?: string) {
     return this.contentRepository.getRecommendedAccounts(accountIdHint);
   }
+
+  getFollowingAccounts(accountIdHint?: string) {
+    return this.contentRepository.getFollowingAccounts(accountIdHint);
+  }
 }

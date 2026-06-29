@@ -21,6 +21,7 @@ import {
   fetchCurrentAccount,
   fetchDrawer,
   fetchFeed,
+  fetchFollowingAccounts,
   fetchRecommendedAccounts,
   fetchSearch,
   fetchAuthSession,
@@ -401,6 +402,24 @@ function cardSourceLabel(card: SentenceCard) {
   return formatted === "직접 새김" ? "" : formatted;
 }
 
+function postWithViewerState(post: PostBundle, patch: Partial<NonNullable<PostBundle["viewerState"]>>): PostBundle {
+  const viewerState = post.viewerState ?? {
+    liked: false,
+    carved: false,
+    subscribed: false,
+    likeCount: 0,
+    commentCount: 0
+  };
+
+  return {
+    ...post,
+    viewerState: {
+      ...viewerState,
+      ...patch
+    }
+  };
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -475,6 +494,17 @@ function MoreIcon() {
       <circle cx="5" cy="12" r="1.9" />
       <circle cx="12" cy="12" r="1.9" />
       <circle cx="19" cy="12" r="1.9" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h16" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M6 7l1 14h10l1-14" />
+      <path d="M9 7V4h6v3" />
     </svg>
   );
 }
@@ -573,6 +603,7 @@ export function SaegimShell() {
   const [isSearching, setIsSearching] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
+  const [isViewingFollowing, setIsViewingFollowing] = useState(false);
   const [isViewingSettings, setIsViewingSettings] = useState(false);
   const [isViewingNoticeList, setIsViewingNoticeList] = useState(false);
   const [editorialPageState, setEditorialPageState] = useState<EditorialPageState | null>(null);
@@ -587,7 +618,11 @@ export function SaegimShell() {
   const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
     sampleAccounts.find((account) => account.id === "acct-me") ?? sampleAccounts[0]!
   );
-  const displayPostsForUi = mergeUniquePosts(posts, samplePosts);
+  const displayPostsForUi = useMemo(() => mergeUniquePosts(posts, samplePosts), [posts]);
+  const drawerFallbackPosts = useMemo(
+    () => displayPostsForUi.filter((post) => post.viewerState?.carved),
+    [displayPostsForUi]
+  );
   const featuredPost = displayPostsForUi[0] ?? samplePosts[0]!;
   const activePost = posts.find((post) => post.post.id === activePostId) ?? featuredPost;
   const selectedProfile =
@@ -611,6 +646,7 @@ export function SaegimShell() {
     activeTab === "capture" ||
     isEditingProfile ||
     isViewingDrawer ||
+    isViewingFollowing ||
     isViewingSettings ||
     isViewingNoticeList ||
     Boolean(editorialPageState);
@@ -636,6 +672,7 @@ export function SaegimShell() {
     setActiveCardIndex(0);
     setIsSearching(false);
     setIsViewingNoticeList(false);
+    setIsViewingFollowing(false);
     setEditorialPageState(null);
     setInfoSheet(null);
     setActiveTab("discover");
@@ -703,6 +740,7 @@ export function SaegimShell() {
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
+    setIsViewingFollowing(false);
     setIsViewingSettings(false);
     setIsViewingNoticeList(false);
     setEditorialPageState(null);
@@ -734,6 +772,7 @@ export function SaegimShell() {
     if (tab !== "me") {
       setIsEditingProfile(false);
       setIsViewingDrawer(false);
+      setIsViewingFollowing(false);
       setIsViewingSettings(false);
     } else {
       setSelectedProfileId(currentAccount.id);
@@ -749,6 +788,7 @@ export function SaegimShell() {
     setInfoSheet(null);
     setIsSearching(false);
     setIsViewingNoticeList(false);
+    setIsViewingFollowing(false);
     setEditorialPageState({ pageId: page.id, origin });
   }
 
@@ -774,6 +814,7 @@ export function SaegimShell() {
 
   function openNoticeList() {
     setIsViewingSettings(false);
+    setIsViewingFollowing(false);
     setIsViewingNoticeList(true);
     setEditorialPageState(null);
     setActiveTab("me");
@@ -793,7 +834,7 @@ export function SaegimShell() {
       const updatedPost = post.viewerState?.carved ? await uncarvePost(post.post.id) : await carvePost(post.post.id);
       replacePost(updatedPost);
     } catch {
-      // 새김은 비공개 간직 액션이라 실패 시 조용히 유지한다.
+      replacePost(postWithViewerState(post, { carved: !post.viewerState?.carved }));
     }
   }
 
@@ -807,8 +848,24 @@ export function SaegimShell() {
     try {
       const updatedAccount = subscribed ? await unfollowAccount(accountId) : await followAccount(accountId);
       replaceAccount(updatedAccount);
+      return updatedAccount;
     } catch {
-      // 구독은 관계 액션이라 실패 시 화면 상태를 그대로 둔다.
+      const fallbackAccount =
+        accounts.find((account) => account.id === accountId) ??
+        displayPostsForUi.find((post) => post.author.id === accountId)?.author;
+
+      if (!fallbackAccount) {
+        return null;
+      }
+
+      const updatedAccount = {
+        ...fallbackAccount,
+        viewerState: {
+          subscribed: !subscribed
+        }
+      };
+      replaceAccount(updatedAccount);
+      return updatedAccount;
     }
   }
 
@@ -835,6 +892,7 @@ export function SaegimShell() {
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
+    setIsViewingFollowing(false);
     setIsViewingSettings(false);
     setIsViewingNoticeList(false);
     setEditorialPageState(null);
@@ -857,6 +915,7 @@ export function SaegimShell() {
     setIsEditingProfile(false);
     setIsViewingNoticeList(false);
     setIsViewingSettings(false);
+    setIsViewingFollowing(false);
 
     if (target.surface === "drawer") {
       setActiveTab("me");
@@ -867,6 +926,7 @@ export function SaegimShell() {
 
     setActiveTab(target.tab);
     setIsViewingDrawer(false);
+    setIsViewingFollowing(false);
     setIsSearching(target.surface === "search");
   }
 
@@ -876,6 +936,7 @@ export function SaegimShell() {
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
+    setIsViewingFollowing(false);
     setIsViewingSettings(false);
     setIsViewingNoticeList(false);
     setEditorialPageState(null);
@@ -1052,13 +1113,39 @@ export function SaegimShell() {
               setIsViewingSettings(false);
               setIsViewingDrawer(true);
             }}
+            onOpenFollowing={() => {
+              setIsViewingSettings(false);
+              setIsViewingFollowing(true);
+            }}
             onOpenNotices={openNoticeList}
           />
         );
       }
 
+      if (isViewingFollowing) {
+        return (
+          <FollowingView
+            fallbackAccounts={accounts}
+            onBack={() => {
+              setIsViewingFollowing(false);
+              setIsViewingSettings(true);
+            }}
+            onOpenProfile={openProfile}
+          />
+        );
+      }
+
       if (isViewingDrawer) {
-        return <DrawerView onBack={() => setIsViewingDrawer(false)} onOpenPost={openPost} />;
+        return (
+          <DrawerView
+            fallbackPosts={drawerFallbackPosts}
+            onBack={() => {
+              setIsViewingDrawer(false);
+              setIsViewingSettings(true);
+            }}
+            onOpenPost={openPost}
+          />
+        );
       }
 
       return isEditingProfile ? (
@@ -1102,10 +1189,12 @@ export function SaegimShell() {
     captureReturnTab,
     currentAccount,
     detailReturnTarget,
+    drawerFallbackPosts,
     featuredPost,
     isEditingProfile,
     isSearching,
     isViewingDrawer,
+    isViewingFollowing,
     isViewingNoticeList,
     isViewingSettings,
     isOwnProfile,
@@ -1445,23 +1534,7 @@ function SearchView({
           <h2>계정</h2>
           <div className="search-account-list">
             {visibleAccounts.map((account) => (
-              <button
-                className="search-account-row"
-                key={account.id}
-                type="button"
-                onClick={() => onOpenProfile(account)}
-              >
-                <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
-                <div>
-                  <strong>
-                    <AccountName account={account} />
-                  </strong>
-                  <p>{account.tagline}</p>
-                  <small>
-                    글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
-                  </small>
-                </div>
-              </button>
+              <AccountResultButton account={account} key={account.id} onOpenProfile={onOpenProfile} />
             ))}
           </div>
         </section>
@@ -1482,6 +1555,29 @@ function SearchView({
       {isEmpty ? <p className="search-empty">‘{cleanQuery}’에 대한 결과가 없어요.</p> : null}
       {error && visibleAccounts.length === 0 && visiblePosts.length === 0 ? <p className="search-empty">{error}</p> : null}
     </section>
+  );
+}
+
+function AccountResultButton({
+  account,
+  onOpenProfile
+}: {
+  account: AccountProfile;
+  onOpenProfile: (account: AccountProfile) => void;
+}) {
+  return (
+    <button className="search-account-row" type="button" onClick={() => onOpenProfile(account)}>
+      <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
+      <div>
+        <strong>
+          <AccountName account={account} />
+        </strong>
+        <p>{account.tagline}</p>
+        <small>
+          글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
+        </small>
+      </div>
+    </button>
   );
 }
 
@@ -2607,12 +2703,12 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
                   <span>{card.text.trim() || "새 문장"}</span>
                 </button>
               ))}
+              <button className="capture-page-add" type="button" onClick={addDraftCard} aria-label="장 추가">
+                +
+              </button>
             </div>
-            <button className="capture-page-add" type="button" onClick={addDraftCard} aria-label="장 추가">
-              +
-            </button>
             <button className="capture-page-delete" type="button" onClick={removeDraftCard} disabled={cards.length <= 1} aria-label="현재 장 삭제">
-              ×
+              <TrashIcon />
             </button>
           </div>
         </div>
@@ -2973,12 +3069,14 @@ function SettingsView({
   onEditProfile,
   onLogout,
   onOpenDrawer,
+  onOpenFollowing,
   onOpenNotices
 }: {
   onBack: () => void;
   onEditProfile: () => void;
   onLogout: () => void;
   onOpenDrawer: () => void;
+  onOpenFollowing: () => void;
   onOpenNotices: () => void;
 }) {
   const sections: Array<{
@@ -2991,7 +3089,7 @@ function SettingsView({
     },
     {
       title: "활동",
-      rows: [{ label: "내 서랍", onClick: onOpenDrawer }, { label: "구독 목록", state: "준비 중" }]
+      rows: [{ label: "내 서랍", onClick: onOpenDrawer }, { label: "구독 목록", onClick: onOpenFollowing }]
     },
     {
       title: "알림",
@@ -3050,7 +3148,103 @@ function SettingsView({
   );
 }
 
-function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (post: PostBundle) => void }) {
+function FollowingView({
+  fallbackAccounts,
+  onBack,
+  onOpenProfile
+}: {
+  fallbackAccounts: AccountProfile[];
+  onBack: () => void;
+  onOpenProfile: (account: AccountProfile) => void;
+}) {
+  const [followingAccounts, setFollowingAccounts] = useState<AccountProfile[]>([]);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadFollowing() {
+      try {
+        setStatus("loading");
+        setError("");
+        const nextAccounts = await fetchFollowingAccounts(controller.signal);
+        setFollowingAccounts(nextAccounts);
+        setStatus("idle");
+      } catch {
+        if (!controller.signal.aborted) {
+          const fallbackFollowing = fallbackAccounts.filter((account) => account.viewerState?.subscribed);
+          setFollowingAccounts(fallbackFollowing);
+          setStatus("idle");
+          setError("");
+        }
+      }
+    }
+
+    void loadFollowing();
+    return () => controller.abort();
+  }, [fallbackAccounts]);
+
+  const visibleAccounts = followingAccounts.filter((account) => {
+    const cleanQuery = query.trim().toLowerCase();
+    if (!cleanQuery) return true;
+
+    return `${account.displayName} ${account.handle} ${account.tagline}`.toLowerCase().includes(cleanQuery);
+  });
+
+  return (
+    <section className="drawer-view following-view">
+      <div className="drawer-head">
+        <button className="back-icon" type="button" onClick={onBack} aria-label="설정으로 돌아가기">
+          ←
+        </button>
+        <div>
+          <h2>구독 목록</h2>
+          <p>구독중인 글벗 {formatCount(followingAccounts.length)}명</p>
+        </div>
+      </div>
+
+      <div className="drawer-tools">
+        <label className="drawer-search">
+          <SearchIcon />
+          <input
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="구독중인 계정 찾기"
+            type="search"
+            value={query}
+          />
+        </label>
+      </div>
+
+      {status === "loading" ? <p className="drawer-empty">불러오는 중</p> : null}
+      {status !== "loading" && !error && followingAccounts.length === 0 ? (
+        <p className="drawer-empty">아직 구독중인 글벗이 없어요.</p>
+      ) : null}
+      {status !== "loading" && !error && followingAccounts.length > 0 && visibleAccounts.length === 0 ? (
+        <p className="drawer-empty">검색에 맞는 글벗이 없어요.</p>
+      ) : null}
+      {error ? <p className="drawer-empty">{error}</p> : null}
+      {visibleAccounts.length > 0 ? (
+        <div className="search-account-list following-account-list">
+          {visibleAccounts.map((account) => (
+            <AccountResultButton account={account} key={account.id} onOpenProfile={onOpenProfile} />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function DrawerView({
+  fallbackPosts,
+  onBack,
+  onOpenPost
+}: {
+  fallbackPosts: PostBundle[];
+  onBack: () => void;
+  onOpenPost: (post: PostBundle) => void;
+}) {
   const [drawerPosts, setDrawerPosts] = useState<PostBundle[]>([]);
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<"recent" | "author">("recent");
@@ -3069,15 +3263,16 @@ function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (p
         setStatus("idle");
       } catch {
         if (!controller.signal.aborted) {
+          setDrawerPosts(fallbackPosts);
           setStatus("idle");
-          setError("서랍을 불러올 수 없어요.");
+          setError("");
         }
       }
     }
 
     void loadDrawer();
     return () => controller.abort();
-  }, []);
+  }, [fallbackPosts]);
 
   const visiblePosts = drawerPosts
     .filter((post) => {
@@ -3099,7 +3294,7 @@ function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (p
   return (
     <section className="drawer-view">
       <div className="drawer-head">
-        <button className="back-icon" type="button" onClick={onBack} aria-label="프로필로 돌아가기">
+        <button className="back-icon" type="button" onClick={onBack} aria-label="설정으로 돌아가기">
           ←
         </button>
         <div>
