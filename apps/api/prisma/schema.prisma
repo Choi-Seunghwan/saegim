@@ -79,19 +79,21 @@ model OAuthAccount {
 }
 
 model Post {
-  id           String           @id @default(cuid())
-  title        String
-  authorId     String
-  author       Account          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  visibility   PostVisibility   @default(PUBLIC)
-  creationType PostCreationType @default(CURATION)
-  publishedAt  DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  cards        Card[]
-  likes        Like[]
-  carves       Carve[]
-  comments     Comment[]
+  id                String           @id @default(cuid())
+  title             String
+  authorId          String
+  author            Account          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  visibility        PostVisibility   @default(PUBLIC)
+  creationType      PostCreationType @default(CURATION)
+  likeCountCache    Int              @default(0)
+  commentCountCache Int              @default(0)
+  publishedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  cards             Card[]
+  likes             Like[]
+  carves            Carve[]
+  comments          Comment[]
 
   @@index([authorId, createdAt])
   @@index([visibility, publishedAt])
@@ -110,7 +112,7 @@ model Card {
   sourceUrl       String?
   tags            String[]        @default([])
   embeddingStatus EmbeddingStatus @default(PENDING)
-  embedding        Json?
+  embedding       Json?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   carves          Carve[]

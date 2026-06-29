@@ -45,10 +45,11 @@
 - `apps/web/src/lib/api.ts`: `NEXT_PUBLIC_API_BASE_URL` 기준으로 `/feed`, `/accounts/recommended`, `POST /posts`, 좋아요/새김 토글 API를 호출한다. API 실패 시 첫 화면은 샘플 데이터로 유지한다.
 - `apps/web/src/components/SaegimShell.tsx`: 포착 탭에서 한 장짜리 글을 발행하면 API 응답을 피드 상태에 prepend하고 발견 탭으로 이동한다.
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면의 좋아요(공개 수치)와 새김(비공개 상태) 버튼은 API 응답으로 viewerState를 갱신한다.
-- `apps/api`: NestJS API. 현재 `/health`, `/feed`, `/shelf`, `/posts/:postId`, `/accounts/recommended`, `POST /posts`, 좋아요/새김 토글로 기본 계약을 확인한다. 발행·액션 저장은 아직 DB가 아니라 서버 런타임 메모리다.
-- `apps/api/prisma/schema.prisma`: PostgreSQL 모델 계약. 계정, OAuth 계정, 글, 장, 구독, 좋아요, 새김, 댓글을 정의한다.
+- `apps/api`: NestJS API. 현재 `/health`, `/feed`, `/shelf`, `/posts/:postId`, `/accounts/recommended`, `POST /posts`, 좋아요/새김 토글로 기본 계약을 확인한다. 발행·좋아요·새김은 PostgreSQL에 저장한다.
+- `apps/api/src/content/content.repository.ts`: Prisma 기반 콘텐츠 저장소. 서버 시작 시 시드 계정/글을 idempotent하게 보강하고, 응답을 `PostBundle` 형태로 매핑한다.
+- `apps/api/prisma/schema.prisma`: PostgreSQL 모델 계약. 계정, OAuth 계정, 글, 장, 구독, 좋아요, 새김, 댓글과 공개 카운터 캐시를 정의한다.
 - `packages/domain`: 카드/글/계정/관계 공유 타입. WYSIWYG `comp` 계약은 여기서 먼저 바꾼다.
-- `docker-compose.yml`: 로컬 PostgreSQL 개발용.
+- `docker-compose.yml`: 로컬 PostgreSQL 개발용. 호스트 포트는 `55432`.
 
 ## 규칙
 

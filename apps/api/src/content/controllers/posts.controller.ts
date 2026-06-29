@@ -1,6 +1,6 @@
 import { Body, Controller, Delete as HttpDelete, Get, Param, Post as HttpPost } from "@nestjs/common";
-import type { CreatePostInput } from "../content.service.js";
 import { ContentService } from "../content.service.js";
+import type { CreatePostInput } from "../content.types.js";
 
 @Controller()
 export class PostsController {

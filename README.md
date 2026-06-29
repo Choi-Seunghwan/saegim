@@ -42,7 +42,7 @@ pnpm dev:web
 pnpm dev:api
 ```
 
-PostgreSQL 로컬 확인이 필요하면 `docker compose up -d postgres`를 사용한다.
+PostgreSQL 로컬 확인이 필요하면 `docker compose up -d postgres`를 사용한다. 새김 전용 DB는 기존 로컬 Postgres와 충돌하지 않도록 호스트 `55432` 포트를 쓴다.
 
 API 기본 조회 계약:
 - `GET /health`
@@ -50,7 +50,7 @@ API 기본 조회 계약:
 - `GET /shelf`
 - `GET /posts/:postId`
 - `GET /accounts/recommended`
-- `POST /posts` — 현재는 런타임 메모리 저장(서버 재시작 시 초기화)
+- `POST /posts` — PostgreSQL 저장
 - `POST /posts/:postId/like` / `DELETE /posts/:postId/like`
 - `POST /posts/:postId/carve` / `DELETE /posts/:postId/carve`
 
@@ -59,8 +59,9 @@ API 기본 조회 계약:
 Prisma 스키마 확인:
 
 ```bash
-DATABASE_URL=postgresql://saegim:saegim@localhost:5432/saegim pnpm --filter @saegim/api db:validate
-DATABASE_URL=postgresql://saegim:saegim@localhost:5432/saegim pnpm --filter @saegim/api db:generate
+DATABASE_URL=postgresql://saegim:saegim@localhost:55432/saegim pnpm --filter @saegim/api db:validate
+DATABASE_URL=postgresql://saegim:saegim@localhost:55432/saegim pnpm --filter @saegim/api db:generate
+DATABASE_URL=postgresql://saegim:saegim@localhost:55432/saegim pnpm --filter @saegim/api db:push
 ```
 
 ## 디자인
