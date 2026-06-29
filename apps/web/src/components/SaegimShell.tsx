@@ -969,9 +969,12 @@ function AuthGate({
   onGoogleLogin: () => void;
 }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const submitLabel = mode === "login" ? "로그인" : "회원가입";
+  const [agreed, setAgreed] = useState(false);
+  const isSignup = mode === "signup";
+  const submitLabel = isSignup ? "가입하기" : "로그인";
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -980,54 +983,79 @@ function AuthGate({
 
   return (
     <section className="auth-gate" aria-label="로그인">
-      <div className="auth-brand">
-        <div className="wordmark">새김</div>
-        <p>한 줄을 카드로 만들어, 발견하고, 마음에 새겨 간직하는 곳</p>
-      </div>
+      <div className="auth-card">
+        <div className="auth-brand">새김</div>
 
-      <div className="auth-mode-tabs" aria-label="인증 모드">
-        <button className={mode === "login" ? "is-active" : undefined} type="button" onClick={() => setMode("login")}>
-          로그인
-        </button>
-        <button className={mode === "signup" ? "is-active" : undefined} type="button" onClick={() => setMode("signup")}>
-          회원가입
-        </button>
-      </div>
+        <form className="auth-panel" onSubmit={handleSubmit}>
+          <h2>{isSignup ? "새김 시작하기" : "다시 만나 반가워요"}</h2>
+          <p className="auth-sub">
+            {isSignup ? "마음에 닿은 문장을 모아보세요" : "문장을 새기고, 곁에 두는 공간"}
+          </p>
 
-      <button className="google-button" type="button" onClick={onGoogleLogin}>
-        Google 계정으로 계속
-      </button>
-
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <label className="capture-field">
-          <span>이메일</span>
+          {isSignup ? (
+            <input
+              aria-label="닉네임"
+              className="auth-in"
+              maxLength={20}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="닉네임"
+              value={displayName}
+            />
+          ) : null}
           <input
+            aria-label="이메일"
             autoComplete="email"
+            className="auth-in"
             inputMode="email"
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="name@example.com"
+            placeholder="이메일"
             type="email"
             value={email}
           />
-        </label>
-        <label className="capture-field">
-          <span>비밀번호</span>
           <input
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            aria-label="비밀번호"
+            autoComplete={isSignup ? "new-password" : "current-password"}
+            className="auth-in"
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="8자 이상"
+            placeholder={isSignup ? "비밀번호 (8자 이상)" : "비밀번호"}
             type="password"
             value={password}
           />
-        </label>
-        <button className="primary-button" type="submit">
-          {submitLabel}
-        </button>
-      </form>
 
-      <button className="guest-button" type="button" onClick={() => onEnter("guest")}>
-        로그인 없이 둘러보기
-      </button>
+          {isSignup ? (
+            <label className="auth-agree">
+              <input checked={agreed} onChange={(event) => setAgreed(event.target.checked)} type="checkbox" />
+              <span>이용약관 및 개인정보 처리방침에 동의합니다</span>
+            </label>
+          ) : null}
+
+          <button className="auth-btn" type="submit">
+            {submitLabel}
+          </button>
+        </form>
+
+        {!isSignup ? (
+          <>
+            <div className="auth-div">
+              <span>또는</span>
+            </div>
+            <button className="auth-social google" type="button" onClick={onGoogleLogin}>
+              Google로 계속하기
+            </button>
+          </>
+        ) : null}
+
+        <div className="auth-alt">
+          {isSignup ? "이미 계정이 있으신가요?" : "아직 계정이 없으신가요?"}{" "}
+          <button type="button" onClick={() => setMode(isSignup ? "login" : "signup")}>
+            {isSignup ? "로그인" : "회원가입"}
+          </button>
+        </div>
+
+        <button className="auth-guest" type="button" onClick={() => onEnter("guest")}>
+          로그인 없이 둘러보기
+        </button>
+      </div>
     </section>
   );
 }
@@ -2396,16 +2424,39 @@ function ProfileEditView({
 
   return (
     <form className="profile-edit-view" onSubmit={handleSubmit}>
-      <div className="profile-edit-head">
-        <Avatar displayName={displayName || account.displayName} photoUrl={photoUrl} size="large" />
+      <div className="edit-page-head">
         <div>
+          <button className="back-icon" type="button" onClick={onCancel} aria-label="프로필로 돌아가기">
+            ←
+          </button>
           <h2>프로필 편집</h2>
-          <p>{tagline || "한 줄을 곁에 두는 사람"}</p>
         </div>
+        <button className="edit-save" type="submit" disabled={status === "saving"}>
+          {status === "saving" ? "저장 중" : "저장"}
+        </button>
       </div>
 
-      <label className="capture-field">
-        <span>닉네임</span>
+      <div className="edit-photo">
+        <div className="edit-avatar-wrap">
+          <Avatar displayName={displayName || account.displayName} photoUrl={photoUrl} size="large" />
+          <span aria-hidden="true">사진</span>
+        </div>
+        <p>{tagline || "한 줄을 곁에 두는 사람"}</p>
+      </div>
+
+      <label className="edit-field">
+        <span className="edit-label">프로필 사진 URL</span>
+        <input
+          onChange={(event) => setPhotoUrl(event.target.value)}
+          placeholder="이미지 주소"
+          value={photoUrl}
+        />
+      </label>
+      <label className="edit-field">
+        <div>
+          <span className="edit-label">닉네임</span>
+          <small>{displayName.length}/24</small>
+        </div>
         <input
           maxLength={24}
           onChange={(event) => setDisplayName(event.target.value)}
@@ -2413,17 +2464,24 @@ function ProfileEditView({
           value={displayName}
         />
       </label>
-      <label className="capture-field">
-        <span>한줄 소개글</span>
+      <label className="edit-field">
+        <div>
+          <span className="edit-label">한줄 소개글</span>
+          <small>{tagline.length}/48</small>
+        </div>
         <input
           maxLength={48}
           onChange={(event) => setTagline(event.target.value)}
           placeholder="한 줄을 곁에 두는 사람"
           value={tagline}
         />
+        <em>추천 글벗 카드와 프로필 이름 아래에 보여요.</em>
       </label>
-      <label className="capture-field">
-        <span>소개글</span>
+      <label className="edit-field">
+        <div>
+          <span className="edit-label">프로필 소개글</span>
+          <small>{bio.length}/240</small>
+        </div>
         <textarea
           maxLength={240}
           onChange={(event) => setBio(event.target.value)}
@@ -2431,24 +2489,8 @@ function ProfileEditView({
           value={bio}
         />
       </label>
-      <label className="capture-field">
-        <span>프로필 사진</span>
-        <input
-          onChange={(event) => setPhotoUrl(event.target.value)}
-          placeholder="이미지 주소"
-          value={photoUrl}
-        />
-      </label>
 
       {error ? <p className="capture-error">{error}</p> : null}
-      <div className="profile-edit-actions">
-        <button className="primary-button ghost" type="button" onClick={onCancel}>
-          취소
-        </button>
-        <button className="primary-button" type="submit" disabled={status === "saving"}>
-          {status === "saving" ? "저장 중" : "저장"}
-        </button>
-      </div>
     </form>
   );
 }
