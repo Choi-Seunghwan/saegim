@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VerificationState {
+  NONE
+  OFFICIAL
+}
+
+enum PostVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum PostCreationType {
+  ORIGINAL
+  CURATION
+}
+
+enum SourceKind {
+  BOOK
+  WEB
+  DIRECT
+  PUBLISHER
+}
+
+enum EmbeddingStatus {
+  PENDING
+  READY
+  SKIPPED
+}
+
+enum OAuthProvider {
+  GOOGLE
+  KAKAO
+  NAVER
+}
+
+model Account {
+  id                 String            @id @default(cuid())
+  handle             String            @unique
+  email              String?           @unique
+  displayName        String
+  photoUrl           String?
+  tagline            String            @default("")
+  bio                String?
+  verification       VerificationState @default(NONE)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  posts              Post[]            @relation("PostAuthor")
+  oauthAccounts      OAuthAccount[]
+  followerRelations  Follow[]          @relation("FollowFollowing")
+  followingRelations Follow[]          @relation("FollowFollower")
+  likes              Like[]
+  carves             Carve[]
+  comments           Comment[]
+
+  @@index([verification])
+  @@index([createdAt])
+}
+
+model OAuthAccount {
+  id                String        @id @default(cuid())
+  provider          OAuthProvider
+  providerAccountId String
+  email             String?
+  accountId         String
+  account           Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([accountId])
+}
+
+model Post {
+  id           String           @id @default(cuid())
+  title        String
+  authorId     String
+  author       Account          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  visibility   PostVisibility   @default(PUBLIC)
+  creationType PostCreationType @default(CURATION)
+  publishedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  cards        Card[]
+  likes        Like[]
+  carves       Carve[]
+  comments     Comment[]
+
+  @@index([authorId, createdAt])
+  @@index([visibility, publishedAt])
+}
+
+model Card {
+  id              String          @id @default(cuid())
+  postId          String
+  post            Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  order           Int
+  text            String
+  comp            Json
+  sourceKind      SourceKind      @default(DIRECT)
+  sourceAuthor    String?
+  sourceWork      String?
+  sourceUrl       String?
+  tags            String[]        @default([])
+  embeddingStatus EmbeddingStatus @default(PENDING)
+  embedding        Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  carves          Carve[]
+
+  @@unique([postId, order])
+  @@index([postId])
+  @@index([embeddingStatus])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    Account  @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   Account  @relation("FollowFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  accountId String
+  postId    String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([accountId, postId])
+  @@index([postId])
+}
+
+model Carve {
+  id        String   @id @default(cuid())
+  accountId String
+  postId    String
+  cardId    String?
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  card      Card?    @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@unique([accountId, postId])
+  @@index([postId])
+  @@index([cardId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  body      String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    Account  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+}

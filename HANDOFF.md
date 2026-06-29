@@ -39,6 +39,14 @@
 - **디자인 토큰·화면** = `design-system.html`.
 - **인터랙션 데모** = `saegim/app.html` · `saegim/editor.html` — 바닐라 프로토타입. **그대로 포팅하지 말고 Next.js 프론트 + NestJS API 구조로 새로 구현.**
 
+## 현재 개발 골격
+
+- `apps/web`: Next.js(App Router) 프론트. 모바일 앱 쉘부터 구현한다.
+- `apps/api`: NestJS API. 현재 `/health`, `/feed`, `/shelf`, `/posts/:postId`, `/accounts/recommended`로 기본 조회 계약을 확인한다.
+- `apps/api/prisma/schema.prisma`: PostgreSQL 모델 계약. 계정, OAuth 계정, 글, 장, 구독, 좋아요, 새김, 댓글을 정의한다.
+- `packages/domain`: 카드/글/계정/관계 공유 타입. WYSIWYG `comp` 계약은 여기서 먼저 바꾼다.
+- `docker-compose.yml`: 로컬 PostgreSQL 개발용.
+
 ## 규칙
 
 화면 텍스트·주석은 한글.

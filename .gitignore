@@ -13,3 +13,15 @@ tmp/
 
 # 의존성(현재 없음, 향후 대비)
 node_modules/
+.pnpm-store/
+
+# 프론트/백엔드 산출물
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+
+# 환경 파일
+.env
+.env.local
+.env.*.local

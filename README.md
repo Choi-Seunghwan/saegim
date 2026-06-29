@@ -1,7 +1,7 @@
 # 새김 (SAEGIM)
 
 > 한 줄을 카드로 만들어, 발견하고, 마음에 새겨 간직하는 모바일 웹 서비스
-> 현재 **기획/디자인 단계** (개발 착수 전)
+> 현재 **기획/디자인 프로토타입 + 실서비스 개발 골격 착수**
 
 ## 한 줄 정의
 문장을 카드로 만들어 **발견·새김·컬렉션으로 엮는** 곳. 깊은 문장 큐레이션 + 인스타식 평등 계정 소셜.
@@ -19,6 +19,11 @@
 - `design-system.html` — 디자인 시스템 + 화면별 데모(통합 앱 딥링크 임베드).
 - `CLAUDE.md` — 작업 지침(요약).
 - `HANDOFF.md` — 개발 착수용 핵심 계약(기획 히스토리 제외).
+- `apps/`
+  - `web/` — Next.js(App Router) 프론트 골격.
+  - `api/` — NestJS API 골격. `prisma/schema.prisma`에 PostgreSQL 모델 계약을 둔다.
+- `packages/`
+  - `domain/` — 프론트·백엔드가 공유하는 카드/글/계정 타입 계약.
 - `saegim/`
   - `app.html` — **통합 앱(메인 데모)**. 5탭 + 발견 2D 뷰어 + 검색 + 서랍, 단일 파일 SPA(바닐라 JS·localStorage).
   - `editor.html` — 카드 에디터(＋포착, 작성=조회 WYSIWYG).
@@ -30,6 +35,28 @@
 **스택**: Next.js(App Router) 프론트 · NestJS 백엔드 · PostgreSQL · Google OAuth 우선.
 
 **`PLANNING.md` §14(개발 착수 가이드)** 참조 — 화면 라우팅, 상태/저장(localStorage → API/DB), 발행 흐름, WYSIWYG `comp` 계약, 데이터 시드, 백엔드 경계(임베딩·인증·검색), 재사용 컴포넌트, 테스트, 정리 대상.
+
+```bash
+pnpm install
+pnpm dev:web
+pnpm dev:api
+```
+
+PostgreSQL 로컬 확인이 필요하면 `docker compose up -d postgres`를 사용한다.
+
+API 기본 조회 계약:
+- `GET /health`
+- `GET /feed`
+- `GET /shelf`
+- `GET /posts/:postId`
+- `GET /accounts/recommended`
+
+Prisma 스키마 확인:
+
+```bash
+DATABASE_URL=postgresql://saegim:saegim@localhost:5432/saegim pnpm --filter @saegim/api db:validate
+DATABASE_URL=postgresql://saegim:saegim@localhost:5432/saegim pnpm --filter @saegim/api db:generate
+```
 
 ## 디자인
 **C(소프트 감성) · 모노톤** — 배경 뉴트럴 미스트(#F6F5F6) · 먹보라/차콜 잉크(#38323F) · 포인트 잉크 차콜(#353039). 색은 글 카드 그라데이션 프리셋(새벽/노을/안개/살구/라벤더/밤)에만. 아이콘은 라인 round 마감 통일.

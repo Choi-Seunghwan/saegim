@@ -1,6 +1,6 @@
 # 새김 (SAEGIM) — 기획 노트
 
-> 새김(SAEGIM) 독립 프로젝트 · 현재 **기획/디자인 단계** (개발 착수 전)
+> 새김(SAEGIM) 독립 프로젝트 · 현재 **기획/디자인 프로토타입 + 실서비스 개발 골격 착수**
 > 최종 갱신: 2026-06-29 · 상단(1~14장)=**현재 확정 상태 종합본**, 하단 **진행 로그**=변경 이력(시간순).
 > 작업 전 이 문서를 읽고, 변경 시 진행 로그에 1줄 남기기. 진행 로그에는 폐기된 과거 용어가 남아 있을 수 있으므로 현재 기준은 항상 상단 종합본을 우선한다.
 
@@ -139,6 +139,7 @@
 
 - **출시 형태**: 웹(모바일 뷰) + 웹앱(WebView 래핑). 단일 컬럼·세로 스크롤·하단 5탭 + 플로팅 포착. 데스크톱도 모바일 뷰 + 마우스/키보드 보강.
 - **데모 원칙**: 의존성 없는 **단일 HTML**(바닐라 JS, C 모노톤 토큰). CDN 폰트 = Pretendard · Gowun Batang · Gowun Dodum · Nanum Pen Script · Black Han Sans. 변경 후 jsdom으로 동작 검증.
+- **실서비스 골격**: `apps/web`(Next.js App Router) · `apps/api`(NestJS) · `packages/domain`(공유 타입) · `docker-compose.yml`(로컬 PostgreSQL). 프로토타입은 동작·디자인 레퍼런스로 유지하고 그대로 포팅하지 않는다.
 - **저장소**: 현재 `saegim` 폴더 = **git 관리**(기존 ilit 레포와 섞였던 것 분리 완료, '정리 전 기준선' 커밋 존재 → 삭제·실험도 복구 가능).
 - **현재 검증**: 변경마다 **jsdom 스모크**(앱·에디터 로드 + 핵심 동작). ※ 테스트는 **세션별 임시(outputs, git 미포함·휘발)** — 개발 착수 시 repo에 정식 포함 필요(§14.8).
 - **병행 작업 시 규칙**: PLANNING.md가 SSOT. 충돌 최소화 권장 분담 — 한 세션은 **앱(`saegim/app.html`)**, 다른 세션은 **에디터(`saegim/editor.html`)**. 공유 계약(WYSIWYG): 에디터 `comp{bg,dim,textColor,size,weight,align,font}` ↔ 앱 `composedInner`/`.cmp-text`(폰트 클래스 `f-round/f-pen/f-black`·콘텐츠 자동 너비). **이 계약을 바꾸면 양쪽 파일+테스트 동시 수정**. 각 변경은 진행 로그 1줄(+가능하면 커밋).
@@ -160,6 +161,7 @@
 > **개발 세션 인수인계는 `HANDOFF.md`**(빌드 요구사항·계약만, 기획 히스토리 제외 — 편향 방지).
 
 - **기술 스택(확정, 2026-06-29)**: 프론트 **Next.js(App Router)** · 백엔드 **NestJS** · DB **PostgreSQL** · 인증 **Google OAuth 우선**(심사 불필요, provider 추상화한 범용 OAuth 모듈로 설계 → 카카오·네이버 이후 추가). 프로토타입(바닐라 단일 HTML)은 **동작·디자인 레퍼런스**일 뿐, 그대로 포팅하지 말고 Next.js/NestJS 구조로 새로 구현.
+- **현재 코드 골격**: `apps/web` · `apps/api` · `packages/domain`으로 시작. `packages/domain`의 카드/글/계정 타입을 프론트 공통 계약으로 사용하고, `apps/api/prisma/schema.prisma`를 PostgreSQL 모델 계약으로 둔다.
 
 ### 14.1 화면 라우팅 (app.html · 해시 딥링크)
 
@@ -190,6 +192,7 @@
 - **의미 임베딩**(취향 피드·유사 추천·자동 묶음) — 프로토타입의 클라 `similar()`는 폐기, '결' 사용자 선택 없음.
 - **인증/OAuth**(Google 우선, 카카오·네이버 후순위) — 현재 프로토타입은 `loggedIn` 플래그.
 - **발행 저장·관계 그래프·검색 인덱스** — 현재 클라 필터/큐.
+- 현재 API 조회 계약: `GET /feed` · `GET /shelf` · `GET /posts/:postId` · `GET /accounts/recommended`(시드 응답, DB repository 전환 예정).
 
 ### 14.7 재사용 컴포넌트
 
@@ -207,6 +210,8 @@
 
 ## 진행 로그
 
+- 2026-06-29 — **PostgreSQL 모델 계약 + 읽기 API 1차**: `apps/api/prisma/schema.prisma` 추가 — Account/OAuthAccount/Post/Card/Follow/Like/Carve/Comment 및 Verification/PostVisibility/PostCreationType/SourceKind/EmbeddingStatus/OAuthProvider enum 정의. 좋아요(공개 공감)와 새김(비공개 보관)을 별도 관계로 분리하고, 카드 comp는 Json으로 저장하는 방향으로 고정. Prisma 7 CLI가 현재 Node/pnpm 조합에서 ESM 오류를 내 Prisma 6.19.3으로 고정, `db:validate`/`db:generate` 스크립트 추가. Nest API에 시드 기반 `GET /feed`, `/shelf`, `/posts/:postId`, `/accounts/recommended` 추가. DB 연결 모듈은 준비만 하고 아직 AppModule에는 연결하지 않아 PostgreSQL 없이도 읽기 계약 검증 가능. `pnpm typecheck`/`pnpm build`/`pnpm lint`, Prisma validate/generate, API curl 응답 확인.
+- 2026-06-29 — **실서비스 개발 골격 착수**: 기존 단일 HTML 프로토타입(`saegim/app.html`·`editor.html`)은 보존하고, 새 코드 영역을 `apps/web`(Next.js App Router) · `apps/api`(NestJS) · `packages/domain`(공유 도메인 타입)으로 분리해 추가. `package.json`/`pnpm-workspace.yaml`/`tsconfig.base.json`/`.env.example`/`docker-compose.yml` 생성. `packages/domain`에 카드 comp 계약(`bg/dim/textColor/size/weight/align/font`), 글/장 1:N, 계정·새김·좋아요·댓글 관계 타입과 기본 카드 프리셋을 고정. 웹은 모바일 앱 쉘(홈·발견·포착·둘러보기·나) 첫 화면, API는 `/health` 기본 계약 응답으로 시작. README/HANDOFF 갱신.
 - 2026-06-29 — **카드 상세·검색 뒤로가기 정리**(app): 홈·둘러보기·검색·프로필·서랍에서 글/문장을 열어 발견 피드가 **카드 상세 역할**로 진입한 경우에만 좌상단 뒤로가기 버튼을 노출. 메인 발견 탭은 뒤로가기 없이 유지. 검색 화면 뒤로가기도 고정 홈 이동에서 **진입 화면 복귀**로 정정(예: 둘러보기→검색→둘러보기). 모바일 390×844 브라우저 확인: 홈→상세→홈, 둘러보기→상세→둘러보기, 둘러보기→검색→둘러보기, 검색→상세→검색, 메인 발견 뒤로가기 미노출.
 - 2026-06-29 — **개발 스택 정정 + 문서 혼선 정리**: 실서비스 개발 스택을 **Next.js(App Router) 프론트 + NestJS 백엔드 + PostgreSQL + Google OAuth 우선**으로 확정. 기존 §14의 "Next.js 풀스택" 메모와 OAuth 후순위 provider 표기를 정정하고, 현재 기준은 상단 종합본(1~14장)·진행 로그는 변경 이력임을 명시. 사용자-facing 용어는 글/장/둘러보기/글벗, `Collection`/`COLLECTIONS`는 내부 식별자 기준으로 분리.
 - 2026-06-28 — **초기 개발 스택 메모 + HANDOFF.md 신설(이후 2026-06-29 정정)**: 당시에는 **프론트·백엔드 Next.js(풀스택, App Router)·DB PostgreSQL·인증 Google OAuth 우선**으로 적었으나, 다음 날 현재 확정안은 **Next.js 프론트 + NestJS 백엔드**로 정정됨. 개발 세션 인수인계 문서 **`HANDOFF.md`** 작성 — 빌드 요구사항·계약(제품·스택·도메인 모델·WYSIWYG/스크롤없음/모노톤 계약·백엔드 핵심·레퍼런스)만, **기획 히스토리·진행 로그·테스트·프로토타입 내부는 제외**(개발 세션 편향 방지). 프로토타입은 동작·디자인 레퍼런스일 뿐 그대로 포팅 금지.
