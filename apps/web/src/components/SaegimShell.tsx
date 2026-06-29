@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { PostBundle } from "@saegim/domain";
+import { useEffect, useMemo, useState } from "react";
+import type { AccountProfile, PostBundle } from "@saegim/domain";
+import { fetchFeed, fetchRecommendedAccounts } from "../lib/api";
 import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
@@ -16,15 +17,43 @@ const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
 
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
-  const featuredPost = samplePosts[0]!;
+  const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
+  const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
+  const featuredPost = posts[0] ?? samplePosts[0]!;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadInitialData() {
+      try {
+        const [nextPosts, nextAccounts] = await Promise.all([
+          fetchFeed(controller.signal),
+          fetchRecommendedAccounts(controller.signal)
+        ]);
+
+        if (nextPosts.length > 0) {
+          setPosts(nextPosts);
+        }
+
+        if (nextAccounts.length > 0) {
+          setAccounts(nextAccounts);
+        }
+      } catch {
+        // API가 아직 꺼져 있어도 프로토타입 샘플로 첫 화면을 유지한다.
+      }
+    }
+
+    void loadInitialData();
+    return () => controller.abort();
+  }, []);
 
   const content = useMemo(() => {
     if (activeTab === "discover") return <DiscoverView post={featuredPost} />;
     if (activeTab === "capture") return <CaptureView />;
-    if (activeTab === "shelf") return <ShelfView posts={samplePosts} />;
+    if (activeTab === "shelf") return <ShelfView posts={posts} />;
     if (activeTab === "me") return <ProfileView />;
-    return <HomeView post={featuredPost} onOpenDiscover={() => setActiveTab("discover")} />;
-  }, [activeTab, featuredPost]);
+    return <HomeView post={featuredPost} accounts={accounts} onOpenDiscover={() => setActiveTab("discover")} />;
+  }, [accounts, activeTab, featuredPost, posts]);
 
   return (
     <main className="app-shell" aria-label="새김 앱">
@@ -57,7 +86,15 @@ export function SaegimShell() {
   );
 }
 
-function HomeView({ post, onOpenDiscover }: { post: PostBundle; onOpenDiscover: () => void }) {
+function HomeView({
+  post,
+  accounts,
+  onOpenDiscover
+}: {
+  post: PostBundle;
+  accounts: AccountProfile[];
+  onOpenDiscover: () => void;
+}) {
   return (
     <div className="view-stack">
       <button className="banner-card" type="button" onClick={onOpenDiscover}>
@@ -70,7 +107,7 @@ function HomeView({ post, onOpenDiscover }: { post: PostBundle; onOpenDiscover: 
           <h2>추천 글벗</h2>
         </div>
         <div className="account-rail">
-          {sampleAccounts.map((account) => (
+          {accounts.map((account) => (
             <article className="account-chip" key={account.id}>
               <div className="avatar">{account.displayName.slice(0, 1)}</div>
               <div>

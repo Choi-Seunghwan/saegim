@@ -161,7 +161,7 @@
 > **개발 세션 인수인계는 `HANDOFF.md`**(빌드 요구사항·계약만, 기획 히스토리 제외 — 편향 방지).
 
 - **기술 스택(확정, 2026-06-29)**: 프론트 **Next.js(App Router)** · 백엔드 **NestJS** · DB **PostgreSQL** · 인증 **Google OAuth 우선**(심사 불필요, provider 추상화한 범용 OAuth 모듈로 설계 → 카카오·네이버 이후 추가). 프로토타입(바닐라 단일 HTML)은 **동작·디자인 레퍼런스**일 뿐, 그대로 포팅하지 말고 Next.js/NestJS 구조로 새로 구현.
-- **현재 코드 골격**: `apps/web` · `apps/api` · `packages/domain`으로 시작. `packages/domain`의 카드/글/계정 타입을 프론트 공통 계약으로 사용하고, `apps/api/prisma/schema.prisma`를 PostgreSQL 모델 계약으로 둔다.
+- **현재 코드 골격**: `apps/web` · `apps/api` · `packages/domain`으로 시작. `packages/domain`의 카드/글/계정 타입을 프론트 공통 계약으로 사용하고, `apps/api/prisma/schema.prisma`를 PostgreSQL 모델 계약으로 둔다. 웹은 `NEXT_PUBLIC_API_BASE_URL`로 API를 읽고, 실패 시 샘플 데이터로 유지한다.
 
 ### 14.1 화면 라우팅 (app.html · 해시 딥링크)
 
@@ -210,6 +210,7 @@
 
 ## 진행 로그
 
+- 2026-06-29 — **웹 초기 화면 API 연동**: `apps/web/src/lib/api.ts` 추가. `NEXT_PUBLIC_API_BASE_URL`(기본 `http://127.0.0.1:4000`) 기준으로 `/feed`, `/accounts/recommended`를 읽고, `SaegimShell`이 홈/발견/둘러보기/추천 글벗 데이터를 API 응답으로 갱신하도록 연결. API가 꺼져 있거나 요청 실패 시 기존 샘플 데이터로 첫 화면 유지. API CORS 기본 허용 origin을 `127.0.0.1:3000`/`localhost:3000`로 맞춤. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 API 응답(`무월`, `천천히 남는 말`) 반영 확인.
 - 2026-06-29 — **PostgreSQL 모델 계약 + 읽기 API 1차**: `apps/api/prisma/schema.prisma` 추가 — Account/OAuthAccount/Post/Card/Follow/Like/Carve/Comment 및 Verification/PostVisibility/PostCreationType/SourceKind/EmbeddingStatus/OAuthProvider enum 정의. 좋아요(공개 공감)와 새김(비공개 보관)을 별도 관계로 분리하고, 카드 comp는 Json으로 저장하는 방향으로 고정. Prisma 7 CLI가 현재 Node/pnpm 조합에서 ESM 오류를 내 Prisma 6.19.3으로 고정, `db:validate`/`db:generate` 스크립트 추가. Nest API에 시드 기반 `GET /feed`, `/shelf`, `/posts/:postId`, `/accounts/recommended` 추가. DB 연결 모듈은 준비만 하고 아직 AppModule에는 연결하지 않아 PostgreSQL 없이도 읽기 계약 검증 가능. `pnpm typecheck`/`pnpm build`/`pnpm lint`, Prisma validate/generate, API curl 응답 확인.
 - 2026-06-29 — **실서비스 개발 골격 착수**: 기존 단일 HTML 프로토타입(`saegim/app.html`·`editor.html`)은 보존하고, 새 코드 영역을 `apps/web`(Next.js App Router) · `apps/api`(NestJS) · `packages/domain`(공유 도메인 타입)으로 분리해 추가. `package.json`/`pnpm-workspace.yaml`/`tsconfig.base.json`/`.env.example`/`docker-compose.yml` 생성. `packages/domain`에 카드 comp 계약(`bg/dim/textColor/size/weight/align/font`), 글/장 1:N, 계정·새김·좋아요·댓글 관계 타입과 기본 카드 프리셋을 고정. 웹은 모바일 앱 쉘(홈·발견·포착·둘러보기·나) 첫 화면, API는 `/health` 기본 계약 응답으로 시작. README/HANDOFF 갱신.
 - 2026-06-29 — **카드 상세·검색 뒤로가기 정리**(app): 홈·둘러보기·검색·프로필·서랍에서 글/문장을 열어 발견 피드가 **카드 상세 역할**로 진입한 경우에만 좌상단 뒤로가기 버튼을 노출. 메인 발견 탭은 뒤로가기 없이 유지. 검색 화면 뒤로가기도 고정 홈 이동에서 **진입 화면 복귀**로 정정(예: 둘러보기→검색→둘러보기). 모바일 390×844 브라우저 확인: 홈→상세→홈, 둘러보기→상세→둘러보기, 둘러보기→검색→둘러보기, 검색→상세→검색, 메인 발견 뒤로가기 미노출.

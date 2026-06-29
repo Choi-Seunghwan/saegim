@@ -51,6 +51,8 @@ API 기본 조회 계약:
 - `GET /posts/:postId`
 - `GET /accounts/recommended`
 
+웹은 `NEXT_PUBLIC_API_BASE_URL`을 기준으로 위 API를 읽고, API가 꺼져 있으면 로컬 샘플 데이터로 첫 화면을 유지한다.
+
 Prisma 스키마 확인:
 
 ```bash
