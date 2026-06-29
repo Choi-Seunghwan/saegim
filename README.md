@@ -56,6 +56,8 @@ API 기본 조회 계약:
 
 웹은 `NEXT_PUBLIC_API_BASE_URL`을 기준으로 위 API를 읽고, API가 꺼져 있으면 로컬 샘플 데이터로 첫 화면을 유지한다. 포착 탭은 한 장짜리 글을 `POST /posts`로 발행하고 성공 시 발견 피드로 이동한다.
 
+인증 연결 전까지 API의 현재 계정은 `DEV_ACCOUNT_ID`(기본 `acct-me`)로 잡는다. 이후 Google OAuth 세션이 붙으면 이 경계를 실제 로그인 계정으로 교체한다.
+
 Prisma 스키마 확인:
 
 ```bash

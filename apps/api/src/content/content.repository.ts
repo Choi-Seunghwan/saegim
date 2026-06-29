@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { CurrentAccountService } from "../auth/current-account.service.js";
 import { PrismaService } from "../database/prisma.service.js";
 import { seedAccounts, seedPostBundles } from "./seed-data.js";
 import type { AccountProfile, CardComposition, ContentSource, CreatePostInput, PostBundle } from "./content.types.js";
 
-const currentAccountId = "acct-me";
 const accountInclude = Prisma.validator<Prisma.AccountInclude>()({
   _count: {
     select: {
@@ -13,44 +13,46 @@ const accountInclude = Prisma.validator<Prisma.AccountInclude>()({
     }
   }
 });
-const postInclude = Prisma.validator<Prisma.PostInclude>()({
-  author: {
-    include: accountInclude
-  },
-  cards: {
-    orderBy: {
-      order: "asc"
-    }
-  },
-  likes: {
-    where: {
-      accountId: currentAccountId
+function postIncludeForAccount(accountId: string) {
+  return Prisma.validator<Prisma.PostInclude>()({
+    author: {
+      include: accountInclude
     },
-    select: {
-      id: true
-    }
-  },
-  carves: {
-    where: {
-      accountId: currentAccountId
+    cards: {
+      orderBy: {
+        order: "asc"
+      }
     },
-    select: {
-      id: true
+    likes: {
+      where: {
+        accountId
+      },
+      select: {
+        id: true
+      }
+    },
+    carves: {
+      where: {
+        accountId
+      },
+      select: {
+        id: true
+      }
+    },
+    _count: {
+      select: {
+        comments: true
+      }
     }
-  },
-  _count: {
-    select: {
-      comments: true
-    }
-  }
-});
+  });
+}
 
 type AccountWithCounts = Prisma.AccountGetPayload<{
   include: typeof accountInclude;
 }>;
 
 type PostWithRelations = Prisma.PostGetPayload<{
-  include: typeof postInclude;
+  include: ReturnType<typeof postIncludeForAccount>;
 }>;
 
 const sourceKinds: ContentSource["kind"][] = ["book", "web", "direct", "publisher"];
@@ -68,7 +70,10 @@ const defaultCardComp: CardComposition = {
 
 @Injectable()
 export class ContentRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly currentAccountService: CurrentAccountService
+  ) {}
 
   async ensureSeedData() {
     for (const account of seedAccounts) {
@@ -135,7 +140,8 @@ export class ContentRepository {
   }
 
   async getFeed() {
-    const posts = await this.findPosts([{ createdAt: "desc" }, { id: "desc" }]);
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+    const posts = await this.findPosts([{ createdAt: "desc" }, { id: "desc" }], currentAccountId);
 
     return {
       items: posts.map((post) => this.toPostBundle(post))
@@ -143,7 +149,11 @@ export class ContentRepository {
   }
 
   async getShelf() {
-    const posts = await this.findPosts([{ likeCountCache: "desc" }, { createdAt: "desc" }, { id: "desc" }]);
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+    const posts = await this.findPosts(
+      [{ likeCountCache: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      currentAccountId
+    );
 
     return {
       items: posts.map((post) => this.toPostBundle(post))
@@ -151,13 +161,15 @@ export class ContentRepository {
   }
 
   async getPost(postId: string) {
-    const post = await this.findPostById(postId);
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+    const post = await this.findPostById(postId, currentAccountId);
     return this.toPostBundle(post);
   }
 
   async createPost(input: CreatePostInput) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
     const cardsInput = this.normalizeCards(input);
-    const author = await this.getCurrentAuthor();
+    const author = await this.getCurrentAuthor(currentAccountId);
     const firstCard = cardsInput[0]!;
     const now = new Date();
     const title = input.title?.trim() || this.titleFromText(firstCard.text);
@@ -192,6 +204,7 @@ export class ContentRepository {
   }
 
   async likePost(postId: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
     await this.assertPostExists(postId);
 
     await this.prisma.$transaction(async (tx) => {
@@ -229,6 +242,7 @@ export class ContentRepository {
   }
 
   async unlikePost(postId: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
     await this.assertPostExists(postId);
 
     await this.prisma.$transaction(async (tx) => {
@@ -270,7 +284,8 @@ export class ContentRepository {
   }
 
   async carvePost(postId: string) {
-    const post = await this.findPostById(postId);
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+    const post = await this.findPostById(postId, currentAccountId);
 
     await this.prisma.carve.upsert({
       where: {
@@ -291,6 +306,7 @@ export class ContentRepository {
   }
 
   async uncarvePost(postId: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
     await this.assertPostExists(postId);
     const existingCarve = await this.prisma.carve.findUnique({
       where: {
@@ -317,6 +333,7 @@ export class ContentRepository {
   }
 
   async getRecommendedAccounts() {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId();
     const accounts = await this.prisma.account.findMany({
       where: {
         id: {
@@ -332,20 +349,20 @@ export class ContentRepository {
     };
   }
 
-  private async findPosts(orderBy: Prisma.PostOrderByWithRelationInput[]) {
+  private async findPosts(orderBy: Prisma.PostOrderByWithRelationInput[], currentAccountId: string) {
     return this.prisma.post.findMany({
       where: {
         visibility: "PUBLIC"
       },
-      include: postInclude,
+      include: postIncludeForAccount(currentAccountId),
       orderBy
     });
   }
 
-  private async findPostById(postId: string) {
+  private async findPostById(postId: string, currentAccountId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: postInclude
+      include: postIncludeForAccount(currentAccountId)
     });
 
     if (!post) {
@@ -366,7 +383,7 @@ export class ContentRepository {
     }
   }
 
-  private async getCurrentAuthor() {
+  private async getCurrentAuthor(currentAccountId: string) {
     const account = await this.prisma.account.findUnique({
       where: { id: currentAccountId },
       include: accountInclude
