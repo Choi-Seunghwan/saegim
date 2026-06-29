@@ -58,6 +58,12 @@ export function SaegimShell() {
     window.localStorage.setItem(ENTRY_STATE_STORAGE_KEY, nextEntryState);
   }
 
+  function leaveApp() {
+    setActiveTab("home");
+    setEntryState("gate");
+    window.localStorage.removeItem(ENTRY_STATE_STORAGE_KEY);
+  }
+
   function startGoogleOAuth() {
     window.location.assign(getGoogleOAuthStartUrl());
   }
@@ -126,7 +132,7 @@ export function SaegimShell() {
     }
     if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
     if (activeTab === "shelf") return <ShelfView posts={posts} />;
-    if (activeTab === "me") return <ProfileView account={currentAccount} />;
+    if (activeTab === "me") return <ProfileView account={currentAccount} onLogout={leaveApp} />;
     return <HomeView post={featuredPost} accounts={accounts} onOpenDiscover={() => setActiveTab("discover")} />;
   }, [accounts, activeTab, currentAccount, featuredPost, posts]);
 
@@ -451,7 +457,7 @@ function ShelfView({ posts }: { posts: PostBundle[] }) {
   );
 }
 
-function ProfileView({ account }: { account: AccountProfile }) {
+function ProfileView({ account, onLogout }: { account: AccountProfile; onLogout: () => void }) {
   return (
     <section className="profile-view">
       <div className="profile-head">
@@ -466,6 +472,9 @@ function ProfileView({ account }: { account: AccountProfile }) {
       </div>
       <button className="primary-button ghost" type="button">
         프로필 편집
+      </button>
+      <button className="profile-logout" type="button" onClick={onLogout}>
+        로그아웃
       </button>
     </section>
   );

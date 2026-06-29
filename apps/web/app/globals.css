@@ -433,13 +433,21 @@ button {
 }
 
 .tool-row button,
-.primary-button.ghost {
+.primary-button.ghost,
+.profile-logout {
   background: rgba(56, 50, 63, 0.07);
   color: var(--ink);
 }
 
 .primary-button {
   height: 48px;
+}
+
+.profile-logout {
+  min-height: 42px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .primary-button:disabled {
