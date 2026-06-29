@@ -116,7 +116,7 @@ textarea:focus-visible {
   font-size: 25px;
   line-height: 1.1;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .wordmark.brand {
@@ -285,6 +285,12 @@ textarea:focus-visible {
   box-shadow: 0 16px 34px -18px rgba(60, 45, 70, 0.3);
 }
 
+.hb-track {
+  display: flex;
+  transition: transform 0.42s var(--ease);
+  will-change: transform;
+}
+
 .hb-slide {
   width: 100%;
   max-width: 100%;
@@ -356,15 +362,18 @@ textarea:focus-visible {
   margin-top: 11px;
 }
 
-.hb-dots span {
+.hb-dots button {
   width: 6px;
   height: 6px;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
   background: rgba(56, 50, 63, 0.16);
+  cursor: pointer;
   transition: width 0.3s var(--ease), background 0.3s var(--ease);
 }
 
-.hb-dots span.is-active {
+.hb-dots button.is-active {
   width: 18px;
   background: var(--ink);
 }
@@ -383,7 +392,7 @@ textarea:focus-visible {
   color: var(--ink);
   font-size: 16px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .home-h button {
@@ -439,6 +448,10 @@ textarea:focus-visible {
   margin-bottom: 0;
 }
 
+.home-rail .shelf-card .sq {
+  -webkit-line-clamp: 3;
+}
+
 .shelf-card .sq {
   position: relative;
   z-index: 1;
@@ -464,12 +477,52 @@ textarea:focus-visible {
   opacity: 0.88;
 }
 
+.shelf-card .sm2 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.shelf-card .sby,
+.shelf-card .mtr {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.shelf-card .sby {
+  max-width: 100%;
+}
+
+.shelf-card .dot {
+  opacity: 0.52;
+}
+
+.shelf-card .account-name {
+  max-width: 116px;
+}
+
+.shelf-card .account-name .official-mark {
+  width: 11px;
+  height: 11px;
+  flex-basis: 11px;
+  background: rgba(255, 255, 255, 0.22);
+  color: currentColor;
+  font-size: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
 .shelf-card .st2 {
   overflow: hidden;
   color: inherit;
   font-size: 15.5px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -503,7 +556,7 @@ textarea:focus-visible {
   width: 150px;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 0;
   padding: 16px 14px 12px;
   border-radius: 18px;
   background: var(--mist-2);
@@ -522,11 +575,46 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
+.home-acct .avatar {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  font-size: 18px;
+}
+
 .account-chip strong,
 .account-chip p {
   display: block;
   margin: 0;
   font-size: 13px;
+}
+
+.home-acct.account-chip strong {
+  margin-top: 10px;
+  font-size: 14.5px;
+  font-weight: 800;
+}
+
+.home-acct.account-chip p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-acct .fol {
+  display: block;
+  margin-top: 7px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.68;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .account-chip > button:not(.account-chip-main),
@@ -544,6 +632,9 @@ textarea:focus-visible {
 
 .home-acct > button:not(.account-chip-main) {
   width: 100%;
+  min-height: 31px;
+  margin-top: 10px;
+  border-radius: 10px;
   background: transparent;
   color: var(--ink-strong);
 }

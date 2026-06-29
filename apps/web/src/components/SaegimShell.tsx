@@ -120,6 +120,47 @@ const editorialPages: EditorialPage[] = [
   }
 ];
 
+const editorialHeroBackgrounds: Record<EditorialPageKind, string> = {
+  notice: "linear-gradient(150deg,#4A4651,#38323F)",
+  event: "linear-gradient(150deg,#5A5466,#3C3652)",
+  ad: "linear-gradient(150deg,#6E6A74,#4A4651)"
+};
+
+function readStoredEntryState() {
+  try {
+    const savedEntryState = window.localStorage?.getItem(ENTRY_STATE_STORAGE_KEY);
+    return savedEntryState === "guest" || savedEntryState === "signed-in" ? savedEntryState : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredEntryState(nextEntryState: Exclude<EntryState, "gate">) {
+  try {
+    window.localStorage?.setItem(ENTRY_STATE_STORAGE_KEY, nextEntryState);
+  } catch {
+    // 저장소가 막힌 환경에서도 현재 세션 입장은 유지한다.
+  }
+}
+
+function clearStoredEntryState() {
+  try {
+    window.localStorage?.removeItem(ENTRY_STATE_STORAGE_KEY);
+  } catch {
+    // 저장소가 막힌 환경에서는 지울 값도 없다고 보고 넘어간다.
+  }
+}
+
+function mergeUniquePosts(primaryPosts: PostBundle[], fallbackPosts: PostBundle[]) {
+  const seenPostIds = new Set(primaryPosts.map((post) => post.post.id));
+  return [...primaryPosts, ...fallbackPosts.filter((post) => !seenPostIds.has(post.post.id))];
+}
+
+function mergeUniqueAccounts(primaryAccounts: AccountProfile[], fallbackAccounts: AccountProfile[]) {
+  const seenAccountIds = new Set(primaryAccounts.map((account) => account.id));
+  return [...primaryAccounts, ...fallbackAccounts.filter((account) => !seenAccountIds.has(account.id))];
+}
+
 function formatCount(value: number) {
   return value.toLocaleString("ko-KR");
 }
@@ -429,7 +470,7 @@ export function SaegimShell() {
   function enterApp(nextEntryState: Exclude<EntryState, "gate">) {
     setEntryState(nextEntryState);
     setSelectedProfileId(currentAccount.id);
-    window.localStorage.setItem(ENTRY_STATE_STORAGE_KEY, nextEntryState);
+    writeStoredEntryState(nextEntryState);
   }
 
   function leaveApp() {
@@ -445,7 +486,7 @@ export function SaegimShell() {
     setInfoSheet(null);
     setSelectedProfileId(currentAccount.id);
     setEntryState("gate");
-    window.localStorage.removeItem(ENTRY_STATE_STORAGE_KEY);
+    clearStoredEntryState();
   }
 
   function selectTab(tab: TabKey) {
@@ -611,8 +652,8 @@ export function SaegimShell() {
   }
 
   useEffect(() => {
-    const savedEntryState = window.localStorage.getItem(ENTRY_STATE_STORAGE_KEY);
-    if (savedEntryState === "guest" || savedEntryState === "signed-in") {
+    const savedEntryState = readStoredEntryState();
+    if (savedEntryState) {
       setEntryState(savedEntryState);
       return;
     }
@@ -624,7 +665,7 @@ export function SaegimShell() {
         const session = await fetchAuthSession(controller.signal);
         if (session.authenticated) {
           setEntryState("signed-in");
-          window.localStorage.setItem(ENTRY_STATE_STORAGE_KEY, "signed-in");
+          writeStoredEntryState("signed-in");
         }
       } catch {
         // 세션이 없거나 API가 꺼져 있으면 로그인 게이트를 유지한다.
@@ -772,10 +813,12 @@ export function SaegimShell() {
     }
     return (
       <HomeView
-        post={featuredPost}
+        posts={posts}
         accounts={accounts}
+        currentAccountId={currentAccount.id}
         editorialPages={editorialPages}
-        onOpenDiscover={() => openPost(featuredPost)}
+        onOpenPost={openPost}
+        onOpenAllPosts={() => selectTab("shelf")}
         onOpenEditorialPage={(page) => openEditorialPage(page, "home")}
         onOpenProfile={openProfile}
         onToggleFollow={handleToggleFollow}
@@ -1076,15 +1119,19 @@ function SearchView({
 }
 
 function PostPreviewButton({
+  hideAuthor = false,
   hideLikeCount = false,
   post,
   onOpenPost
 }: {
+  hideAuthor?: boolean;
   hideLikeCount?: boolean;
   post: PostBundle;
   onOpenPost: (post: PostBundle) => void;
 }) {
   const card = post.cards[0]!;
+  const likeCount = post.viewerState?.likeCount ?? 0;
+  const hasMeta = !hideAuthor || !hideLikeCount;
 
   return (
     <button
@@ -1099,69 +1146,129 @@ function PostPreviewButton({
       </p>
       <footer className="sfoot">
         <strong className="st2">{post.post.title}</strong>
-        {hideLikeCount ? null : <span>♡ {post.viewerState?.likeCount.toLocaleString("ko-KR") ?? 0}</span>}
+        {hasMeta ? (
+          <span className="sm2">
+            {hideAuthor ? null : (
+              <>
+                <span className="sby">
+                  <AccountName account={post.author} />
+                </span>
+                {hideLikeCount ? null : <span className="dot">·</span>}
+              </>
+            )}
+            {hideLikeCount ? null : <span className="mtr">♡ {formatCount(likeCount)}</span>}
+          </span>
+        ) : null}
       </footer>
     </button>
   );
 }
 
 function HomeView({
-  post,
+  posts,
   accounts,
+  currentAccountId,
   editorialPages,
-  onOpenDiscover,
+  onOpenPost,
+  onOpenAllPosts,
   onOpenEditorialPage,
   onOpenProfile,
   onToggleFollow
 }: {
-  post: PostBundle;
+  posts: PostBundle[];
   accounts: AccountProfile[];
+  currentAccountId: string;
   editorialPages: EditorialPage[];
-  onOpenDiscover: () => void;
+  onOpenPost: (post: PostBundle) => void;
+  onOpenAllPosts: () => void;
   onOpenEditorialPage: (page: EditorialPage) => void;
   onOpenProfile: (account: AccountProfile) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
 }) {
-  const heroCard = post.cards[0]!;
+  const displayPosts = mergeUniquePosts(posts, samplePosts);
+  const displayAccounts = mergeUniqueAccounts(accounts, sampleAccounts).filter(
+    (account) => account.id !== currentAccountId
+  );
+  const heroPost = displayPosts[0] ?? samplePosts[0]!;
+  const heroCard = heroPost.cards[0]!;
+  const todayPosts = displayPosts.slice(0, 5);
+  const heroItems = [
+    {
+      kind: "post" as const,
+      key: heroPost.post.id,
+      tag: "오늘 닿은 글",
+      text: heroCard.text,
+      by: `${heroPost.author.displayName} · 『${heroPost.post.title}』`,
+      style: cardSurfaceStyle(heroCard),
+      onOpen: () => onOpenPost(heroPost)
+    },
+    ...editorialPages.map((page) => ({
+      kind: "page" as const,
+      key: page.id,
+      tag: page.label,
+      text: page.title,
+      by: page.kind === "ad" ? "제휴 · 광고" : page.date,
+      style: {
+        "--cv-text": "#FBF8FC",
+        background: editorialHeroBackgrounds[page.kind],
+        color: "#FBF8FC"
+      } as CSSProperties,
+      onOpen: () => onOpenEditorialPage(page)
+    }))
+  ];
+  const [heroIndex, setHeroIndex] = useState(0);
+
+  useEffect(() => {
+    setHeroIndex(0);
+  }, [heroPost.post.id, editorialPages.length]);
+
+  useEffect(() => {
+    if (heroItems.length < 2) return undefined;
+
+    const timer = window.setInterval(() => {
+      setHeroIndex((currentIndex) => (currentIndex + 1) % heroItems.length);
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [heroItems.length]);
 
   return (
     <div className="home-view">
       <div className="hero-carousel">
         <div className="hb-viewport">
-          <button className="hb-slide" type="button" onClick={onOpenDiscover} style={cardSurfaceStyle(heroCard)}>
-            <span className="hb-tag">오늘 닿은 글</span>
-            <p className="hb-q">{heroCard.text}</p>
-            <span className="hb-by">{post.post.title}</span>
-          </button>
+          <div className="hb-track" style={{ transform: `translateX(-${heroIndex * 100}%)` }}>
+            {heroItems.map((item) => (
+              <button className="hb-slide" key={item.key} type="button" onClick={item.onOpen} style={item.style}>
+                <span className="hb-tag">{item.tag}</span>
+                <p className="hb-q">{item.text}</p>
+                <span className="hb-by">{item.by}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <div className="hb-dots" aria-hidden="true">
-          <span className="is-active" />
-          <span />
-          <span />
+          {heroItems.map((item, index) => (
+            <button
+              aria-label={`${index + 1}번째 배너`}
+              className={index === heroIndex ? "is-active" : undefined}
+              key={item.key}
+              type="button"
+              onClick={() => setHeroIndex(index)}
+            />
+          ))}
         </div>
       </div>
 
       <section className="home-sec">
         <div className="home-h">
           오늘 닿은 글
-          <button type="button" onClick={onOpenDiscover}>
+          <button type="button" onClick={onOpenAllPosts}>
             전체 ›
           </button>
         </div>
         <div className="home-rail">
-          <CardPreview post={post} />
-        </div>
-      </section>
-
-      <section className="home-sec">
-        <div className="home-h">소식</div>
-        <div className="home-rail news-rail">
-          {editorialPages.map((page) => (
-            <button className="news-card" key={page.id} type="button" onClick={() => onOpenEditorialPage(page)}>
-              <span>{page.label}</span>
-              <strong>{page.title}</strong>
-              <p>{page.summary}</p>
-            </button>
+          {todayPosts.map((item) => (
+            <PostPreviewButton key={item.post.id} post={item} onOpenPost={onOpenPost} />
           ))}
         </div>
       </section>
@@ -1169,7 +1276,7 @@ function HomeView({
       <section className="home-sec">
         <div className="home-h">추천 글벗</div>
         <div className="home-rail account-rail">
-          {accounts.map((account) => {
+          {displayAccounts.map((account) => {
             const isSubscribed = account.viewerState?.subscribed ?? false;
 
             return (
@@ -1181,6 +1288,9 @@ function HomeView({
                       <AccountName account={account} />
                     </strong>
                     <p>{account.tagline}</p>
+                    <small className="fol">
+                      글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
+                    </small>
                   </div>
                 </button>
                 <button
@@ -2048,6 +2158,7 @@ function ProfileView({
           <div className="masonry">
             {posts.map((post) => (
               <PostPreviewButton
+                hideAuthor
                 hideLikeCount={isOwnProfile}
                 key={post.post.id}
                 post={post}
@@ -2158,22 +2269,5 @@ function ProfileEditView({
         </button>
       </div>
     </form>
-  );
-}
-
-function CardPreview({ post }: { post: PostBundle }) {
-  const card = post.cards[0]!;
-
-  return (
-    <article className="shelf-card" style={cardSurfaceStyle(card)}>
-      {post.post.cardCount > 1 ? <span className="page-badge">{post.post.cardCount}장</span> : null}
-      <p className="sq" style={cardTextStyle(card.comp, 0.58)}>
-        {card.text}
-      </p>
-      <footer className="sfoot">
-        <strong className="st2">{post.post.title}</strong>
-        <span>♡ {post.viewerState?.likeCount.toLocaleString("ko-KR") ?? 0}</span>
-      </footer>
-    </article>
   );
 }
