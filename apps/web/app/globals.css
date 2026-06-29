@@ -333,6 +333,86 @@ button.post-card {
   font-weight: 700;
 }
 
+.feed-controls {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--frost);
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.feed-controls button {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.feed-controls button:disabled,
+.card-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
+}
+
+.feed-controls span {
+  min-width: 36px;
+  text-align: center;
+}
+
+.card-step {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  width: 34px;
+  height: 48px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+  font-size: 30px;
+  font-weight: 300;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.card-step-prev {
+  left: 10px;
+}
+
+.card-step-next {
+  right: 10px;
+}
+
+.page-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 82px;
+  display: inline-flex;
+  gap: 6px;
+  transform: translateX(-50%);
+}
+
+.page-dots button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.24);
+  cursor: pointer;
+}
+
+.page-dots button.is-active {
+  width: 18px;
+  background: var(--ink-strong);
+}
+
 .writer-bar {
   position: absolute;
   left: 0;
@@ -756,13 +836,13 @@ button.post-card {
   font-size: 12px;
 }
 
-.search-post-button {
+.post-card-button {
   min-height: 190px;
   display: inline-flex;
   margin: 0 0 10px;
 }
 
-.search-post-button p {
+.post-card-button p {
   font-size: 20px;
 }
 

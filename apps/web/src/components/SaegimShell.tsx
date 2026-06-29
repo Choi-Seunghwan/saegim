@@ -55,15 +55,24 @@ export function SaegimShell() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
   const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
   const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
     sampleAccounts.find((account) => account.id === "acct-me") ?? sampleAccounts[0]!
   );
   const featuredPost = posts[0] ?? samplePosts[0]!;
+  const activePost = posts.find((post) => post.post.id === activePostId) ?? featuredPost;
+  const activePostIndex = Math.max(
+    0,
+    posts.findIndex((post) => post.post.id === activePost.post.id)
+  );
 
   function handlePostPublished(post: PostBundle) {
     setPosts((currentPosts) => [post, ...currentPosts.filter((item) => item.post.id !== post.post.id)]);
+    setActivePostId(post.post.id);
+    setActiveCardIndex(0);
     setIsSearching(false);
     setActiveTab("discover");
   }
@@ -115,6 +124,11 @@ export function SaegimShell() {
     setIsSearching(false);
     setCommentPost(null);
 
+    if (tab === "discover") {
+      setActivePostId((currentPostId) => currentPostId ?? featuredPost.post.id);
+      setActiveCardIndex(0);
+    }
+
     if (tab !== "me") {
       setIsEditingProfile(false);
       setIsViewingDrawer(false);
@@ -159,12 +173,39 @@ export function SaegimShell() {
   }
 
   function openPost(post: PostBundle) {
-    setPosts((currentPosts) => [post, ...currentPosts.filter((item) => item.post.id !== post.post.id)]);
+    setPosts((currentPosts) => {
+      const exists = currentPosts.some((item) => item.post.id === post.post.id);
+
+      if (!exists) {
+        return [post, ...currentPosts];
+      }
+
+      return currentPosts.map((item) => (item.post.id === post.post.id ? post : item));
+    });
+    setActivePostId(post.post.id);
+    setActiveCardIndex(0);
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setCommentPost(null);
     setActiveTab("discover");
+  }
+
+  function movePost(direction: -1 | 1) {
+    const nextIndex = activePostIndex + direction;
+    const nextPost = posts[nextIndex];
+
+    if (!nextPost) {
+      return;
+    }
+
+    setActivePostId(nextPost.post.id);
+    setActiveCardIndex(0);
+    setCommentPost(null);
+  }
+
+  function selectCard(index: number) {
+    setActiveCardIndex(Math.min(Math.max(index, 0), activePost.cards.length - 1));
   }
 
   useEffect(() => {
@@ -207,6 +248,10 @@ export function SaegimShell() {
     return () => controller.abort();
   }, [entryState]);
 
+  useEffect(() => {
+    setActiveCardIndex((currentIndex) => Math.min(currentIndex, Math.max(activePost.cards.length - 1, 0)));
+  }, [activePost.cards.length, activePost.post.id]);
+
   const content = useMemo(() => {
     if (isSearching) {
       return <SearchView onClose={() => setIsSearching(false)} onOpenPost={openPost} />;
@@ -215,8 +260,16 @@ export function SaegimShell() {
     if (activeTab === "discover") {
       return (
         <DiscoverView
+          activeCardIndex={activeCardIndex}
           currentAccountId={currentAccount.id}
-          post={featuredPost}
+          post={activePost}
+          postCount={posts.length}
+          postIndex={activePostIndex}
+          onNextCard={() => selectCard(activeCardIndex + 1)}
+          onNextPost={() => movePost(1)}
+          onPreviousCard={() => selectCard(activeCardIndex - 1)}
+          onPreviousPost={() => movePost(-1)}
+          onSelectCard={selectCard}
           onToggleCarve={handleToggleCarve}
           onOpenComments={setCommentPost}
           onToggleFollow={handleToggleFollow}
@@ -225,10 +278,10 @@ export function SaegimShell() {
       );
     }
     if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
-    if (activeTab === "shelf") return <ShelfView posts={posts} />;
+    if (activeTab === "shelf") return <ShelfView posts={posts} onOpenPost={openPost} />;
     if (activeTab === "me") {
       if (isViewingDrawer) {
-        return <DrawerView onBack={() => setIsViewingDrawer(false)} />;
+        return <DrawerView onBack={() => setIsViewingDrawer(false)} onOpenPost={openPost} />;
       }
 
       return isEditingProfile ? (
@@ -250,11 +303,23 @@ export function SaegimShell() {
       <HomeView
         post={featuredPost}
         accounts={accounts}
-        onOpenDiscover={() => setActiveTab("discover")}
+        onOpenDiscover={() => openPost(featuredPost)}
         onToggleFollow={handleToggleFollow}
       />
     );
-  }, [accounts, activeTab, currentAccount, featuredPost, isEditingProfile, isSearching, isViewingDrawer, posts]);
+  }, [
+    accounts,
+    activeCardIndex,
+    activePost,
+    activePostIndex,
+    activeTab,
+    currentAccount,
+    featuredPost,
+    isEditingProfile,
+    isSearching,
+    isViewingDrawer,
+    posts
+  ]);
 
   return (
     <main className="app-shell" aria-label="새김 앱">
@@ -456,7 +521,7 @@ function SearchView({
           <h2>글</h2>
           <div className="masonry">
             {posts.map((post) => (
-              <PostResultButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+              <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
             ))}
           </div>
         </section>
@@ -469,12 +534,12 @@ function SearchView({
   );
 }
 
-function PostResultButton({ post, onOpenPost }: { post: PostBundle; onOpenPost: (post: PostBundle) => void }) {
+function PostPreviewButton({ post, onOpenPost }: { post: PostBundle; onOpenPost: (post: PostBundle) => void }) {
   const card = post.cards[0]!;
 
   return (
     <button
-      className="post-card search-post-button"
+      className="post-card post-card-button"
       type="button"
       onClick={() => onOpenPost(post)}
       style={{ background: card.comp.bg, color: card.comp.textColor }}
@@ -540,31 +605,126 @@ function HomeView({
 }
 
 function DiscoverView({
+  activeCardIndex,
   currentAccountId,
   post,
+  postCount,
+  postIndex,
+  onNextCard,
+  onNextPost,
+  onPreviousCard,
+  onPreviousPost,
+  onSelectCard,
   onToggleCarve,
   onOpenComments,
   onToggleFollow,
   onToggleLike
 }: {
+  activeCardIndex: number;
   currentAccountId: string;
   post: PostBundle;
+  postCount: number;
+  postIndex: number;
+  onNextCard: () => void;
+  onNextPost: () => void;
+  onPreviousCard: () => void;
+  onPreviousPost: () => void;
+  onSelectCard: (index: number) => void;
   onToggleCarve: (post: PostBundle) => void;
   onOpenComments: (post: PostBundle) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
   onToggleLike: (post: PostBundle) => void;
 }) {
-  const card = post.cards[0]!;
+  const card = post.cards[activeCardIndex] ?? post.cards[0]!;
   const viewerState = post.viewerState;
   const isOwnPost = post.author.id === currentAccountId;
   const isSubscribed = viewerState?.subscribed ?? false;
+  const hasPreviousPost = postIndex > 0;
+  const hasNextPost = postIndex < postCount - 1;
+  const hasPreviousCard = activeCardIndex > 0;
+  const hasNextCard = activeCardIndex < post.cards.length - 1;
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (event.key === "ArrowUp" && hasPreviousPost) {
+        event.preventDefault();
+        onPreviousPost();
+      }
+      if (event.key === "ArrowDown" && hasNextPost) {
+        event.preventDefault();
+        onNextPost();
+      }
+      if (event.key === "ArrowLeft" && hasPreviousCard) {
+        event.preventDefault();
+        onPreviousCard();
+      }
+      if (event.key === "ArrowRight" && hasNextCard) {
+        event.preventDefault();
+        onNextCard();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [hasNextCard, hasNextPost, hasPreviousCard, hasPreviousPost, onNextCard, onNextPost, onPreviousCard, onPreviousPost]);
 
   return (
     <article className="discover-view">
       <div className="detail-title">{post.post.title}</div>
-      <div className="sentence-card" style={{ background: card.comp.bg, color: card.comp.textColor }}>
-        <p>{card.text}</p>
+      <div className="feed-controls" aria-label="글 이동">
+        <button type="button" onClick={onPreviousPost} disabled={!hasPreviousPost} aria-label="이전 글">
+          ↑
+        </button>
+        <span>
+          {postIndex + 1}/{postCount}
+        </span>
+        <button type="button" onClick={onNextPost} disabled={!hasNextPost} aria-label="다음 글">
+          ↓
+        </button>
       </div>
+      <div className="sentence-card" style={{ background: card.comp.bg, color: card.comp.textColor }}>
+        {post.cards.length > 1 ? (
+          <button
+            className="card-step card-step-prev"
+            type="button"
+            onClick={onPreviousCard}
+            disabled={!hasPreviousCard}
+            aria-label="이전 장"
+          >
+            ‹
+          </button>
+        ) : null}
+        <p>{card.text}</p>
+        {post.cards.length > 1 ? (
+          <button
+            className="card-step card-step-next"
+            type="button"
+            onClick={onNextCard}
+            disabled={!hasNextCard}
+            aria-label="다음 장"
+          >
+            ›
+          </button>
+        ) : null}
+      </div>
+      {post.cards.length > 1 ? (
+        <div className="page-dots" aria-label="장 이동">
+          {post.cards.map((item, index) => (
+            <button
+              key={item.id}
+              className={index === activeCardIndex ? "is-active" : undefined}
+              type="button"
+              onClick={() => onSelectCard(index)}
+              aria-label={`${index + 1}장 보기`}
+              aria-current={index === activeCardIndex ? "true" : undefined}
+            />
+          ))}
+        </div>
+      ) : null}
       <div className="writer-bar">
         <div className="avatar">{post.author.displayName.slice(0, 1)}</div>
         <strong>{post.author.displayName}</strong>
@@ -825,7 +985,7 @@ function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void 
   );
 }
 
-function ShelfView({ posts }: { posts: PostBundle[] }) {
+function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (post: PostBundle) => void }) {
   return (
     <section className="section">
       <div className="section-head">
@@ -834,14 +994,14 @@ function ShelfView({ posts }: { posts: PostBundle[] }) {
       </div>
       <div className="masonry">
         {posts.map((post) => (
-          <CardPreview key={post.post.id} post={post} />
+          <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
         ))}
       </div>
     </section>
   );
 }
 
-function DrawerView({ onBack }: { onBack: () => void }) {
+function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (post: PostBundle) => void }) {
   const [drawerPosts, setDrawerPosts] = useState<PostBundle[]>([]);
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [error, setError] = useState("");
@@ -888,7 +1048,7 @@ function DrawerView({ onBack }: { onBack: () => void }) {
       {drawerPosts.length > 0 ? (
         <div className="masonry">
           {drawerPosts.map((post) => (
-            <CardPreview key={post.post.id} post={post} />
+            <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
           ))}
         </div>
       ) : null}
