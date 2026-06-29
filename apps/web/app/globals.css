@@ -827,7 +827,8 @@ button.post-card {
 
 .tool-row button,
 .primary-button.ghost,
-.profile-logout {
+.profile-logout,
+.settings-logout {
   background: rgba(56, 50, 63, 0.07);
   color: var(--ink);
 }
@@ -836,7 +837,8 @@ button.post-card {
   height: 48px;
 }
 
-.profile-logout {
+.profile-logout,
+.settings-logout {
   min-height: 42px;
   border-radius: 999px;
   font-weight: 900;
@@ -862,6 +864,82 @@ button.post-card {
 
 .masonry .post-card p {
   font-size: 20px;
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-head h2,
+.settings-head p {
+  margin: 0;
+}
+
+.settings-head h2 {
+  font-size: 19px;
+}
+
+.settings-head p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-section h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.settings-list {
+  display: grid;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(56, 50, 63, 0.045);
+}
+
+.settings-row {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 13px;
+  border-bottom: 1px solid rgba(56, 50, 63, 0.07);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 850;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-row small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.settings-row.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
 }
 
 .drawer-head {

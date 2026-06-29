@@ -54,6 +54,7 @@
 - `apps/web/src/components/SaegimShell.tsx`: 상단 검색 버튼은 검색 화면을 열고, `GET /search?q=`로 계정·글 통합 결과를 표시한다. 글 결과를 누르면 해당 글을 발견 화면으로 올린다.
 - `apps/web/src/components/SaegimShell.tsx`: 로그인 게이트(로그인/회원가입/Google/게스트)를 먼저 보여주고, Google 버튼은 `/auth/google`로 이동한다. OAuth 콜백 후에는 `/auth/session`으로 세션 쿠키를 감지해 자동 입장한다. 이메일/게스트 입장 상태는 임시로 `saegim_web_entry_state` localStorage에 저장한다. 나 탭 로그아웃은 `/auth/logout`을 호출하고 게이트로 돌아간다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭 프로필 편집은 `PATCH /accounts/me`로 닉네임·한줄 소개글·소개글·프로필 사진 URL을 저장하고 현재 계정 상태를 갱신한다.
+- `apps/web/src/components/SaegimShell.tsx`: 나 탭 설정 전체 페이지는 프로필 편집·내 서랍·로그아웃을 연결하고, 구독 목록·알림·정보 항목은 `준비 중`으로 표시한다. 검색·설정·서랍·프로필 편집 같은 전체 페이지 상태에서는 하단 탭을 숨긴다.
 - `apps/api`: NestJS API. 현재 `/health`, `/auth/google`, `/auth/google/callback`, `/auth/session`, `/auth/logout`, `/feed`, `/shelf`, `/drawer`, `/search`, `/posts/:postId`, `GET/PATCH /accounts/me`, `GET /accounts/:accountId`, `/accounts/recommended`, `POST /posts`, `GET/POST /posts/:postId/comments`, `POST/DELETE /accounts/:accountId/follow`, 좋아요/새김 토글로 기본 계약을 확인한다. 발행·좋아요·새김·구독·댓글은 PostgreSQL에 저장한다.
 - `apps/api/src/auth`: Google OAuth 토큰 교환·계정/OAuthAccount 연결·서명 세션 쿠키(`saegim_session`) 발급을 담당한다. 개발 환경에서는 `x-saegim-account-id` 요청 헤더로 계정 컨텍스트를 임시 전환할 수 있고, 웹은 `NEXT_PUBLIC_DEV_ACCOUNT_ID`가 있으면 이 헤더를 자동으로 보낸다. 세션도 개발 헤더도 없으면 개발 기본값 `DEV_ACCOUNT_ID`를 사용하고, 운영에서는 세션 없이는 인증 오류를 반환한다.
 - `apps/api/src/content/content.repository.ts`: Prisma 기반 콘텐츠 저장소. 서버 시작 시 시드 계정/글을 idempotent하게 보강하고, 응답을 `PostBundle` 형태로 매핑한다.

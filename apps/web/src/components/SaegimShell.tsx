@@ -80,6 +80,7 @@ export function SaegimShell() {
   const [isSearching, setIsSearching] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
+  const [isViewingSettings, setIsViewingSettings] = useState(false);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [infoSheet, setInfoSheet] = useState<InfoSheetState | null>(null);
   const [activePostId, setActivePostId] = useState<string | null>(null);
@@ -104,6 +105,7 @@ export function SaegimShell() {
   const infoSheetCardIndex = infoSheetPost
     ? Math.min(infoSheet?.cardIndex ?? 0, Math.max(infoSheetPost.cards.length - 1, 0))
     : 0;
+  const isFullPage = isSearching || isEditingProfile || isViewingDrawer || isViewingSettings;
   const activePostIndex = Math.max(
     0,
     posts.findIndex((post) => post.post.id === activePost.post.id)
@@ -180,6 +182,7 @@ export function SaegimShell() {
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
+    setIsViewingSettings(false);
     setCommentPost(null);
     setInfoSheet(null);
     setSelectedProfileId(currentAccount.id);
@@ -201,6 +204,7 @@ export function SaegimShell() {
     if (tab !== "me") {
       setIsEditingProfile(false);
       setIsViewingDrawer(false);
+      setIsViewingSettings(false);
     } else {
       setSelectedProfileId(currentAccount.id);
     }
@@ -258,6 +262,7 @@ export function SaegimShell() {
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
+    setIsViewingSettings(false);
     setCommentPost(null);
     setInfoSheet(null);
     setActiveTab("discover");
@@ -269,6 +274,7 @@ export function SaegimShell() {
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
+    setIsViewingSettings(false);
     setCommentPost(null);
     setInfoSheet(null);
     setActiveTab("me");
@@ -400,6 +406,23 @@ export function SaegimShell() {
     if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
     if (activeTab === "shelf") return <ShelfView posts={posts} onOpenPost={openPost} />;
     if (activeTab === "me") {
+      if (isViewingSettings) {
+        return (
+          <SettingsView
+            onBack={() => setIsViewingSettings(false)}
+            onEditProfile={() => {
+              setIsViewingSettings(false);
+              setIsEditingProfile(true);
+            }}
+            onLogout={leaveApp}
+            onOpenDrawer={() => {
+              setIsViewingSettings(false);
+              setIsViewingDrawer(true);
+            }}
+          />
+        );
+      }
+
       if (isViewingDrawer) {
         return <DrawerView onBack={() => setIsViewingDrawer(false)} onOpenPost={openPost} />;
       }
@@ -415,10 +438,9 @@ export function SaegimShell() {
           account={selectedProfile}
           onEdit={() => setIsEditingProfile(true)}
           isOwnProfile={isOwnProfile}
-          onLogout={leaveApp}
-          onOpenDrawer={() => setIsViewingDrawer(true)}
           onOpenPost={openPost}
           onOpenProfile={() => setSelectedProfileId(currentAccount.id)}
+          onOpenSettings={() => setIsViewingSettings(true)}
           onToggleFollow={handleToggleFollow}
           posts={selectedProfilePosts}
         />
@@ -444,6 +466,7 @@ export function SaegimShell() {
     isEditingProfile,
     isSearching,
     isViewingDrawer,
+    isViewingSettings,
     isOwnProfile,
     posts,
     selectedProfile,
@@ -487,20 +510,22 @@ export function SaegimShell() {
               />
             ) : null}
 
-            <nav className="tabbar" aria-label="주요 메뉴">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  className={tab.key === activeTab ? "tab is-active" : "tab"}
-                  type="button"
-                  onClick={() => selectTab(tab.key)}
-                  aria-label={tab.label}
-                  aria-current={tab.key === activeTab ? "page" : undefined}
-                >
-                  <span className="tab-icon">{tab.icon}</span>
-                </button>
-              ))}
-            </nav>
+            {isFullPage ? null : (
+              <nav className="tabbar" aria-label="주요 메뉴">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    className={tab.key === activeTab ? "tab is-active" : "tab"}
+                    type="button"
+                    onClick={() => selectTab(tab.key)}
+                    aria-label={tab.label}
+                    aria-current={tab.key === activeTab ? "page" : undefined}
+                  >
+                    <span className="tab-icon">{tab.icon}</span>
+                  </button>
+                ))}
+              </nav>
+            )}
           </>
         )}
       </section>
@@ -1226,6 +1251,82 @@ function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (po
   );
 }
 
+function SettingsView({
+  onBack,
+  onEditProfile,
+  onLogout,
+  onOpenDrawer
+}: {
+  onBack: () => void;
+  onEditProfile: () => void;
+  onLogout: () => void;
+  onOpenDrawer: () => void;
+}) {
+  const sections = [
+    {
+      title: "계정",
+      rows: [{ label: "프로필 편집", onClick: onEditProfile }]
+    },
+    {
+      title: "활동",
+      rows: [{ label: "내 서랍", onClick: onOpenDrawer }, { label: "구독 목록", state: "준비 중" }]
+    },
+    {
+      title: "알림",
+      rows: [{ label: "푸시 알림", state: "준비 중" }, { label: "새김 소식", state: "준비 중" }]
+    },
+    {
+      title: "정보",
+      rows: [
+        { label: "공지사항", state: "준비 중" },
+        { label: "이용약관", state: "준비 중" },
+        { label: "개인정보 처리방침", state: "준비 중" },
+        { label: "문의하기", state: "준비 중" }
+      ]
+    }
+  ];
+
+  return (
+    <section className="settings-view">
+      <div className="settings-head">
+        <button className="back-icon" type="button" onClick={onBack} aria-label="프로필로 돌아가기">
+          ←
+        </button>
+        <div>
+          <h2>설정</h2>
+          <p>계정과 활동을 조용히 정리해요.</p>
+        </div>
+      </div>
+
+      <div className="settings-groups">
+        {sections.map((section) => (
+          <section className="settings-section" key={section.title}>
+            <h3>{section.title}</h3>
+            <div className="settings-list">
+              {section.rows.map((row) => (
+                <button
+                  className={row.state ? "settings-row is-disabled" : "settings-row"}
+                  disabled={Boolean(row.state)}
+                  key={row.label}
+                  onClick={row.onClick}
+                  type="button"
+                >
+                  <span>{row.label}</span>
+                  {row.state ? <small>{row.state}</small> : <small>›</small>}
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      <button className="settings-logout" type="button" onClick={onLogout}>
+        로그아웃
+      </button>
+    </section>
+  );
+}
+
 function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (post: PostBundle) => void }) {
   const [drawerPosts, setDrawerPosts] = useState<PostBundle[]>([]);
   const [status, setStatus] = useState<"loading" | "idle">("loading");
@@ -1285,20 +1386,18 @@ function ProfileView({
   account,
   isOwnProfile,
   onEdit,
-  onLogout,
-  onOpenDrawer,
   onOpenPost,
   onOpenProfile,
+  onOpenSettings,
   onToggleFollow,
   posts
 }: {
   account: AccountProfile;
   isOwnProfile: boolean;
   onEdit: () => void;
-  onLogout: () => void;
-  onOpenDrawer: () => void;
   onOpenPost: (post: PostBundle) => void;
   onOpenProfile: () => void;
+  onOpenSettings: () => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
   posts: PostBundle[];
 }) {
@@ -1322,11 +1421,8 @@ function ProfileView({
           <button className="primary-button ghost" type="button" onClick={onEdit}>
             프로필 편집
           </button>
-          <button className="primary-button ghost" type="button" onClick={onOpenDrawer}>
-            내 서랍
-          </button>
-          <button className="profile-logout" type="button" onClick={onLogout}>
-            로그아웃
+          <button className="primary-button ghost" type="button" onClick={onOpenSettings}>
+            설정
           </button>
         </>
       ) : (
