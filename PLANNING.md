@@ -178,7 +178,7 @@
 ### 14.3 발행 흐름
 
 - 프로토타입: 에디터 `enqueuePublication()` → `saegim_pub_queue` 적재 → 앱 `ingestPublications()`/`drainPubQueue()` → `state.published` + `rebuildData()`(DATA=SEED+published) → 발견·둘러보기·프로필·서랍 반영.
-- 실서비스 골격: 웹 포착 탭 → `POST /posts` → API가 글/장 bundle 생성 → 웹 피드 상태에 prepend → 발견 탭 반영. 현재는 DB 저장 전 단계라 서버 재시작 시 발행 글이 초기화된다.
+- 실서비스 골격: 웹 포착 탭 → `POST /posts` → API가 글/장 bundle 생성·PostgreSQL 저장 → 웹 피드 상태에 prepend → 발견 탭 반영. 발행 글과 좋아요·새김 상태는 서버 재시작 후에도 유지된다.
 
 ### 14.4 WYSIWYG comp 계약 (필수 유지)
 
