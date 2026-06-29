@@ -17,3 +17,10 @@ export interface CreatePostInput {
     tags?: string[];
   }>;
 }
+
+export interface UpdateAccountInput {
+  displayName?: string;
+  tagline?: string;
+  bio?: string | null;
+  photoUrl?: string | null;
+}

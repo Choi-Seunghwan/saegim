@@ -3,7 +3,14 @@ import { Prisma } from "@prisma/client";
 import { CurrentAccountService } from "../auth/current-account.service.js";
 import { PrismaService } from "../database/prisma.service.js";
 import { seedAccounts, seedPostBundles } from "./seed-data.js";
-import type { AccountProfile, CardComposition, ContentSource, CreatePostInput, PostBundle } from "./content.types.js";
+import type {
+  AccountProfile,
+  CardComposition,
+  ContentSource,
+  CreatePostInput,
+  PostBundle,
+  UpdateAccountInput
+} from "./content.types.js";
 
 const accountInclude = Prisma.validator<Prisma.AccountInclude>()({
   _count: {
@@ -341,6 +348,21 @@ export class ContentRepository {
     };
   }
 
+  async updateCurrentAccount(input: UpdateAccountInput, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    await this.getCurrentAuthor(currentAccountId);
+
+    const account = await this.prisma.account.update({
+      where: { id: currentAccountId },
+      data: this.normalizeAccountUpdate(input),
+      include: accountInclude
+    });
+
+    return {
+      item: this.toAccountProfile(account)
+    };
+  }
+
   async getRecommendedAccounts(accountIdHint?: string) {
     const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const accounts = await this.prisma.account.findMany({
@@ -515,6 +537,62 @@ export class ContentRepository {
     }
 
     return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))].slice(0, 3);
+  }
+
+  private normalizeAccountUpdate(input: UpdateAccountInput) {
+    if (!input || typeof input !== "object") {
+      throw new BadRequestException("수정할 프로필 값을 입력해 주세요.");
+    }
+
+    const data: Prisma.AccountUpdateInput = {};
+
+    if (Object.hasOwn(input, "displayName")) {
+      data.displayName = this.normalizeRequiredText(input.displayName, "닉네임", 24);
+    }
+
+    if (Object.hasOwn(input, "tagline")) {
+      data.tagline = this.normalizeText(input.tagline, "한줄 소개글", 48) ?? "";
+    }
+
+    if (Object.hasOwn(input, "bio")) {
+      data.bio = this.normalizeText(input.bio, "소개글", 240);
+    }
+
+    if (Object.hasOwn(input, "photoUrl")) {
+      data.photoUrl = this.normalizeText(input.photoUrl, "프로필 사진", 2048);
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException("수정할 프로필 값을 입력해 주세요.");
+    }
+
+    return data;
+  }
+
+  private normalizeRequiredText(value: unknown, label: string, maxLength: number) {
+    const normalizedText = this.normalizeText(value, label, maxLength);
+    if (!normalizedText) {
+      throw new BadRequestException(`${label}을 입력해 주세요.`);
+    }
+
+    return normalizedText;
+  }
+
+  private normalizeText(value: unknown, label: string, maxLength: number) {
+    if (value === null || typeof value === "undefined") {
+      return null;
+    }
+
+    if (typeof value !== "string") {
+      throw new BadRequestException(`${label} 형식이 올바르지 않아요.`);
+    }
+
+    const normalizedText = value.trim();
+    if (normalizedText.length > maxLength) {
+      throw new BadRequestException(`${label}은 ${maxLength}자까지 입력할 수 있어요.`);
+    }
+
+    return normalizedText || null;
   }
 
   private titleFromText(text: string) {

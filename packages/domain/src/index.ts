@@ -89,6 +89,13 @@ export interface CreatePostInput {
   cards: CreateSentenceCardInput[];
 }
 
+export interface UpdateAccountInput {
+  displayName?: string;
+  tagline?: string;
+  bio?: string | null;
+  photoUrl?: string | null;
+}
+
 export interface ViewerPostState {
   liked: boolean;
   carved: boolean;
