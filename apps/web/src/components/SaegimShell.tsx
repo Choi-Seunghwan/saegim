@@ -635,6 +635,14 @@ function Avatar({
   );
 }
 
+function GuestTabAvatar() {
+  return (
+    <div className="guest-tab-avatar" aria-hidden="true">
+      게
+    </div>
+  );
+}
+
 function OfficialMark({ verification }: { verification: AccountProfile["verification"] }) {
   if (verification !== "official") return null;
 
@@ -866,6 +874,10 @@ export function SaegimShell() {
 
   function selectTab(tab: TabKey) {
     if (tab === "capture" && !requireSignedIn("capture")) {
+      return;
+    }
+
+    if (tab === "me" && !requireSignedIn("profile")) {
       return;
     }
 
@@ -1260,15 +1272,6 @@ export function SaegimShell() {
     }
     if (activeTab === "shelf") return <ShelfView posts={posts} onOpenPost={openPost} />;
     if (activeTab === "me") {
-      if (isOwnProfile && !isSignedIn()) {
-        return (
-          <GuestProfileView
-            onLogin={() => openAuthSheet("profile")}
-            onSignup={() => openAuthSheet("profile", "signup")}
-          />
-        );
-      }
-
       if (isViewingSettings) {
         return (
           <SettingsView
@@ -1464,15 +1467,19 @@ export function SaegimShell() {
                   className={tabKey === activeTab ? "tab is-active" : "tab"}
                   type="button"
                   onClick={() => selectTab(tabKey)}
-                  aria-label={tabLabels[tabKey]}
+                  aria-label={tabKey === "me" && !isSignedIn() ? "나, 게스트" : tabLabels[tabKey]}
                   aria-current={tabKey === activeTab ? "page" : undefined}
                 >
                   {tabKey === "me" ? (
-                    <Avatar
-                      displayName={currentAccount.displayName}
-                      photoUrl={currentAccount.photoUrl}
-                      size="tab"
-                    />
+                    isSignedIn() ? (
+                      <Avatar
+                        displayName={currentAccount.displayName}
+                        photoUrl={currentAccount.photoUrl}
+                        size="tab"
+                      />
+                    ) : (
+                      <GuestTabAvatar />
+                    )
                   ) : (
                     <TabIcon tab={tabKey} />
                   )}
@@ -3733,55 +3740,6 @@ function DrawerView({
           ))}
         </div>
       ) : null}
-    </section>
-  );
-}
-
-function GuestProfileView({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
-  const guestRows = [
-    { title: "내 서랍", detail: "새긴 글" },
-    { title: "구독 목록", detail: "글벗" },
-    { title: "내 글", detail: "포착한 카드" }
-  ];
-
-  return (
-    <section className="guest-profile-view">
-      <div className="guest-profile-head">
-        <div className="guest-avatar" aria-hidden="true">
-          나
-        </div>
-        <div>
-          <span className="guest-kicker">게스트</span>
-          <h2>내 공간 만들기</h2>
-          <p>새긴 글과 구독한 글벗을 한 계정에 이어둘 수 있어요.</p>
-        </div>
-      </div>
-
-      <div className="guest-profile-actions" aria-label="계정 행동">
-        <button type="button" onClick={onLogin}>
-          로그인
-        </button>
-        <button type="button" onClick={onSignup}>
-          계정 만들기
-        </button>
-      </div>
-
-      <div className="guest-profile-list" aria-label="로그인 후 개인 영역">
-        {guestRows.map((row) => (
-          <button key={row.title} type="button" onClick={onLogin}>
-            <span>{row.title}</span>
-            <small>{row.detail}</small>
-          </button>
-        ))}
-      </div>
-
-      <section className="guest-profile-empty">
-        <div className="profile-shelf-head">
-          <h2>내 글</h2>
-          <span>글 0</span>
-        </div>
-        <p>로그인하면 포착한 글이 이곳에 모여요.</p>
-      </section>
     </section>
   );
 }
