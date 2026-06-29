@@ -212,28 +212,9 @@ textarea:focus-visible {
 .search-view,
 .profile-view,
 .profile-edit-view,
-.auth-gate,
 .auth-form {
   display: grid;
   gap: 18px;
-}
-
-.auth-gate {
-  min-height: 100%;
-  padding: 0 26px 24px;
-  overflow-y: auto;
-  background: radial-gradient(120% 50% at 50% -8%, #fff, transparent 60%),
-    linear-gradient(180deg, var(--mist), var(--mist-2));
-}
-
-.auth-card {
-  min-height: 100%;
-  max-width: 380px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  margin: 0 auto;
-  padding: 48px 0;
 }
 
 .auth-brand {
@@ -264,21 +245,12 @@ textarea:focus-visible {
   flex-direction: column;
 }
 
-.auth-panel h2 {
+.auth-panel h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 23px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 900;
   letter-spacing: 0;
-  text-align: center;
-}
-
-.auth-sub {
-  margin: 8px 0 22px;
-  color: var(--muted);
-  font-size: 13.5px;
-  font-weight: 500;
-  text-align: center;
 }
 
 .auth-in {
@@ -394,6 +366,94 @@ textarea:focus-visible {
   flex: 0 0 auto;
   margin-top: 1px;
   accent-color: var(--ink-strong);
+}
+
+.auth-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: rgba(53, 48, 57, 0.18);
+  cursor: pointer;
+}
+
+.auth-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 31;
+  max-height: 88%;
+  display: grid;
+  gap: 13px;
+  overflow-y: auto;
+  padding: 10px 22px 24px;
+  border-radius: 28px 28px 0 0;
+  background: var(--paper);
+  box-shadow: 0 -20px 60px -44px rgba(53, 48, 57, 0.72);
+}
+
+.auth-sheet-intro {
+  display: grid;
+  gap: 7px;
+  padding: 0 2px 2px;
+}
+
+.auth-sheet-intro .auth-brand {
+  align-self: auto;
+  margin: 0 0 2px;
+  font-size: 23px;
+  text-align: left;
+}
+
+.auth-sheet-intro .auth-brand::after {
+  left: 0;
+  right: auto;
+  width: 42px;
+}
+
+.auth-sheet-intro h2,
+.auth-sheet-intro p {
+  margin: 0;
+}
+
+.auth-sheet-intro h2 {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.24;
+  letter-spacing: 0;
+}
+
+.auth-sheet-intro p {
+  max-width: 320px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.auth-sheet .auth-panel {
+  gap: 10px;
+  padding: 15px;
+  border-radius: 18px;
+  background: rgba(56, 50, 63, 0.045);
+}
+
+.auth-sheet .auth-in {
+  margin-bottom: 0;
+}
+
+.auth-sheet .auth-btn {
+  margin-top: 2px;
+}
+
+.auth-sheet .auth-div {
+  margin: -1px 0;
+}
+
+.auth-sheet .auth-guest {
+  min-height: 42px;
+  margin-top: 0;
 }
 
 .home-view {

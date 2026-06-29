@@ -43,8 +43,9 @@ import {
 import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
-type EntryState = "gate" | "guest" | "signed-in";
+type EntryState = "guest" | "signed-in";
 type InfoSheetState = { postId: string };
+type AuthSheetReason = "default" | "like" | "carve" | "comment" | "follow" | "capture" | "profile";
 type EditorialPageKind = "notice" | "event" | "ad";
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
 type MainReturnTab = Exclude<TabKey, "capture">;
@@ -99,8 +100,6 @@ type EditorialPage = {
   };
 };
 
-const ENTRY_STATE_STORAGE_KEY = "saegim_web_entry_state";
-
 const tabLabels: Record<TabKey, string> = {
   home: "홈",
   discover: "발견",
@@ -114,6 +113,37 @@ const topbarCopy: Record<Exclude<TabKey, "discover">, { title: string; subtitle:
   capture: { title: "포착", subtitle: "한 줄을 카드로 남기기" },
   shelf: { title: "둘러보기", subtitle: "엮어 둔 글 모음" },
   me: { title: "나", subtitle: "내가 남긴 글과 서랍" }
+};
+
+const authSheetCopy: Record<AuthSheetReason, { title: string; description: string }> = {
+  default: {
+    title: "로그인이 필요해요",
+    description: "새김은 바로 둘러볼 수 있고, 내 기록이 남는 순간에만 로그인해요."
+  },
+  like: {
+    title: "좋아요는 로그인 후 남겨요",
+    description: "공개 공감 수에 반영되는 행동이라 계정이 필요해요."
+  },
+  carve: {
+    title: "서랍에 담으려면 로그인해요",
+    description: "새긴 글은 내 서랍에 조용히 보관돼요."
+  },
+  comment: {
+    title: "댓글은 로그인 후 남겨요",
+    description: "글벗에게 닿는 말이라 내 계정으로 남겨요."
+  },
+  follow: {
+    title: "구독하려면 로그인해요",
+    description: "좋아하는 글벗을 내 계정에 담아둘게요."
+  },
+  capture: {
+    title: "문장을 남기려면 로그인해요",
+    description: "내가 만든 카드를 프로필과 발견 피드에 이어 두기 위해 계정이 필요해요."
+  },
+  profile: {
+    title: "내 공간은 로그인 후 열려요",
+    description: "내 프로필, 서랍, 구독 목록은 계정과 연결된 개인 공간이에요."
+  }
 };
 
 const editorialPages: EditorialPage[] = [
@@ -243,31 +273,6 @@ const captureAlignOptions: { value: CardComposition["align"]; label: string }[] 
   { value: "center", label: "가운데" },
   { value: "right", label: "오른쪽" }
 ];
-
-function readStoredEntryState() {
-  try {
-    const savedEntryState = window.localStorage?.getItem(ENTRY_STATE_STORAGE_KEY);
-    return savedEntryState === "guest" || savedEntryState === "signed-in" ? savedEntryState : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredEntryState(nextEntryState: Exclude<EntryState, "gate">) {
-  try {
-    window.localStorage?.setItem(ENTRY_STATE_STORAGE_KEY, nextEntryState);
-  } catch {
-    // 저장소가 막힌 환경에서도 현재 세션 입장은 유지한다.
-  }
-}
-
-function clearStoredEntryState() {
-  try {
-    window.localStorage?.removeItem(ENTRY_STATE_STORAGE_KEY);
-  } catch {
-    // 저장소가 막힌 환경에서는 지울 값도 없다고 보고 넘어간다.
-  }
-}
 
 function mergeUniquePosts(primaryPosts: PostBundle[], fallbackPosts: PostBundle[]) {
   const seenPostIds = new Set(primaryPosts.map((post) => post.post.id));
@@ -682,7 +687,8 @@ function AccountName({ account }: { account: AccountProfile }) {
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("home");
-  const [entryState, setEntryState] = useState<EntryState>("gate");
+  const [entryState, setEntryState] = useState<EntryState>("guest");
+  const [authSheetReason, setAuthSheetReason] = useState<AuthSheetReason | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
@@ -809,10 +815,62 @@ export function SaegimShell() {
     );
   }
 
-  function enterApp(nextEntryState: Exclude<EntryState, "gate">) {
-    setEntryState(nextEntryState);
+  function isSignedIn() {
+    return entryState === "signed-in";
+  }
+
+  function openAuthSheet(reason: AuthSheetReason = "default") {
+    setCommentPost(null);
+    setInfoSheet(null);
+    setAuthSheetReason(reason);
+  }
+
+  function requireSignedIn(reason: AuthSheetReason = "default") {
+    if (isSignedIn()) {
+      return true;
+    }
+
+    openAuthSheet(reason);
+    return false;
+  }
+
+  function enterApp() {
+    const reason = authSheetReason;
+    setEntryState("signed-in");
     setSelectedProfileId(currentAccount.id);
-    writeStoredEntryState(nextEntryState);
+    setAuthSheetReason(null);
+
+    if (reason === "capture") {
+      setCaptureReturnTab(activeTab === "capture" ? "home" : activeTab);
+      setIsSearching(false);
+      setIsEditingProfile(false);
+      setIsViewingDrawer(false);
+      setDrawerReturnSurface("profile");
+      setIsViewingFollowing(false);
+      setIsViewingSettings(false);
+      setIsViewingNoticeList(false);
+      setEditorialPageState(null);
+      setCommentPost(null);
+      setInfoSheet(null);
+      setDetailReturnTarget(null);
+      setActiveTab("capture");
+      return;
+    }
+
+    if (reason === "profile") {
+      setIsSearching(false);
+      setIsEditingProfile(false);
+      setIsViewingDrawer(false);
+      setDrawerReturnSurface("profile");
+      setIsViewingFollowing(false);
+      setIsViewingSettings(false);
+      setIsViewingNoticeList(false);
+      setEditorialPageState(null);
+      setCommentPost(null);
+      setInfoSheet(null);
+      setDetailReturnTarget(null);
+      setActiveTab("me");
+    }
   }
 
   function leaveApp() {
@@ -830,11 +888,19 @@ export function SaegimShell() {
     setInfoSheet(null);
     setDetailReturnTarget(null);
     setSelectedProfileId(currentAccount.id);
-    setEntryState("gate");
-    clearStoredEntryState();
+    setEntryState("guest");
+    setAuthSheetReason(null);
   }
 
   function selectTab(tab: TabKey) {
+    if (tab === "capture" && !requireSignedIn("capture")) {
+      return;
+    }
+
+    if (tab === "me" && !requireSignedIn("profile")) {
+      return;
+    }
+
     if (tab === "capture" && activeTab !== "capture") {
       setCaptureReturnTab(activeTab);
     }
@@ -904,6 +970,10 @@ export function SaegimShell() {
   }
 
   async function handleToggleLike(post: PostBundle) {
+    if (!requireSignedIn("like")) {
+      return;
+    }
+
     try {
       const updatedPost = post.viewerState?.liked ? await unlikePost(post.post.id) : await likePost(post.post.id);
       replacePost(updatedPost);
@@ -913,6 +983,10 @@ export function SaegimShell() {
   }
 
   async function handleToggleCarve(post: PostBundle) {
+    if (!requireSignedIn("carve")) {
+      return;
+    }
+
     try {
       const updatedPost = post.viewerState?.carved ? await uncarvePost(post.post.id) : await carvePost(post.post.id);
       replacePost(updatedPost);
@@ -922,6 +996,10 @@ export function SaegimShell() {
   }
 
   async function handleUpdateProfile(input: UpdateAccountInput) {
+    if (!requireSignedIn("profile")) {
+      return;
+    }
+
     let updatedAccount: AccountProfile;
 
     try {
@@ -936,6 +1014,10 @@ export function SaegimShell() {
   }
 
   async function handleToggleFollow(accountId: string, subscribed: boolean) {
+    if (!requireSignedIn("follow")) {
+      return null;
+    }
+
     try {
       const updatedAccount = subscribed ? await unfollowAccount(accountId) : await followAccount(accountId);
       replaceAccount(updatedAccount);
@@ -1023,6 +1105,10 @@ export function SaegimShell() {
   }
 
   async function openProfile(account: AccountProfile) {
+    if (account.id === currentAccount.id && !requireSignedIn("profile")) {
+      return;
+    }
+
     upsertAccount(account);
     setSelectedProfileId(account.id);
     setIsSearching(false);
@@ -1069,12 +1155,6 @@ export function SaegimShell() {
   }
 
   useEffect(() => {
-    const savedEntryState = readStoredEntryState();
-    if (savedEntryState) {
-      setEntryState(savedEntryState);
-      return;
-    }
-
     const controller = new AbortController();
 
     async function restoreSession() {
@@ -1082,10 +1162,9 @@ export function SaegimShell() {
         const session = await fetchAuthSession(controller.signal);
         if (session.authenticated) {
           setEntryState("signed-in");
-          writeStoredEntryState("signed-in");
         }
       } catch {
-        // 세션이 없거나 API가 꺼져 있으면 로그인 게이트를 유지한다.
+        // 세션이 없거나 API가 꺼져 있어도 게스트 탐색은 유지한다.
       }
     }
 
@@ -1094,18 +1173,13 @@ export function SaegimShell() {
   }, []);
 
   useEffect(() => {
-    if (entryState === "gate") {
-      return;
-    }
-
     const controller = new AbortController();
 
     async function loadInitialData() {
       try {
-        const [nextPosts, nextAccounts, nextCurrentAccount] = await Promise.all([
+        const [nextPosts, nextAccounts] = await Promise.all([
           fetchFeed(controller.signal),
-          fetchRecommendedAccounts(controller.signal),
-          fetchCurrentAccount(controller.signal)
+          fetchRecommendedAccounts(controller.signal)
         ]);
 
         if (nextPosts.length > 0) {
@@ -1116,7 +1190,11 @@ export function SaegimShell() {
           setAccounts(nextAccounts);
         }
 
-        setCurrentAccount(nextCurrentAccount);
+        if (entryState === "signed-in") {
+          const nextCurrentAccount = await fetchCurrentAccount(controller.signal);
+          setCurrentAccount(nextCurrentAccount);
+          setSelectedProfileId(nextCurrentAccount.id);
+        }
       } catch {
         // API가 아직 꺼져 있어도 프로토타입 샘플로 첫 화면을 유지한다.
       }
@@ -1177,6 +1255,10 @@ export function SaegimShell() {
           onSelectCard={selectCard}
           onToggleCarve={handleToggleCarve}
           onOpenComments={(post) => {
+            if (!requireSignedIn("comment")) {
+              return;
+            }
+
             setInfoSheet(null);
             setCommentPost(post);
           }}
@@ -1203,6 +1285,10 @@ export function SaegimShell() {
           <SettingsView
             onBack={() => setIsViewingSettings(false)}
             onEditProfile={() => {
+              if (!requireSignedIn("profile")) {
+                return;
+              }
+
               setIsViewingSettings(false);
               setIsEditingProfile(true);
             }}
@@ -1260,15 +1346,27 @@ export function SaegimShell() {
       ) : (
         <ProfileView
           account={selectedProfile}
-          onEdit={() => setIsEditingProfile(true)}
+          onEdit={() => {
+            if (requireSignedIn("profile")) {
+              setIsEditingProfile(true);
+            }
+          }}
           isOwnProfile={isOwnProfile}
           onOpenPost={openPost}
           onOpenProfile={() => setSelectedProfileId(currentAccount.id)}
           onOpenDrawer={() => {
+            if (!requireSignedIn("profile")) {
+              return;
+            }
+
             setDrawerReturnSurface("profile");
             setIsViewingDrawer(true);
           }}
-          onOpenSettings={() => setIsViewingSettings(true)}
+          onOpenSettings={() => {
+            if (requireSignedIn("profile")) {
+              setIsViewingSettings(true);
+            }
+          }}
           onToggleFollow={handleToggleFollow}
           posts={selectedProfilePosts}
         />
@@ -1298,6 +1396,7 @@ export function SaegimShell() {
     detailReturnTarget,
     drawerReturnSurface,
     drawerFallbackPosts,
+    entryState,
     featuredPost,
     isEditingProfile,
     isSearching,
@@ -1317,107 +1416,113 @@ export function SaegimShell() {
   return (
     <main className="app-shell" aria-label="새김 앱">
       <section className={frameClassName}>
-        {entryState === "gate" ? (
-          <AuthGate onEnter={enterApp} onGoogleLogin={startGoogleOAuth} />
-        ) : (
+        {isDiscoverMode || isFullPage || isProfileTab ? null : (
+          <header className="topbar">
+            <div>
+              <div className={activeTab === "home" ? "wordmark brand" : "wordmark"}>{topbar.title}</div>
+              <p>{topbar.subtitle}</p>
+            </div>
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="검색"
+              onClick={() => {
+                setCommentPost(null);
+                setInfoSheet(null);
+                setEditorialPageState(null);
+                setIsViewingNoticeList(false);
+                setIsViewingSettings(false);
+                setIsSearching(true);
+              }}
+            >
+              <SearchIcon />
+            </button>
+          </header>
+        )}
+
+        <div className="screen">{content}</div>
+
+        {commentPost ? (
+          <CommentSheet post={commentPost} onClose={() => setCommentPost(null)} onPostChange={replacePost} />
+        ) : null}
+
+        {infoSheet && infoSheetPost ? (
+          <PostInfoSheet
+            onClose={() => setInfoSheet(null)}
+            post={infoSheetPost}
+          />
+        ) : null}
+
+        {isFullPage ? null : (
           <>
-            {isDiscoverMode || isFullPage || isProfileTab ? null : (
-              <header className="topbar">
-                <div>
-                  <div className={activeTab === "home" ? "wordmark brand" : "wordmark"}>{topbar.title}</div>
-                  <p>{topbar.subtitle}</p>
-                </div>
+            <nav className="tabbar" aria-label="주요 메뉴">
+            {(["home", "discover"] as const).map((tabKey) => (
               <button
-                className="icon-button"
+                key={tabKey}
+                className={tabKey === activeTab ? "tab is-active" : "tab"}
                 type="button"
-                aria-label="검색"
-                onClick={() => {
-                  setCommentPost(null);
-                  setInfoSheet(null);
-                  setEditorialPageState(null);
-                  setIsViewingNoticeList(false);
-                  setIsViewingSettings(false);
-                  setIsSearching(true);
-                }}
+                onClick={() => selectTab(tabKey)}
+                aria-label={tabLabels[tabKey]}
+                aria-current={tabKey === activeTab ? "page" : undefined}
               >
-                <SearchIcon />
+                <TabIcon tab={tabKey} />
               </button>
-              </header>
-            )}
-
-            <div className="screen">{content}</div>
-
-            {commentPost ? (
-              <CommentSheet post={commentPost} onClose={() => setCommentPost(null)} onPostChange={replacePost} />
-            ) : null}
-
-            {infoSheet && infoSheetPost ? (
-              <PostInfoSheet
-                onClose={() => setInfoSheet(null)}
-                post={infoSheetPost}
-              />
-            ) : null}
-
-            {isFullPage ? null : (
-              <>
-                <nav className="tabbar" aria-label="주요 메뉴">
-                {(["home", "discover"] as const).map((tabKey) => (
-                  <button
-                    key={tabKey}
-                    className={tabKey === activeTab ? "tab is-active" : "tab"}
-                    type="button"
-                    onClick={() => selectTab(tabKey)}
-                    aria-label={tabLabels[tabKey]}
-                    aria-current={tabKey === activeTab ? "page" : undefined}
-                  >
-                    <TabIcon tab={tabKey} />
-                  </button>
-                ))}
-                  <span className="tab tab-spacer" aria-hidden="true" />
-                  {(["shelf", "me"] as const).map((tabKey) => (
-                    <button
-                      key={tabKey}
-                      className={tabKey === activeTab ? "tab is-active" : "tab"}
-                      type="button"
-                      onClick={() => selectTab(tabKey)}
-                      aria-label={tabLabels[tabKey]}
-                      aria-current={tabKey === activeTab ? "page" : undefined}
-                    >
-                      {tabKey === "me" ? (
-                        <Avatar
-                          displayName={currentAccount.displayName}
-                          photoUrl={currentAccount.photoUrl}
-                          size="tab"
-                        />
-                      ) : (
-                        <TabIcon tab={tabKey} />
-                      )}
-                    </button>
-                  ))}
-                </nav>
+            ))}
+              <span className="tab tab-spacer" aria-hidden="true" />
+              {(["shelf", "me"] as const).map((tabKey) => (
                 <button
-                  className="fab"
+                  key={tabKey}
+                  className={tabKey === activeTab ? "tab is-active" : "tab"}
                   type="button"
-                  aria-label={tabLabels.capture}
-                  onClick={() => selectTab("capture")}
+                  onClick={() => selectTab(tabKey)}
+                  aria-label={tabLabels[tabKey]}
+                  aria-current={tabKey === activeTab ? "page" : undefined}
                 >
-                  <PlusIcon />
+                  {tabKey === "me" ? (
+                    <Avatar
+                      displayName={currentAccount.displayName}
+                      photoUrl={currentAccount.photoUrl}
+                      size="tab"
+                    />
+                  ) : (
+                    <TabIcon tab={tabKey} />
+                  )}
                 </button>
-              </>
-            )}
+              ))}
+            </nav>
+            <button
+              className="fab"
+              type="button"
+              aria-label={tabLabels.capture}
+              onClick={() => selectTab("capture")}
+            >
+              <PlusIcon />
+            </button>
           </>
         )}
+        {authSheetReason ? (
+          <AuthSheet
+            onClose={() => setAuthSheetReason(null)}
+            onEnter={enterApp}
+            onGoogleLogin={startGoogleOAuth}
+            reason={authSheetReason}
+          />
+        ) : null}
       </section>
     </main>
   );
 }
 
-function AuthGate({
+function AuthSheet({
+  onClose,
   onEnter,
-  onGoogleLogin
+  onGoogleLogin,
+  reason
 }: {
-  onEnter: (entryState: Exclude<EntryState, "gate">) => void;
+  onClose: () => void;
+  onEnter: () => void;
   onGoogleLogin: () => void;
+  reason: AuthSheetReason;
 }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [displayName, setDisplayName] = useState("");
@@ -1426,22 +1531,28 @@ function AuthGate({
   const [agreed, setAgreed] = useState(false);
   const isSignup = mode === "signup";
   const submitLabel = isSignup ? "가입하기" : "로그인";
+  const copy = authSheetCopy[reason] ?? authSheetCopy.default;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onEnter("signed-in");
+    onEnter();
   }
 
   return (
-    <section className="auth-gate" aria-label="로그인">
-      <div className="auth-card">
-        <div className="auth-brand">새김</div>
+    <>
+      <button className="auth-sheet-backdrop" type="button" aria-label="로그인 패널 닫기" onClick={onClose} />
+      <section className="auth-sheet" aria-label="로그인">
+        <div className="sheet-grip" aria-hidden="true">
+          <span />
+        </div>
+        <div className="auth-sheet-intro">
+          <div className="auth-brand">새김</div>
+          <h2>{copy.title}</h2>
+          <p>{copy.description}</p>
+        </div>
 
         <form className="auth-panel" onSubmit={handleSubmit}>
-          <h2>{isSignup ? "새김 시작하기" : "다시 만나 반가워요"}</h2>
-          <p className="auth-sub">
-            {isSignup ? "마음에 닿은 문장을 모아보세요" : "문장을 새기고, 곁에 두는 공간"}
-          </p>
+          <h3>{isSignup ? "계정 만들기" : "로그인"}</h3>
 
           {isSignup ? (
             <input
@@ -1503,11 +1614,11 @@ function AuthGate({
           </button>
         </div>
 
-        <button className="auth-guest" type="button" onClick={() => onEnter("guest")}>
-          로그인 없이 둘러보기
+        <button className="auth-guest" type="button" onClick={onClose}>
+          계속 둘러보기
         </button>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
 

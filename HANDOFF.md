@@ -54,7 +54,7 @@
 - `apps/web/src/components/SaegimShell.tsx`: 프로필 글 그리드는 공통 글 미리보기 카드를 쓰되, 내 프로필에서는 공개 좋아요 수를 숨긴다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭의 `내 서랍`은 내 프로필 헤더 액션과 설정 활동 행 양쪽에서 진입하고, `GET /drawer`로 현재 계정이 새김한 글 목록을 읽어 둘러보기 카드 그리드로 보여준다. 설정에서 연 서랍은 뒤로가기 시 설정으로 돌아간다.
 - `apps/web/src/components/SaegimShell.tsx`: 상단 검색 버튼은 검색 화면을 열고, `GET /search?q=`로 계정·글 통합 결과를 표시한다. 글 결과를 누르면 해당 글을 발견 화면으로 올린다.
-- `apps/web/src/components/SaegimShell.tsx`: 로그인 게이트(로그인/회원가입/Google/게스트)를 먼저 보여주고, Google 버튼은 `/auth/google`로 이동한다. OAuth 콜백 후에는 `/auth/session`으로 세션 쿠키를 감지해 자동 입장한다. 이메일/게스트 입장 상태는 임시로 `saegim_web_entry_state` localStorage에 저장한다. 나 탭 로그아웃은 `/auth/logout`을 호출하고 게이트로 돌아간다.
+- `apps/web/src/components/SaegimShell.tsx`: 앱은 미로그인 게스트 상태로 바로 열리고, 홈·발견·둘러보기·검색·타인 프로필은 막지 않는다. 좋아요·새김·댓글·구독·＋포착·내 프로필/서랍/구독 목록/프로필 편집처럼 계정에 남는 행동을 시도할 때 하단 로그인 패널(이메일/회원가입/Google/계속 둘러보기)을 띄운다. Google 버튼은 `/auth/google`로 이동하고, OAuth 콜백 후에는 `/auth/session`으로 세션 쿠키를 감지해 signed-in 상태로 전환한다. 로그인 상태는 세션 쿠키 또는 현재 탭에서 막 통과한 임시 로그인 상태만 신뢰한다. 나 탭 로그아웃은 `/auth/logout`을 호출하고 게스트 홈으로 돌아간다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭 프로필 편집은 `PATCH /accounts/me`로 닉네임·한줄 소개글·소개글·프로필 사진 URL을 저장하고 현재 계정 상태를 갱신한다. 로컬 개발 중 API 서버가 꺼져 있으면 현재 계정 상태에 로컬 fallback을 적용한다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭 설정 전체 페이지는 프로필 편집·내 서랍·구독 목록·공지사항·로그아웃을 연결하고, 알림·약관·문의 같은 미구현 항목은 `준비 중`으로 표시한다. 검색·설정·서랍·구독 목록·프로필 편집 같은 전체 페이지 상태에서는 하단 탭을 숨긴다.
 - `apps/web/app/globals.css`: 설정에서 진입하는 전체 페이지(설정·내 서랍·구독 목록·공지 목록/상세·프로필 편집)는 같은 헤더 기준선(뒤로가기/제목 시작점)과 좌우 본문 여백을 공유한다. 서랍 계열도 설정 하위 페이지로 취급해 검색/정렬 도구와 목록을 동일한 레일 안에서 보여준다.
