@@ -74,6 +74,31 @@ function formatSource(source: PostBundle["cards"][number]["source"]) {
   return work || "직접 새김";
 }
 
+function Avatar({
+  displayName,
+  photoUrl,
+  size
+}: {
+  displayName: string;
+  photoUrl?: string | null | undefined;
+  size?: "large" | "mini";
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const cleanPhotoUrl = photoUrl?.trim();
+  const initial = displayName.trim().slice(0, 1) || "새";
+  const showImage = Boolean(cleanPhotoUrl && !imageFailed);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [cleanPhotoUrl]);
+
+  return (
+    <div className={size ? `avatar ${size}` : "avatar"}>
+      {showImage ? <img src={cleanPhotoUrl} alt="" onError={() => setImageFailed(true)} /> : initial}
+    </div>
+  );
+}
+
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [entryState, setEntryState] = useState<EntryState>("gate");
@@ -672,7 +697,7 @@ function SearchView({
                 type="button"
                 onClick={() => onOpenProfile(account)}
               >
-                <div className="avatar">{account.displayName.slice(0, 1)}</div>
+                <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
                 <div>
                   <strong>{account.displayName}</strong>
                   <p>{account.tagline}</p>
@@ -755,7 +780,7 @@ function HomeView({
             return (
               <article className="account-chip" key={account.id}>
                 <button className="account-chip-main" type="button" onClick={() => onOpenProfile(account)}>
-                  <div className="avatar">{account.displayName.slice(0, 1)}</div>
+                  <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
                   <div>
                     <strong>{account.displayName}</strong>
                     <p>{account.tagline}</p>
@@ -905,7 +930,7 @@ function DiscoverView({
       ) : null}
       <div className="writer-bar">
         <button className="writer-identity" type="button" onClick={() => onOpenProfile(post.author)}>
-          <div className="avatar">{post.author.displayName.slice(0, 1)}</div>
+          <Avatar displayName={post.author.displayName} photoUrl={post.author.photoUrl} />
           <strong>{post.author.displayName}</strong>
         </button>
         {isOwnPost ? null : (
@@ -979,7 +1004,7 @@ function PostInfoSheet({
         </div>
 
         <div className="info-summary">
-          <div className="avatar mini">{post.author.displayName.slice(0, 1)}</div>
+          <Avatar displayName={post.author.displayName} photoUrl={post.author.photoUrl} size="mini" />
           <div>
             <strong>{post.post.title}</strong>
             <span>{post.author.displayName}</span>
@@ -1098,7 +1123,7 @@ function CommentSheet({
           {status !== "loading" && comments.length === 0 ? <p className="comment-empty">아직 댓글이 없어요.</p> : null}
           {comments.map((comment) => (
             <article className="comment-item" key={comment.id}>
-              <div className="avatar mini">{comment.author.displayName.slice(0, 1)}</div>
+              <Avatar displayName={comment.author.displayName} photoUrl={comment.author.photoUrl} size="mini" />
               <div>
                 <header>
                   <strong>{comment.author.displayName}</strong>
@@ -1406,7 +1431,7 @@ function ProfileView({
   return (
     <section className="profile-view">
       <div className="profile-head">
-        <div className="avatar large">{account.displayName.slice(0, 1)}</div>
+        <Avatar displayName={account.displayName} photoUrl={account.photoUrl} size="large" />
         <div>
           <h2>{account.displayName}</h2>
           <p>{account.tagline}</p>
@@ -1502,7 +1527,7 @@ function ProfileEditView({
   return (
     <form className="profile-edit-view" onSubmit={handleSubmit}>
       <div className="profile-edit-head">
-        <div className="avatar large">{displayName.trim().slice(0, 1) || account.displayName.slice(0, 1)}</div>
+        <Avatar displayName={displayName || account.displayName} photoUrl={photoUrl} size="large" />
         <div>
           <h2>프로필 편집</h2>
           <p>{tagline || "한 줄을 곁에 두는 사람"}</p>
