@@ -139,12 +139,12 @@ const editorialPages: EditorialPage[] = [
     id: "ad-book-connection",
     kind: "ad",
     label: "AD",
-    title: "책 속 문장을 카드로 만나는 자리",
+    title: "출처 있는 문장을 카드로 만나는 자리",
     date: "2026.06.29",
-    summary: "작가와 출판사의 문장이 새김 안에서 자연스럽게 발견되는 방식을 준비 중이에요.",
+    summary: "책, 연설, 글, 명언처럼 출처가 있는 문장이 새김 안에서 자연스럽게 발견되는 방식을 준비 중이에요.",
     body: [
-      "새김의 책 연결은 문장을 먼저 만나고, 관심이 생기면 책으로 이어지는 조용한 흐름을 목표로 합니다.",
-      "현재는 글 정보 패널의 책으로 보기와 포착의 책 연결 자리를 준비 상태로 열어 두고 있어요."
+      "새김의 출처 연결은 문장을 먼저 만나고, 관심이 생기면 원문이나 출처 페이지로 이어지는 조용한 흐름을 목표로 합니다.",
+      "현재는 글 정보 패널의 출처 보기와 포착의 출처 연결 자리를 준비 상태로 열어 두고 있어요."
     ],
     cta: {
       label: "제휴 문의",
@@ -279,10 +279,11 @@ function formatCommentDate(value: string) {
   }).format(new Date(value));
 }
 
-function sourceKindLabel(kind: PostBundle["cards"][number]["source"]["kind"]) {
-  if (kind === "book") return "책";
-  if (kind === "web") return "웹";
-  if (kind === "publisher") return "출판사";
+function sourceKindLabel(source: PostBundle["cards"][number]["source"]) {
+  if (source.kind === "book") return "책";
+  if (source.kind === "web") return "웹";
+  if (source.kind === "publisher") return "출판사";
+  if (source.author?.trim() || source.work?.trim()) return "직접 입력";
   return "직접 새김";
 }
 
@@ -291,11 +292,15 @@ function formatSource(source: PostBundle["cards"][number]["source"]) {
   const work = source.work?.trim();
 
   if (work && work !== "직접 새김") {
-    return author ? `『${work}』 · ${author}` : `『${work}』`;
+    if (source.kind === "book") {
+      return author ? `『${work}』 · ${author}` : `『${work}』`;
+    }
+
+    return author ? `${work} · ${author}` : work;
   }
 
   if (author) {
-    return `${author}의 직접 새김`;
+    return author;
   }
 
   return work || "직접 새김";
@@ -2068,7 +2073,7 @@ function PostInfoSheet({
 }) {
   const card = post.cards[cardIndex] ?? post.cards[0]!;
   const tags = card.tags.filter(Boolean);
-  const actions = ["공유하기", "링크 복사", "책으로 보기", "신고"];
+  const actions = ["공유하기", "링크 복사", "출처 보기", "신고"];
 
   return (
     <>
@@ -2103,7 +2108,7 @@ function PostInfoSheet({
           <div className="info-field">
             <span>출처</span>
             <strong>{formatSource(card.source)}</strong>
-            <small>{sourceKindLabel(card.source.kind)}</small>
+            <small>{sourceKindLabel(card.source)}</small>
           </div>
           <div className="info-field">
             <span>태그</span>
@@ -2572,7 +2577,7 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
             onPointerUp={endCaptureDrag}
             onPointerCancel={endCaptureDrag}
           >
-            {sourceWork.trim() ? <strong>『{sourceWork.trim()}』</strong> : null}
+            {sourceWork.trim() ? <strong>{sourceWork.trim()}</strong> : null}
             {sourceAuthor.trim() ? <span>{sourceAuthor.trim()}</span> : null}
           </div>
         ) : null}
@@ -2792,13 +2797,13 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
                       <input value={sourceAuthor} onChange={(event) => setSourceAuthor(event.target.value)} placeholder="윤동주" />
                     </label>
                     <label className="capture-field">
-                      <span>책</span>
-                      <input value={sourceWork} onChange={(event) => setSourceWork(event.target.value)} placeholder="하늘과 바람과 별과 시" />
+                      <span>출처명</span>
+                      <input value={sourceWork} onChange={(event) => setSourceWork(event.target.value)} placeholder="책, 연설, 글, 명언 등" />
                     </label>
                   </div>
                   <button className="capture-book-link" type="button" disabled>
-                    <span>책 연결</span>
-                    <em>준비 중</em>
+                    <span>출처 연결</span>
+                    <em>원문·출처 연결 준비 중</em>
                   </button>
                 </>
               ) : null}

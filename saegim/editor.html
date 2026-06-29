@@ -475,12 +475,12 @@ body{
           <div class="dim-row"><input type="range" id="bgDim" min="0" max="0.6" step="0.02" value="0"><span class="dim-val" id="bgDimVal">0%</span></div>
         </div>
         <div class="panel" id="panel-src">
-          <div class="p-label">저자 · 책</div>
+          <div class="p-label">저자 · 출처명</div>
           <input class="cap-in" id="srcAuthor" type="text" placeholder="저자 (예: 윤동주)" maxlength="24" style="margin-bottom:9px">
-          <input class="cap-in" id="srcWork" type="text" placeholder="책 · 출처" maxlength="30">
+          <input class="cap-in" id="srcWork" type="text" placeholder="책, 연설, 글, 명언 등" maxlength="30">
           <div class="book-link" id="bookLink">
             <div class="bk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
-            <div class="bk-t"><div class="t">책 연결</div><div class="s">작가·출판사 도서 연결</div></div>
+            <div class="bk-t"><div class="t">출처 연결</div><div class="s">원문·출처 연결</div></div>
             <div class="bk-badge">준비 중</div>
           </div>
         </div>
@@ -730,7 +730,7 @@ $('#editPop').addEventListener('input', e=>{ if(e.target.id!=='editSize') return
 /* ============================================================ 출처 ============================================================ */
 $('#srcAuthor').addEventListener('input', e=>{ P.author=e.target.value; renderCanvas(); save(); });
 $('#srcWork').addEventListener('input', e=>{ P.work=e.target.value; renderCanvas(); save(); });
-$('#bookLink').addEventListener('click', ()=> toast('책 연결은 준비 중','작가·출판사 도서 연결을 준비하고 있어요'));
+$('#bookLink').addEventListener('click', ()=> toast('출처 연결은 준비 중','원문·출처 연결을 준비하고 있어요'));
 
 /* ============================================================ 바텀시트(도구) ============================================================ */
 const SHEET_TITLE = { title:'제목', bg:'배경', src:'출처', tag:'태그' };
