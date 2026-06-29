@@ -18,6 +18,10 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getShelf(accountIdHint);
   }
 
+  getDrawer(accountIdHint?: string) {
+    return this.contentRepository.getDrawer(accountIdHint);
+  }
+
   getPost(postId: string, accountIdHint?: string) {
     return this.contentRepository.getPost(postId, accountIdHint);
   }

@@ -198,6 +198,28 @@ export class ContentRepository {
     };
   }
 
+  async getDrawer(accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    const carves = await this.prisma.carve.findMany({
+      where: {
+        accountId: currentAccountId,
+        post: {
+          visibility: "PUBLIC"
+        }
+      },
+      include: {
+        post: {
+          include: postIncludeForAccount(currentAccountId)
+        }
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+    });
+
+    return {
+      items: carves.map((carve) => this.toPostBundle(carve.post))
+    };
+  }
+
   async getPost(postId: string, accountIdHint?: string) {
     const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const post = await this.findPostById(postId, currentAccountId);

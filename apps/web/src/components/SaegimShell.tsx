@@ -10,6 +10,7 @@ import {
   createPostComment,
   fetchPostComments,
   fetchCurrentAccount,
+  fetchDrawer,
   fetchFeed,
   fetchRecommendedAccounts,
   followAccount,
@@ -50,6 +51,7 @@ export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [entryState, setEntryState] = useState<EntryState>("gate");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isViewingDrawer, setIsViewingDrawer] = useState(false);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
   const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
@@ -98,9 +100,20 @@ export function SaegimShell() {
   function leaveApp() {
     setActiveTab("home");
     setIsEditingProfile(false);
+    setIsViewingDrawer(false);
     setCommentPost(null);
     setEntryState("gate");
     window.localStorage.removeItem(ENTRY_STATE_STORAGE_KEY);
+  }
+
+  function selectTab(tab: TabKey) {
+    setActiveTab(tab);
+    setCommentPost(null);
+
+    if (tab !== "me") {
+      setIsEditingProfile(false);
+      setIsViewingDrawer(false);
+    }
   }
 
   function startGoogleOAuth() {
@@ -196,6 +209,10 @@ export function SaegimShell() {
     if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
     if (activeTab === "shelf") return <ShelfView posts={posts} />;
     if (activeTab === "me") {
+      if (isViewingDrawer) {
+        return <DrawerView onBack={() => setIsViewingDrawer(false)} />;
+      }
+
       return isEditingProfile ? (
         <ProfileEditView
           account={currentAccount}
@@ -203,7 +220,12 @@ export function SaegimShell() {
           onSubmit={handleUpdateProfile}
         />
       ) : (
-        <ProfileView account={currentAccount} onEdit={() => setIsEditingProfile(true)} onLogout={leaveApp} />
+        <ProfileView
+          account={currentAccount}
+          onEdit={() => setIsEditingProfile(true)}
+          onLogout={leaveApp}
+          onOpenDrawer={() => setIsViewingDrawer(true)}
+        />
       );
     }
     return (
@@ -214,7 +236,7 @@ export function SaegimShell() {
         onToggleFollow={handleToggleFollow}
       />
     );
-  }, [accounts, activeTab, currentAccount, featuredPost, isEditingProfile, posts]);
+  }, [accounts, activeTab, currentAccount, featuredPost, isEditingProfile, isViewingDrawer, posts]);
 
   return (
     <main className="app-shell" aria-label="새김 앱">
@@ -242,7 +264,7 @@ export function SaegimShell() {
                   key={tab.key}
                   className={tab.key === activeTab ? "tab is-active" : "tab"}
                   type="button"
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => selectTab(tab.key)}
                   aria-label={tab.label}
                   aria-current={tab.key === activeTab ? "page" : undefined}
                 >
@@ -680,14 +702,71 @@ function ShelfView({ posts }: { posts: PostBundle[] }) {
   );
 }
 
+function DrawerView({ onBack }: { onBack: () => void }) {
+  const [drawerPosts, setDrawerPosts] = useState<PostBundle[]>([]);
+  const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadDrawer() {
+      try {
+        setStatus("loading");
+        setError("");
+        const nextPosts = await fetchDrawer(controller.signal);
+        setDrawerPosts(nextPosts);
+        setStatus("idle");
+      } catch {
+        if (!controller.signal.aborted) {
+          setStatus("idle");
+          setError("서랍을 불러올 수 없어요.");
+        }
+      }
+    }
+
+    void loadDrawer();
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <section className="drawer-view">
+      <div className="drawer-head">
+        <button className="back-icon" type="button" onClick={onBack} aria-label="프로필로 돌아가기">
+          ←
+        </button>
+        <div>
+          <h2>내 서랍</h2>
+          <p>간직한 글 {formatCount(drawerPosts.length)}개</p>
+        </div>
+      </div>
+
+      {status === "loading" ? <p className="drawer-empty">불러오는 중</p> : null}
+      {status !== "loading" && drawerPosts.length === 0 ? (
+        <p className="drawer-empty">아직 간직한 글이 없어요.</p>
+      ) : null}
+      {error ? <p className="drawer-empty">{error}</p> : null}
+      {drawerPosts.length > 0 ? (
+        <div className="masonry">
+          {drawerPosts.map((post) => (
+            <CardPreview key={post.post.id} post={post} />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function ProfileView({
   account,
   onEdit,
-  onLogout
+  onLogout,
+  onOpenDrawer
 }: {
   account: AccountProfile;
   onEdit: () => void;
   onLogout: () => void;
+  onOpenDrawer: () => void;
 }) {
   return (
     <section className="profile-view">
@@ -703,6 +782,9 @@ function ProfileView({
       </div>
       <button className="primary-button ghost" type="button" onClick={onEdit}>
         프로필 편집
+      </button>
+      <button className="primary-button ghost" type="button" onClick={onOpenDrawer}>
+        내 서랍
       </button>
       <button className="profile-logout" type="button" onClick={onLogout}>
         로그아웃

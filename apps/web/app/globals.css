@@ -91,6 +91,7 @@ button {
 .view-stack,
 .section,
 .capture-view,
+.drawer-view,
 .profile-view,
 .profile-edit-view,
 .auth-gate,
@@ -628,6 +629,45 @@ button {
 
 .masonry .post-card p {
   font-size: 20px;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.back-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.07);
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.drawer-head h2,
+.drawer-head p,
+.drawer-empty {
+  margin: 0;
+}
+
+.drawer-head h2 {
+  font-size: 19px;
+}
+
+.drawer-head p,
+.drawer-empty {
+  color: var(--muted);
+}
+
+.drawer-empty {
+  padding: 18px 2px;
+  font-size: 14px;
 }
 
 .profile-head,

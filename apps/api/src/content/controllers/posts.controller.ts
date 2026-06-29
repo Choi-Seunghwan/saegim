@@ -16,6 +16,11 @@ export class PostsController {
     return this.contentService.getShelf(accountIdHint);
   }
 
+  @Get("drawer")
+  getDrawer(@Headers("x-saegim-account-id") accountIdHint?: string) {
+    return this.contentService.getDrawer(accountIdHint);
+  }
+
   @Get("posts/:postId")
   getPost(@Param("postId") postId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
     return this.contentService.getPost(postId, accountIdHint);
