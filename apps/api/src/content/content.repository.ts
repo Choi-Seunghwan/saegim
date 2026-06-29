@@ -332,6 +332,15 @@ export class ContentRepository {
     return this.getPost(postId, accountIdHint);
   }
 
+  async getCurrentAccount(accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    const account = await this.getCurrentAuthor(currentAccountId);
+
+    return {
+      item: this.toAccountProfile(account)
+    };
+  }
+
   async getRecommendedAccounts(accountIdHint?: string) {
     const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const accounts = await this.prisma.account.findMany({

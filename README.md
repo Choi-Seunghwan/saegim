@@ -49,6 +49,7 @@ API 기본 조회 계약:
 - `GET /feed`
 - `GET /shelf`
 - `GET /posts/:postId`
+- `GET /accounts/me`
 - `GET /accounts/recommended`
 - `POST /posts` — PostgreSQL 저장
 - `POST /posts/:postId/like` / `DELETE /posts/:postId/like`

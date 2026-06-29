@@ -193,7 +193,7 @@
 - **의미 임베딩**(취향 피드·유사 추천·자동 묶음) — 프로토타입의 클라 `similar()`는 폐기, '결' 사용자 선택 없음.
 - **인증/OAuth**(Google 우선, 카카오·네이버 후순위) — 현재 프로토타입은 `loggedIn` 플래그.
 - **발행 저장·관계 그래프·검색 인덱스** — 현재 클라 필터/큐.
-- 현재 API 계약: `GET /feed` · `GET /shelf` · `GET /posts/:postId` · `GET /accounts/recommended` · `POST /posts` · `POST/DELETE /posts/:postId/like` · `POST/DELETE /posts/:postId/carve`(PostgreSQL 저장, 시드는 서버 시작 시 idempotent 보강).
+- 현재 API 계약: `GET /feed` · `GET /shelf` · `GET /posts/:postId` · `GET /accounts/me` · `GET /accounts/recommended` · `POST /posts` · `POST/DELETE /posts/:postId/like` · `POST/DELETE /posts/:postId/carve`(PostgreSQL 저장, 시드는 서버 시작 시 idempotent 보강).
 - 현재 사용자 계정 경계: `apps/api/src/auth`의 개발용 현재 계정 서비스가 `DEV_ACCOUNT_ID`(기본 `acct-me`)를 반환한다. 개발 환경에서는 `x-saegim-account-id` 헤더를 계정 힌트로 받아 좋아요/새김/추천 제외 상태를 계정별로 검증한다. OAuth/session 연결 시 콘텐츠 저장소가 이 경계를 통해 실제 계정을 받도록 교체한다.
 
 ### 14.7 재사용 컴포넌트
@@ -215,6 +215,7 @@
 - 2026-06-29 — **콘텐츠 API PostgreSQL 영속화**: `ContentRepository` 추가로 `GET /feed`/`shelf`/`posts`, `POST /posts`, 좋아요·새김 토글을 Prisma 기반 PostgreSQL 저장소로 전환. 서버 시작 시 시드 계정/글을 idempotent upsert하고, `Post.likeCountCache`/`commentCountCache`로 시드 공개 수치와 관계 테이블을 함께 유지. 로컬 DB 포트 충돌 방지를 위해 `docker-compose.yml` 호스트 포트를 `55432`로 변경하고 `.env.example`/README 갱신. `db:push` 추가. `pnpm typecheck`/`pnpm lint`/`pnpm build`/`db:validate` 통과, `db:push` 후 API 발행→좋아요→새김→DB 직접 조회→API 재시작 후 재조회까지 확인.
 - 2026-06-29 — **현재 사용자 컨텍스트 경계 추가**: Nest API에 `AuthModule`/`CurrentAccountService`를 추가해 콘텐츠 저장소의 `acct-me` 하드코딩을 제거. 인증 연결 전에는 `DEV_ACCOUNT_ID`(기본 `acct-me`)를 현재 계정으로 사용하고, 피드/둘러보기/글 조회/발행/좋아요/새김/추천 계정이 모두 같은 계정 컨텍스트를 통한다. Google OAuth 세션 도입 시 이 경계를 실제 로그인 계정 해석으로 교체할 수 있도록 README/HANDOFF/.env.example 갱신.
 - 2026-06-29 — **개발용 요청 계정 전환 헤더 추가**: 컨트롤러가 `x-saegim-account-id` 헤더를 받아 `ContentService`/`ContentRepository`로 전달하도록 연결. 운영 환경에서는 헤더를 무시하고, 개발 환경에서만 현재 계정 힌트로 사용해 계정별 viewerState(좋아요·새김)와 추천 계정 제외 로직을 확인할 수 있게 함. README/HANDOFF에 임시 헤더 계약 명시.
+- 2026-06-29 — **현재 계정 조회 API 추가**: `GET /accounts/me`를 추가해 현재 계정 프로필(닉네임·한줄 소개글·인증·글 수·글벗 수)을 API로 조회할 수 있게 함. `DEV_ACCOUNT_ID`/`x-saegim-account-id` 계정 컨텍스트를 그대로 사용해 이후 로그인 게이트·내 프로필 화면 연결의 기준점으로 둠.
 - 2026-06-29 — **좋아요·새김 액션 API 연결**: Nest API에 `POST/DELETE /posts/:postId/like`, `POST/DELETE /posts/:postId/carve` 추가. 좋아요는 `viewerState.liked`와 공개 `likeCount`를 함께 갱신하고, 새김은 수치 없이 `viewerState.carved`만 갱신. 웹 발견 화면 액션 레일이 API 응답으로 해당 글 bundle을 교체하도록 연결하고, 좋아요/댓글 수를 작은 카운터로 표시. `pnpm typecheck` 통과, 브라우저에서 발견 탭 좋아요 1,842→1,843→1,842 및 새김/새김 취소 상태 전환 확인.
 - 2026-06-29 — **포착 발행 API 1차 연결**: `packages/domain`에 `CreatePostInput` 계약 추가. Nest API에 `POST /posts` 추가(입력 검증, 제목 자동 생성, 태그 0~3 정규화, 기본 `comp` 보강, 현재 계정 `acct-me` 작성자로 런타임 메모리 저장). 웹 포착 탭을 한 장짜리 글 작성 폼으로 바꾸고 `createPost()` 성공 시 피드 상태 prepend + 발견 탭 이동. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 포착→발행→발견 반영 및 `/feed` 응답 prepend 확인.
 - 2026-06-29 — **웹 초기 화면 API 연동**: `apps/web/src/lib/api.ts` 추가. `NEXT_PUBLIC_API_BASE_URL`(기본 `http://127.0.0.1:4000`) 기준으로 `/feed`, `/accounts/recommended`를 읽고, `SaegimShell`이 홈/발견/둘러보기/추천 글벗 데이터를 API 응답으로 갱신하도록 연결. API가 꺼져 있거나 요청 실패 시 기존 샘플 데이터로 첫 화면 유지. API CORS 기본 허용 origin을 `127.0.0.1:3000`/`localhost:3000`로 맞춤. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 API 응답(`무월`, `천천히 남는 말`) 반영 확인.

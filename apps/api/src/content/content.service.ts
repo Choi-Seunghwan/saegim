@@ -42,6 +42,10 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.createPost(input, accountIdHint);
   }
 
+  getCurrentAccount(accountIdHint?: string) {
+    return this.contentRepository.getCurrentAccount(accountIdHint);
+  }
+
   getRecommendedAccounts(accountIdHint?: string) {
     return this.contentRepository.getRecommendedAccounts(accountIdHint);
   }
