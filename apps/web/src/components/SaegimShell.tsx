@@ -42,6 +42,27 @@ type EditorialPageKind = "notice" | "event" | "ad";
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
 type MainReturnTab = Exclude<TabKey, "capture">;
 type CaptureToolKey = "title" | "background" | "source" | "tag";
+type CaptureSheetKey = CaptureToolKey | "text";
+type CaptureDraftCard = {
+  text: string;
+  comp: CardComposition;
+};
+type CaptureDragTarget = "text" | "source" | "resize";
+type CapturePointerDrag = {
+  pointerId: number;
+  target: CaptureDragTarget;
+  startX: number;
+  startY: number;
+  baseXp: number;
+  baseYp: number;
+  baseSize: number;
+  moved: boolean;
+  rect: DOMRect;
+  minXp: number;
+  maxXp: number;
+  minYp: number;
+  maxYp: number;
+};
 type DetailReturnTarget =
   | { surface: "tab"; tab: MainReturnTab }
   | { surface: "search"; tab: MainReturnTab }
@@ -138,7 +159,8 @@ const editorialHeroBackgrounds: Record<EditorialPageKind, string> = {
   ad: "linear-gradient(150deg,#6E6A74,#4A4651)"
 };
 
-const captureToolLabels: Record<CaptureToolKey, string> = {
+const captureToolLabels: Record<CaptureSheetKey, string> = {
+  text: "문구",
   title: "제목",
   background: "배경",
   source: "출처",
@@ -189,6 +211,27 @@ const captureBackgroundOptions = [
     textColor: "#FBF8FC"
   }
 ] as const;
+
+const captureSolidColorOptions = ["#F6F5F6", "#ECE8F1", "#EAF0F7", "#F9E1D0", "#353039", "#241F38"] as const;
+const captureTextColorOptions = ["#38323F", "#1F1C24", "#6E6A74", "#9A8E86", "#A7A2AC", "#FFFFFF", "#F4EFF6"] as const;
+const captureFontOptions: { id: CardComposition["font"]; label: string }[] = [
+  { id: "gothic", label: "고딕" },
+  { id: "serif", label: "명조" },
+  { id: "round", label: "둥근" },
+  { id: "pen", label: "손글씨" },
+  { id: "black", label: "진한" }
+];
+const captureWeightOptions: { value: CardComposition["weight"]; label: string }[] = [
+  { value: 300, label: "가늘게" },
+  { value: 400, label: "보통" },
+  { value: 700, label: "굵게" },
+  { value: 800, label: "두껍게" }
+];
+const captureAlignOptions: { value: CardComposition["align"]; label: string }[] = [
+  { value: "left", label: "왼쪽" },
+  { value: "center", label: "가운데" },
+  { value: "right", label: "오른쪽" }
+];
 
 function readStoredEntryState() {
   try {
@@ -263,6 +306,47 @@ function bgWithDim(background: string, dim: number) {
   return `linear-gradient(rgba(0,0,0,${dim}), rgba(0,0,0,${dim})), ${background}`;
 }
 
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function isLightHexColor(color: string) {
+  const hex = color.replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return true;
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  return 0.299 * red + 0.587 * green + 0.114 * blue > 150;
+}
+
+function solidColorFromBackground(background: string) {
+  return /^#[0-9a-fA-F]{6}$/.test(background) ? background : null;
+}
+
+function createCaptureDraftComp(baseComp?: CardComposition): CardComposition {
+  const baseBackground = captureBackgroundOptions[0];
+  return {
+    ...DEFAULT_CARD_COMP,
+    ...(baseComp ?? {}),
+    bg: baseComp?.bg ?? baseBackground.bg,
+    dim: baseComp?.dim ?? baseBackground.dim,
+    textColor: baseComp?.textColor ?? baseBackground.textColor,
+    textPos: null,
+    sourcePos: null
+  };
+}
+
+function createCaptureDraftCard(baseComp?: CardComposition): CaptureDraftCard {
+  return {
+    text: "",
+    comp: createCaptureDraftComp(baseComp)
+  };
+}
+
+function isSameBackgroundOption(option: (typeof captureBackgroundOptions)[number], comp: CardComposition) {
+  return option.bg === comp.bg && option.dim === comp.dim;
+}
+
 const cardFontFamily: Record<CardComposition["font"], string> = {
   gothic: "var(--font-ui)",
   serif: "var(--font-card)",
@@ -279,12 +363,30 @@ function cardSurfaceStyle(card: SentenceCard): CSSProperties {
   } as CSSProperties;
 }
 
-function cardTextStyle(comp: CardComposition, scale = 1): CSSProperties {
-  return {
+function cardTextStyle(comp: CardComposition, scale = 1, includePosition = false): CSSProperties {
+  const style: CSSProperties = {
     fontFamily: cardFontFamily[comp.font],
     fontSize: `${Math.round(comp.size * scale)}px`,
     fontWeight: comp.weight,
     textAlign: comp.align
+  };
+
+  if (includePosition && comp.textPos) {
+    style.left = `${comp.textPos.xp}%`;
+    style.top = `${comp.textPos.yp}%`;
+  }
+
+  return style;
+}
+
+function cardSourceStyle(comp: CardComposition): CSSProperties | undefined {
+  if (!comp.sourcePos) return undefined;
+
+  return {
+    left: `${comp.sourcePos.xp}%`,
+    top: `${comp.sourcePos.yp}%`,
+    bottom: "auto",
+    transform: "translate(-50%, -50%)"
   };
 }
 
@@ -1942,10 +2044,14 @@ function DetailCardSurface({ cardIndex, className, post }: { cardIndex: number; 
     >
       <div className="cv-grain" aria-hidden="true" />
       <div className="cmp-layer">
-        <p className="cmp-text" style={cardTextStyle(card.comp)}>
+        <p className="cmp-text" style={cardTextStyle(card.comp, 1, true)}>
           {card.text}
         </p>
-        {cardSourceLabel(card) ? <div className="cmp-src">{cardSourceLabel(card)}</div> : null}
+        {cardSourceLabel(card) ? (
+          <div className="cmp-src" style={cardSourceStyle(card.comp)}>
+            {cardSourceLabel(card)}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -2143,43 +2249,94 @@ function CommentSheet({
 }
 
 function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublished: (post: PostBundle) => void }) {
-  const [cards, setCards] = useState([""]);
+  const [cards, setCards] = useState<CaptureDraftCard[]>(() => [createCaptureDraftCard()]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
-  const [selectedTool, setSelectedTool] = useState<CaptureToolKey | null>(null);
-  const [selectedBackgroundId, setSelectedBackgroundId] = useState<(typeof captureBackgroundOptions)[number]["id"]>("fog");
+  const [selectedTool, setSelectedTool] = useState<CaptureSheetKey | null>(null);
   const [title, setTitle] = useState("");
   const [sourceAuthor, setSourceAuthor] = useState("");
   const [sourceWork, setSourceWork] = useState("");
   const [tags, setTags] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState("");
-  const activeSentence = cards[activeDraftIndex] ?? "";
-  const selectedBackground =
-    captureBackgroundOptions.find((background) => background.id === selectedBackgroundId) ?? captureBackgroundOptions[0];
-  const draftComp: CardComposition = {
-    ...DEFAULT_CARD_COMP,
-    bg: selectedBackground.bg,
-    dim: selectedBackground.dim,
-    textColor: selectedBackground.textColor
-  };
+  const [captureDragTarget, setCaptureDragTarget] = useState<CaptureDragTarget | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const captureDragRef = useRef<CapturePointerDrag | null>(null);
+  const activeDraft = cards[activeDraftIndex] ?? cards[0]!;
+  const activeSentence = activeDraft.text;
+  const activeComp = activeDraft.comp;
+  const activeBackgroundOption = captureBackgroundOptions.find((background) => isSameBackgroundOption(background, activeComp));
+  const solidBackgroundColor = solidColorFromBackground(activeComp.bg) ?? captureSolidColorOptions[0];
+  const customTextColor = /^#[0-9a-fA-F]{6}$/.test(activeComp.textColor) ? activeComp.textColor : "#38323F";
   const captureStageStyle = {
-    "--capture-text": selectedBackground.textColor,
-    background: bgWithDim(selectedBackground.bg, selectedBackground.dim),
-    color: selectedBackground.textColor
+    "--capture-text": activeComp.textColor,
+    background: bgWithDim(activeComp.bg, activeComp.dim),
+    color: activeComp.textColor
   } as CSSProperties;
+  const captureTextBoxStyle = {
+    left: `${activeComp.textPos?.xp ?? 50}%`,
+    top: `${activeComp.textPos?.yp ?? 45}%`
+  } as CSSProperties;
+  const captureSourceChipStyle = activeComp.sourcePos
+    ? ({
+        left: `${activeComp.sourcePos.xp}%`,
+        top: `${activeComp.sourcePos.yp}%`,
+        bottom: "auto",
+        transform: "translate(-50%, -50%)"
+      } as CSSProperties)
+    : undefined;
   const tagList = tags
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean)
     .slice(0, 3);
-  const canPublish = cards.some((card) => card.trim().length > 0) && status !== "submitting";
+  const canPublish = cards.some((card) => card.text.trim().length > 0) && status !== "submitting";
+
+  useEffect(() => {
+    const textarea = textAreaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 360)}px`;
+  }, [activeSentence, activeComp.size, activeDraftIndex]);
+
+  function updateActiveDraft(updater: (draft: CaptureDraftCard) => CaptureDraftCard) {
+    setCards((currentCards) => currentCards.map((card, index) => (index === activeDraftIndex ? updater(card) : card)));
+  }
+
+  function updateActiveComp(updater: (comp: CardComposition) => CardComposition) {
+    updateActiveDraft((draft) => ({
+      ...draft,
+      comp: updater(draft.comp)
+    }));
+  }
 
   function updateActiveSentence(value: string) {
-    setCards((currentCards) => currentCards.map((card, index) => (index === activeDraftIndex ? value : card)));
+    updateActiveDraft((draft) => ({
+      ...draft,
+      text: value
+    }));
+  }
+
+  function applyBackgroundOption(background: (typeof captureBackgroundOptions)[number]) {
+    updateActiveComp((comp) => ({
+      ...comp,
+      bg: background.bg,
+      dim: background.dim,
+      textColor: background.textColor
+    }));
+  }
+
+  function applySolidBackground(color: string) {
+    updateActiveComp((comp) => ({
+      ...comp,
+      bg: color,
+      dim: 0,
+      textColor: isLightHexColor(color) ? "#38323F" : "#F4EFF6"
+    }));
   }
 
   function addDraftCard() {
-    setCards((currentCards) => [...currentCards, ""]);
+    setCards((currentCards) => [...currentCards, createCaptureDraftCard(activeComp)]);
     setActiveDraftIndex(cards.length);
     setError("");
   }
@@ -2199,10 +2356,102 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
     setError("");
   }
 
+  function beginCaptureDrag(target: CaptureDragTarget, event: ReactPointerEvent<HTMLElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    const targetRect = event.currentTarget.getBoundingClientRect();
+    const halfWidthPercent = (targetRect.width / 2 / rect.width) * 100;
+    const halfHeightPercent = (targetRect.height / 2 / rect.height) * 100;
+    const baseTextPos = activeComp.textPos ?? { xp: 50, yp: 45 };
+    const baseSourcePos = activeComp.sourcePos ?? { xp: 50, yp: 82 };
+    const basePosition = target === "source" ? baseSourcePos : baseTextPos;
+
+    captureDragRef.current = {
+      pointerId: event.pointerId,
+      target,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseXp: basePosition.xp,
+      baseYp: basePosition.yp,
+      baseSize: activeComp.size,
+      moved: false,
+      rect,
+      minXp: target === "resize" ? 6 : clampNumber(halfWidthPercent + 2, 6, 48),
+      maxXp: target === "resize" ? 94 : clampNumber(100 - halfWidthPercent - 2, 52, 94),
+      minYp: target === "resize" ? 8 : clampNumber(halfHeightPercent + 2, 8, 44),
+      maxYp: target === "resize" ? 92 : clampNumber(100 - halfHeightPercent - 2, 56, 92)
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setCaptureDragTarget(target);
+
+    if (target === "resize") {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
+  function moveCaptureDrag(event: ReactPointerEvent<HTMLElement>) {
+    const drag = captureDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const movedEnough = Math.abs(event.clientX - drag.startX) > 3 || Math.abs(event.clientY - drag.startY) > 3;
+    drag.moved = drag.moved || movedEnough;
+
+    if (drag.target === "resize") {
+      const delta = (event.clientX - drag.startX + event.clientY - drag.startY) / 2;
+      const nextSize = Math.round(clampNumber(drag.baseSize + delta * 0.35, 16, 84));
+      updateActiveComp((comp) => ({
+        ...comp,
+        size: nextSize
+      }));
+      event.preventDefault();
+      return;
+    }
+
+    if (!drag.moved) return;
+
+    const nextPosition = {
+      xp: clampNumber(drag.baseXp + ((event.clientX - drag.startX) / drag.rect.width) * 100, drag.minXp, drag.maxXp),
+      yp: clampNumber(drag.baseYp + ((event.clientY - drag.startY) / drag.rect.height) * 100, drag.minYp, drag.maxYp)
+    };
+
+    updateActiveComp((comp) => ({
+      ...comp,
+      ...(drag.target === "source" ? { sourcePos: nextPosition } : { textPos: nextPosition })
+    }));
+    event.preventDefault();
+  }
+
+  function endCaptureDrag(event: ReactPointerEvent<HTMLElement>) {
+    const drag = captureDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    captureDragRef.current = null;
+    setCaptureDragTarget(null);
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // 이미 캡처가 해제된 경우에는 무시한다.
+    }
+
+    if (drag.target === "text" && !drag.moved) {
+      textAreaRef.current?.focus();
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const cleanCards = cards.map((card) => card.trim()).filter(Boolean);
+    const cleanCards = cards
+      .map((card) => ({
+        ...card,
+        text: card.text.trim()
+      }))
+      .filter((card) => card.text.length > 0);
     if (cleanCards.length === 0) {
       setError("문장을 먼저 적어 주세요.");
       return;
@@ -2214,9 +2463,9 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
     const input: CreatePostInput = {
       visibility: "public",
       creationType: "original",
-      cards: cleanCards.map((text) => ({
-        text,
-        comp: draftComp,
+      cards: cleanCards.map((card) => ({
+        text: card.text,
+        comp: card.comp,
         source: {
           kind: "direct",
           ...(cleanAuthor ? { author: cleanAuthor } : {}),
@@ -2234,13 +2483,14 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
       setStatus("submitting");
       setError("");
       const publishedPost = await createPost(input);
-      setCards([""]);
+      setCards([createCaptureDraftCard()]);
       setActiveDraftIndex(0);
       setTitle("");
       setSourceAuthor("");
       setSourceWork("");
       setTags("");
       setSelectedTool(null);
+      setStatus("idle");
       onPublished(publishedPost);
     } catch {
       setError("지금은 발행할 수 없어요. API 서버를 확인해 주세요.");
@@ -2250,7 +2500,7 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
 
   return (
     <form className="capture-view" onSubmit={handleSubmit}>
-      <div className="capture-stage" style={captureStageStyle}>
+      <div className="capture-stage" style={captureStageStyle} ref={stageRef}>
         <div className="capture-head">
           <button className="capture-close" type="button" onClick={onClose} aria-label="닫기">
             ×
@@ -2278,22 +2528,61 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
 
         {title.trim() ? <div className="capture-title-chip">{title.trim()}</div> : null}
         <div className="sentence-card editable capture-card">
-          <textarea
-            aria-label={`${activeDraftIndex + 1}장 문장`}
-            value={activeSentence}
-            onChange={(event) => updateActiveSentence(event.target.value)}
-            placeholder="문장을 적어 보세요"
-            maxLength={240}
-          />
+          <div
+            className={`capture-textbox ${captureDragTarget === "text" ? "is-dragging" : ""}`}
+            style={captureTextBoxStyle}
+            onPointerDown={(event) => beginCaptureDrag("text", event)}
+            onPointerMove={moveCaptureDrag}
+            onPointerUp={endCaptureDrag}
+            onPointerCancel={endCaptureDrag}
+          >
+            <textarea
+              aria-label={`${activeDraftIndex + 1}장 문장`}
+              ref={textAreaRef}
+              value={activeSentence}
+              onChange={(event) => updateActiveSentence(event.target.value)}
+              placeholder="문장을 적어 보세요"
+              maxLength={240}
+              style={cardTextStyle(activeComp)}
+            />
+            <button
+              className="capture-resize"
+              type="button"
+              aria-label="문구 크기 조절"
+              onPointerDown={(event) => beginCaptureDrag("resize", event)}
+              onPointerMove={moveCaptureDrag}
+              onPointerUp={endCaptureDrag}
+              onPointerCancel={endCaptureDrag}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 20H4v-4" />
+                <path d="M16 4h4v4" />
+                <path d="M4 20l6-6" />
+                <path d="M20 4l-6 6" />
+              </svg>
+            </button>
+          </div>
         </div>
         {sourceAuthor.trim() || sourceWork.trim() ? (
-          <div className="capture-source-chip">
+          <div
+            className={`capture-source-chip ${captureDragTarget === "source" ? "is-dragging" : ""}`}
+            style={captureSourceChipStyle}
+            onPointerDown={(event) => beginCaptureDrag("source", event)}
+            onPointerMove={moveCaptureDrag}
+            onPointerUp={endCaptureDrag}
+            onPointerCancel={endCaptureDrag}
+          >
             {sourceWork.trim() ? <strong>『{sourceWork.trim()}』</strong> : null}
             {sourceAuthor.trim() ? <span>{sourceAuthor.trim()}</span> : null}
           </div>
         ) : null}
 
         <div className="capture-bottom">
+          <button className="capture-stylebar" type="button" onClick={() => setSelectedTool("text")}>
+            <strong>Aa</strong>
+            <span>{captureFontOptions.find((font) => font.id === activeComp.font)?.label ?? "문구"}</span>
+            <em>{activeComp.size}px</em>
+          </button>
           <div className="capture-pagebar" aria-label="장 관리">
             <span>{activeDraftIndex + 1}장</span>
             <div className="capture-page-tabs" aria-label="장 목록">
@@ -2304,10 +2593,13 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
                   type="button"
                   onClick={() => setActiveDraftIndex(index)}
                   aria-label={`${index + 1}장으로 이동`}
-                  style={captureStageStyle}
+                  style={{
+                    background: bgWithDim(card.comp.bg, card.comp.dim),
+                    color: card.comp.textColor
+                  }}
                 >
                   <small>{index + 1}</small>
-                  <span>{card.trim() || "새 문장"}</span>
+                  <span>{card.text.trim() || "새 문장"}</span>
                 </button>
               ))}
             </div>
@@ -2336,6 +2628,98 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
               </button>
             </div>
             <div className="capture-sheet-body">
+              {selectedTool === "text" ? (
+                <>
+                  <div className="capture-style-section">
+                    <span className="capture-section-title">폰트</span>
+                    <div className="capture-option-grid font-options">
+                      {captureFontOptions.map((font) => (
+                        <button
+                          className={activeComp.font === font.id ? "is-active" : undefined}
+                          key={font.id}
+                          type="button"
+                          onClick={() => updateActiveComp((comp) => ({ ...comp, font: font.id }))}
+                          style={{ fontFamily: cardFontFamily[font.id] }}
+                        >
+                          {font.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="capture-style-section">
+                    <span className="capture-section-title">정렬</span>
+                    <div className="capture-option-grid">
+                      {captureAlignOptions.map((align) => (
+                        <button
+                          className={activeComp.align === align.value ? "is-active" : undefined}
+                          key={align.value}
+                          type="button"
+                          onClick={() => updateActiveComp((comp) => ({ ...comp, align: align.value }))}
+                        >
+                          {align.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="capture-style-section">
+                    <span className="capture-section-title">굵기</span>
+                    <div className="capture-option-grid">
+                      {captureWeightOptions.map((weight) => (
+                        <button
+                          className={activeComp.weight === weight.value ? "is-active" : undefined}
+                          key={weight.value}
+                          type="button"
+                          onClick={() => updateActiveComp((comp) => ({ ...comp, weight: weight.value }))}
+                          style={{ fontWeight: weight.value }}
+                        >
+                          {weight.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="capture-range-field">
+                    <span>
+                      크기 <em>{activeComp.size}px</em>
+                    </span>
+                    <input
+                      type="range"
+                      min="16"
+                      max="84"
+                      step="1"
+                      value={activeComp.size}
+                      onChange={(event) =>
+                        updateActiveComp((comp) => ({
+                          ...comp,
+                          size: Number(event.target.value)
+                        }))
+                      }
+                    />
+                  </label>
+                  <div className="capture-style-section">
+                    <span className="capture-section-title">글자색</span>
+                    <div className="capture-color-row">
+                      {captureTextColorOptions.map((color) => (
+                        <button
+                          className={activeComp.textColor.toLowerCase() === color.toLowerCase() ? "is-active" : undefined}
+                          key={color}
+                          type="button"
+                          aria-label={`글자색 ${color}`}
+                          onClick={() => updateActiveComp((comp) => ({ ...comp, textColor: color }))}
+                          style={{ background: color }}
+                        />
+                      ))}
+                      <label className="capture-color-picker" aria-label="글자 직접 색상">
+                        <input
+                          type="color"
+                          value={customTextColor}
+                          onChange={(event) => updateActiveComp((comp) => ({ ...comp, textColor: event.target.value }))}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
               {selectedTool === "title" ? (
                 <label className="capture-field">
                   <span>제목</span>
@@ -2344,22 +2728,60 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
               ) : null}
 
               {selectedTool === "background" ? (
-                <div className="capture-bg-grid">
-                  {captureBackgroundOptions.map((background) => (
-                    <button
-                      className={background.id === selectedBackgroundId ? "is-active" : undefined}
-                      key={background.id}
-                      type="button"
-                      onClick={() => setSelectedBackgroundId(background.id)}
-                      style={{
-                        background: bgWithDim(background.bg, background.dim),
-                        color: background.textColor
-                      }}
-                    >
-                      <span>{background.label}</span>
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className="capture-style-section">
+                    <span className="capture-section-title">직접 색상</span>
+                    <div className="capture-color-row capture-bg-colors">
+                      {captureSolidColorOptions.map((color) => (
+                        <button
+                          className={activeComp.bg.toLowerCase() === color.toLowerCase() ? "is-active" : undefined}
+                          key={color}
+                          type="button"
+                          aria-label={`배경색 ${color}`}
+                          onClick={() => applySolidBackground(color)}
+                          style={{ background: color }}
+                        />
+                      ))}
+                      <label className="capture-color-picker large" aria-label="배경 직접 색상">
+                        <input type="color" value={solidBackgroundColor} onChange={(event) => applySolidBackground(event.target.value)} />
+                      </label>
+                    </div>
+                  </div>
+                  <label className="capture-range-field">
+                    <span>
+                      어둡게 <em>{Math.round(activeComp.dim * 100)}%</em>
+                    </span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.55"
+                      step="0.01"
+                      value={activeComp.dim}
+                      onChange={(event) =>
+                        updateActiveComp((comp) => ({
+                          ...comp,
+                          dim: Number(event.target.value)
+                        }))
+                      }
+                    />
+                  </label>
+                  <div className="capture-bg-grid">
+                    {captureBackgroundOptions.map((background) => (
+                      <button
+                        className={activeBackgroundOption?.id === background.id ? "is-active" : undefined}
+                        key={background.id}
+                        type="button"
+                        onClick={() => applyBackgroundOption(background)}
+                        style={{
+                          background: bgWithDim(background.bg, background.dim),
+                          color: background.textColor
+                        }}
+                      >
+                        <span>{background.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
               ) : null}
 
               {selectedTool === "source" ? (
