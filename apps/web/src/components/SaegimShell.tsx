@@ -71,6 +71,7 @@ type DetailReturnTarget =
   | { surface: "tab"; tab: MainReturnTab }
   | { surface: "search"; tab: MainReturnTab }
   | { surface: "drawer" };
+type DrawerReturnSurface = "profile" | "settings";
 type DetailDragState = {
   x: number;
   y: number;
@@ -679,6 +680,7 @@ export function SaegimShell() {
   const [isSearching, setIsSearching] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
+  const [drawerReturnSurface, setDrawerReturnSurface] = useState<DrawerReturnSurface>("profile");
   const [isViewingFollowing, setIsViewingFollowing] = useState(false);
   const [isViewingSettings, setIsViewingSettings] = useState(false);
   const [isViewingNoticeList, setIsViewingNoticeList] = useState(false);
@@ -816,6 +818,7 @@ export function SaegimShell() {
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
+    setDrawerReturnSurface("profile");
     setIsViewingFollowing(false);
     setIsViewingSettings(false);
     setIsViewingNoticeList(false);
@@ -848,6 +851,7 @@ export function SaegimShell() {
     if (tab !== "me") {
       setIsEditingProfile(false);
       setIsViewingDrawer(false);
+      setDrawerReturnSurface("profile");
       setIsViewingFollowing(false);
       setIsViewingSettings(false);
     } else {
@@ -976,6 +980,7 @@ export function SaegimShell() {
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
+    setDrawerReturnSurface("profile");
     setIsViewingFollowing(false);
     setIsViewingSettings(false);
     setIsViewingNoticeList(false);
@@ -1199,6 +1204,11 @@ export function SaegimShell() {
               setIsEditingProfile(true);
             }}
             onLogout={leaveApp}
+            onOpenDrawer={() => {
+              setDrawerReturnSurface("settings");
+              setIsViewingSettings(false);
+              setIsViewingDrawer(true);
+            }}
             onOpenFollowing={() => {
               setIsViewingSettings(false);
               setIsViewingFollowing(true);
@@ -1227,6 +1237,11 @@ export function SaegimShell() {
             fallbackPosts={drawerFallbackPosts}
             onBack={() => {
               setIsViewingDrawer(false);
+              if (drawerReturnSurface === "settings") {
+                setIsViewingSettings(true);
+              } else {
+                setDrawerReturnSurface("profile");
+              }
             }}
             onOpenPost={openPost}
           />
@@ -1246,7 +1261,10 @@ export function SaegimShell() {
           isOwnProfile={isOwnProfile}
           onOpenPost={openPost}
           onOpenProfile={() => setSelectedProfileId(currentAccount.id)}
-          onOpenDrawer={() => setIsViewingDrawer(true)}
+          onOpenDrawer={() => {
+            setDrawerReturnSurface("profile");
+            setIsViewingDrawer(true);
+          }}
           onOpenSettings={() => setIsViewingSettings(true)}
           onToggleFollow={handleToggleFollow}
           posts={selectedProfilePosts}
@@ -1275,6 +1293,7 @@ export function SaegimShell() {
     captureReturnTab,
     currentAccount,
     detailReturnTarget,
+    drawerReturnSurface,
     drawerFallbackPosts,
     featuredPost,
     isEditingProfile,
@@ -3264,12 +3283,14 @@ function SettingsView({
   onBack,
   onEditProfile,
   onLogout,
+  onOpenDrawer,
   onOpenFollowing,
   onOpenNotices
 }: {
   onBack: () => void;
   onEditProfile: () => void;
   onLogout: () => void;
+  onOpenDrawer: () => void;
   onOpenFollowing: () => void;
   onOpenNotices: () => void;
 }) {
@@ -3283,7 +3304,10 @@ function SettingsView({
     },
     {
       title: "활동",
-      rows: [{ label: "구독 목록", onClick: onOpenFollowing }]
+      rows: [
+        { label: "내 서랍", onClick: onOpenDrawer },
+        { label: "구독 목록", onClick: onOpenFollowing }
+      ]
     },
     {
       title: "알림",
@@ -3308,7 +3332,6 @@ function SettingsView({
         </button>
         <div>
           <h2>설정</h2>
-          <p>계정과 활동을 조용히 정리해요.</p>
         </div>
       </div>
 
@@ -3488,7 +3511,7 @@ function DrawerView({
   return (
     <section className="drawer-view">
       <div className="drawer-head">
-        <button className="back-icon" type="button" onClick={onBack} aria-label="프로필로 돌아가기">
+        <button className="back-icon" type="button" onClick={onBack} aria-label="이전 화면으로 돌아가기">
           ←
         </button>
         <div>

@@ -883,6 +883,7 @@ textarea:focus-visible {
 .avatar {
   width: 38px;
   height: 38px;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -901,6 +902,8 @@ textarea:focus-visible {
 .avatar.large {
   width: 72px;
   height: 72px;
+  flex-basis: 72px;
+  min-width: 72px;
   font-size: 22px;
 }
 
