@@ -1,4 +1,12 @@
-import type { AccountProfile, CreatePostInput, PostBundle, UpdateAccountInput } from "@saegim/domain";
+import type {
+  AccountProfile,
+  CommentMutationResult,
+  CreateCommentInput,
+  CreatePostInput,
+  PostBundle,
+  PostComment,
+  UpdateAccountInput
+} from "@saegim/domain";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 const DEV_ACCOUNT_ID = process.env.NEXT_PUBLIC_DEV_ACCOUNT_ID?.trim();
@@ -91,4 +99,23 @@ export async function carvePost(postId: string): Promise<PostBundle> {
 
 export async function uncarvePost(postId: string): Promise<PostBundle> {
   return fetchJson<PostBundle>(`/posts/${postId}/carve`, { method: "DELETE" });
+}
+
+export async function fetchPostComments(postId: string, signal?: AbortSignal): Promise<PostComment[]> {
+  const data = await fetchJson<ListResponse<PostComment>>(
+    `/posts/${postId}/comments`,
+    signal ? { signal } : {}
+  );
+  return data.items;
+}
+
+export async function createPostComment(
+  postId: string,
+  input: CreateCommentInput
+): Promise<CommentMutationResult> {
+  return fetchJson<CommentMutationResult>(`/posts/${postId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
 }

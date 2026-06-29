@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
-import type { AccountProfile, CreatePostInput, PostBundle, UpdateAccountInput } from "@saegim/domain";
+import type { AccountProfile, CreatePostInput, PostBundle, PostComment, UpdateAccountInput } from "@saegim/domain";
 import {
   carvePost,
   createPost,
+  createPostComment,
+  fetchPostComments,
   fetchCurrentAccount,
   fetchFeed,
   fetchRecommendedAccounts,
@@ -37,10 +39,18 @@ function formatCount(value: number) {
   return value.toLocaleString("ko-KR");
 }
 
+function formatCommentDate(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "short",
+    day: "numeric"
+  }).format(new Date(value));
+}
+
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [entryState, setEntryState] = useState<EntryState>("gate");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
   const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
   const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
@@ -55,6 +65,7 @@ export function SaegimShell() {
 
   function replacePost(post: PostBundle) {
     setPosts((currentPosts) => currentPosts.map((item) => (item.post.id === post.post.id ? post : item)));
+    setCommentPost((currentPost) => (currentPost?.post.id === post.post.id ? post : currentPost));
   }
 
   function replaceAccount(account: AccountProfile) {
@@ -87,6 +98,7 @@ export function SaegimShell() {
   function leaveApp() {
     setActiveTab("home");
     setIsEditingProfile(false);
+    setCommentPost(null);
     setEntryState("gate");
     window.localStorage.removeItem(ENTRY_STATE_STORAGE_KEY);
   }
@@ -175,6 +187,7 @@ export function SaegimShell() {
           currentAccountId={currentAccount.id}
           post={featuredPost}
           onToggleCarve={handleToggleCarve}
+          onOpenComments={setCommentPost}
           onToggleFollow={handleToggleFollow}
           onToggleLike={handleToggleLike}
         />
@@ -218,6 +231,10 @@ export function SaegimShell() {
             </header>
 
             <div className="screen">{content}</div>
+
+            {commentPost ? (
+              <CommentSheet post={commentPost} onClose={() => setCommentPost(null)} onPostChange={replacePost} />
+            ) : null}
 
             <nav className="tabbar" aria-label="주요 메뉴">
               {tabs.map((tab) => (
@@ -365,12 +382,14 @@ function DiscoverView({
   currentAccountId,
   post,
   onToggleCarve,
+  onOpenComments,
   onToggleFollow,
   onToggleLike
 }: {
   currentAccountId: string;
   post: PostBundle;
   onToggleCarve: (post: PostBundle) => void;
+  onOpenComments: (post: PostBundle) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
   onToggleLike: (post: PostBundle) => void;
 }) {
@@ -417,7 +436,7 @@ function DiscoverView({
           <span>{viewerState?.liked ? "♥" : "♡"}</span>
           <small>{formatCount(viewerState?.likeCount ?? 0)}</small>
         </button>
-        <button type="button" aria-label="댓글">
+        <button type="button" aria-label="댓글" onClick={() => onOpenComments(post)}>
           <span>◌</span>
           <small>{formatCount(viewerState?.commentCount ?? 0)}</small>
         </button>
@@ -426,6 +445,115 @@ function DiscoverView({
         </button>
       </aside>
     </article>
+  );
+}
+
+function CommentSheet({
+  post,
+  onClose,
+  onPostChange
+}: {
+  post: PostBundle;
+  onClose: () => void;
+  onPostChange: (post: PostBundle) => void;
+}) {
+  const [comments, setComments] = useState<PostComment[]>([]);
+  const [body, setBody] = useState("");
+  const [status, setStatus] = useState<"loading" | "idle" | "submitting">("loading");
+  const [error, setError] = useState("");
+  const canSubmit = body.trim().length > 0 && status !== "submitting";
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadComments() {
+      try {
+        setStatus("loading");
+        setError("");
+        const nextComments = await fetchPostComments(post.post.id, controller.signal);
+        setComments(nextComments);
+        setStatus("idle");
+      } catch {
+        if (!controller.signal.aborted) {
+          setStatus("idle");
+          setError("댓글을 불러올 수 없어요.");
+        }
+      }
+    }
+
+    void loadComments();
+    return () => controller.abort();
+  }, [post.post.id]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const cleanBody = body.trim();
+    if (!cleanBody) {
+      setError("댓글을 입력해 주세요.");
+      return;
+    }
+
+    try {
+      setStatus("submitting");
+      setError("");
+      const result = await createPostComment(post.post.id, { body: cleanBody });
+      setComments((currentComments) => [...currentComments, result.item]);
+      setBody("");
+      onPostChange(result.post);
+      setStatus("idle");
+    } catch {
+      setStatus("idle");
+      setError("댓글을 남길 수 없어요. API 서버를 확인해 주세요.");
+    }
+  }
+
+  return (
+    <>
+      <button className="comment-backdrop" type="button" aria-label="댓글 닫기" onClick={onClose} />
+      <section className="comment-sheet" aria-label="댓글">
+        <div className="comment-sheet-head">
+          <div>
+            <strong>댓글</strong>
+            <span>{formatCount(post.viewerState?.commentCount ?? comments.length)}개</span>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기">
+            ×
+          </button>
+        </div>
+
+        <div className="comment-list">
+          {status === "loading" ? <p className="comment-empty">불러오는 중</p> : null}
+          {status !== "loading" && comments.length === 0 ? <p className="comment-empty">아직 댓글이 없어요.</p> : null}
+          {comments.map((comment) => (
+            <article className="comment-item" key={comment.id}>
+              <div className="avatar mini">{comment.author.displayName.slice(0, 1)}</div>
+              <div>
+                <header>
+                  <strong>{comment.author.displayName}</strong>
+                  <time dateTime={comment.createdAt}>{formatCommentDate(comment.createdAt)}</time>
+                </header>
+                <p>{comment.body}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <form className="comment-form" onSubmit={handleSubmit}>
+          <input
+            aria-label="댓글 입력"
+            maxLength={300}
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="짧게 남기기"
+            value={body}
+          />
+          <button type="submit" disabled={!canSubmit}>
+            남기기
+          </button>
+        </form>
+        {error ? <p className="comment-error">{error}</p> : null}
+      </section>
+    </>
   );
 }
 

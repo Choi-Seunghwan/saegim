@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ContentRepository } from "./content.repository.js";
-import type { CreatePostInput, UpdateAccountInput } from "./content.types.js";
+import type { CreateCommentInput, CreatePostInput, UpdateAccountInput } from "./content.types.js";
 
 @Injectable()
 export class ContentService implements OnModuleInit {
@@ -36,6 +36,14 @@ export class ContentService implements OnModuleInit {
 
   uncarvePost(postId: string, accountIdHint?: string) {
     return this.contentRepository.uncarvePost(postId, accountIdHint);
+  }
+
+  getComments(postId: string) {
+    return this.contentRepository.getComments(postId);
+  }
+
+  createComment(postId: string, input: CreateCommentInput, accountIdHint?: string) {
+    return this.contentRepository.createComment(postId, input, accountIdHint);
   }
 
   createPost(input: CreatePostInput, accountIdHint?: string) {

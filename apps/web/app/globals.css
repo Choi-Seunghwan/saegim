@@ -300,6 +300,12 @@ button {
   font-size: 22px;
 }
 
+.avatar.mini {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+
 .discover-view {
   min-height: 100%;
   position: relative;
@@ -361,6 +367,138 @@ button {
   font-size: 9px;
   font-weight: 900;
   line-height: 1;
+}
+
+.comment-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(53, 48, 57, 0.18);
+  cursor: pointer;
+}
+
+.comment-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+  max-height: 72%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 14px;
+  padding: 16px 18px 20px;
+  border-radius: 18px 18px 0 0;
+  background: var(--paper);
+  box-shadow: 0 -20px 60px -44px rgba(53, 48, 57, 0.72);
+}
+
+.comment-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.comment-sheet-head div {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.comment-sheet-head strong {
+  font-size: 17px;
+}
+
+.comment-sheet-head span,
+.comment-item time,
+.comment-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.comment-sheet-head button {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.07);
+  cursor: pointer;
+}
+
+.comment-list {
+  min-height: 120px;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.comment-item {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 10px;
+}
+
+.comment-item header {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.comment-item strong,
+.comment-item p,
+.comment-empty,
+.comment-error {
+  margin: 0;
+}
+
+.comment-item p {
+  margin-top: 4px;
+  line-height: 1.55;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.comment-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.comment-form input {
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  outline: 0;
+  background: rgba(56, 50, 63, 0.06);
+  color: var(--ink);
+  padding: 0 14px;
+  font: inherit;
+}
+
+.comment-form input:focus {
+  box-shadow: 0 0 0 3px rgba(56, 50, 63, 0.1);
+}
+
+.comment-form button {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--ink-strong);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.comment-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.comment-error {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .editable {

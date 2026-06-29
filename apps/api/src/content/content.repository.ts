@@ -7,7 +7,9 @@ import type {
   AccountProfile,
   CardComposition,
   ContentSource,
+  CreateCommentInput,
   CreatePostInput,
+  PostComment,
   PostBundle,
   UpdateAccountInput
 } from "./content.types.js";
@@ -71,6 +73,11 @@ function postIncludeForAccount(accountId: string) {
     }
   });
 }
+const commentInclude = Prisma.validator<Prisma.CommentInclude>()({
+  author: {
+    include: accountInclude
+  }
+});
 
 type AccountWithCounts = Prisma.AccountGetPayload<{
   include: typeof accountInclude;
@@ -81,6 +88,9 @@ type AccountWithViewer = Prisma.AccountGetPayload<{
 
 type PostWithRelations = Prisma.PostGetPayload<{
   include: ReturnType<typeof postIncludeForAccount>;
+}>;
+type CommentWithAuthor = Prisma.CommentGetPayload<{
+  include: typeof commentInclude;
 }>;
 
 const sourceKinds: ContentSource["kind"][] = ["book", "web", "direct", "publisher"];
@@ -360,6 +370,53 @@ export class ContentRepository {
     return this.getPost(postId, accountIdHint);
   }
 
+  async getComments(postId: string) {
+    await this.assertPostExists(postId);
+    const comments = await this.prisma.comment.findMany({
+      where: { postId },
+      include: commentInclude,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+    });
+
+    return {
+      items: comments.map((comment) => this.toPostComment(comment))
+    };
+  }
+
+  async createComment(postId: string, input: CreateCommentInput, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    await this.assertPostExists(postId);
+    await this.getCurrentAuthor(currentAccountId);
+    const body = this.normalizeCommentBody(input);
+
+    const comment = await this.prisma.$transaction(async (tx) => {
+      const createdComment = await tx.comment.create({
+        data: {
+          postId,
+          authorId: currentAccountId,
+          body
+        },
+        include: commentInclude
+      });
+
+      await tx.post.update({
+        where: { id: postId },
+        data: {
+          commentCountCache: {
+            increment: 1
+          }
+        }
+      });
+
+      return createdComment;
+    });
+
+    return {
+      item: this.toPostComment(comment),
+      post: await this.getPost(postId, accountIdHint)
+    };
+  }
+
   async getCurrentAccount(accountIdHint?: string) {
     const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const account = await this.getCurrentAuthor(currentAccountId);
@@ -589,6 +646,16 @@ export class ContentRepository {
     return "followerRelations" in account ? account.followerRelations.length > 0 : undefined;
   }
 
+  private toPostComment(comment: CommentWithAuthor): PostComment {
+    return {
+      id: comment.id,
+      postId: comment.postId,
+      author: this.toAccountProfile(comment.author),
+      body: comment.body,
+      createdAt: comment.createdAt.toISOString()
+    };
+  }
+
   private toContentSource(card: PostWithRelations["cards"][number]): ContentSource {
     return {
       kind: this.fromDbSourceKind(card.sourceKind),
@@ -673,6 +740,15 @@ export class ContentRepository {
     }
 
     return data;
+  }
+
+  private normalizeCommentBody(input: CreateCommentInput) {
+    if (!input || typeof input !== "object") {
+      throw new BadRequestException("댓글 내용을 입력해 주세요.");
+    }
+
+    const body = this.normalizeRequiredText(input.body, "댓글", 300);
+    return body;
   }
 
   private normalizeRequiredText(value: unknown, label: string, maxLength: number) {

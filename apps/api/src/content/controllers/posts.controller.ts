@@ -1,6 +1,6 @@
 import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Post as HttpPost } from "@nestjs/common";
 import { ContentService } from "../content.service.js";
-import type { CreatePostInput } from "../content.types.js";
+import type { CreateCommentInput, CreatePostInput } from "../content.types.js";
 
 @Controller()
 export class PostsController {
@@ -39,6 +39,20 @@ export class PostsController {
   @HttpDelete("posts/:postId/carve")
   uncarvePost(@Param("postId") postId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
     return this.contentService.uncarvePost(postId, accountIdHint);
+  }
+
+  @Get("posts/:postId/comments")
+  getComments(@Param("postId") postId: string) {
+    return this.contentService.getComments(postId);
+  }
+
+  @HttpPost("posts/:postId/comments")
+  createComment(
+    @Param("postId") postId: string,
+    @Body() input: CreateCommentInput,
+    @Headers("x-saegim-account-id") accountIdHint?: string
+  ) {
+    return this.contentService.createComment(postId, input, accountIdHint);
   }
 
   @HttpPost("posts")

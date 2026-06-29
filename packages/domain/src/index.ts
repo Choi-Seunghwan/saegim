@@ -101,6 +101,10 @@ export interface UpdateAccountInput {
   photoUrl?: string | null;
 }
 
+export interface CreateCommentInput {
+  body: string;
+}
+
 export interface ViewerPostState {
   liked: boolean;
   carved: boolean;
@@ -115,6 +119,19 @@ export interface Comment {
   authorId: SaegimId;
   body: string;
   createdAt: string;
+}
+
+export interface PostComment {
+  id: SaegimId;
+  postId: SaegimId;
+  author: AccountProfile;
+  body: string;
+  createdAt: string;
+}
+
+export interface CommentMutationResult {
+  item: PostComment;
+  post: PostBundle;
 }
 
 export interface FollowRelation {

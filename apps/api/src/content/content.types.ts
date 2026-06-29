@@ -28,3 +28,15 @@ export interface UpdateAccountInput {
   bio?: string | null;
   photoUrl?: string | null;
 }
+
+export interface CreateCommentInput {
+  body: string;
+}
+
+export interface PostComment {
+  id: string;
+  postId: string;
+  author: AccountProfile;
+  body: string;
+  createdAt: string;
+}
