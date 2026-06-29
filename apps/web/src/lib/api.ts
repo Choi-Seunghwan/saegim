@@ -1,4 +1,5 @@
 import type {
+  AccountDetail,
   AccountProfile,
   CommentMutationResult,
   CreateCommentInput,
@@ -68,6 +69,10 @@ export async function fetchSearch(query: string, signal?: AbortSignal): Promise<
 export async function fetchCurrentAccount(signal?: AbortSignal): Promise<AccountProfile> {
   const data = await fetchJson<ItemResponse<AccountProfile>>("/accounts/me", signal ? { signal } : {});
   return data.item;
+}
+
+export async function fetchAccountDetail(accountId: string, signal?: AbortSignal): Promise<AccountDetail> {
+  return fetchJson<AccountDetail>(`/accounts/${encodeURIComponent(accountId)}`, signal ? { signal } : {});
 }
 
 export async function updateCurrentAccount(input: UpdateAccountInput): Promise<AccountProfile> {

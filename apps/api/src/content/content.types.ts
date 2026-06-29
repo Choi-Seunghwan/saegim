@@ -45,3 +45,8 @@ export interface SearchResult {
   accounts: AccountProfile[];
   posts: PostBundle[];
 }
+
+export interface AccountDetail {
+  account: AccountProfile;
+  posts: PostBundle[];
+}

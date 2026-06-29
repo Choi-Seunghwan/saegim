@@ -62,6 +62,10 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getCurrentAccount(accountIdHint);
   }
 
+  getAccountDetail(accountId: string, accountIdHint?: string) {
+    return this.contentRepository.getAccountDetail(accountId, accountIdHint);
+  }
+
   updateCurrentAccount(input: UpdateAccountInput, accountIdHint?: string) {
     return this.contentRepository.updateCurrentAccount(input, accountIdHint);
   }

@@ -21,6 +21,11 @@ export class AccountsController {
     return this.contentService.getRecommendedAccounts(accountIdHint);
   }
 
+  @Get(":accountId")
+  getAccountDetail(@Param("accountId") accountId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
+    return this.contentService.getAccountDetail(accountId, accountIdHint);
+  }
+
   @HttpPost(":accountId/follow")
   followAccount(@Param("accountId") accountId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
     return this.contentService.followAccount(accountId, accountIdHint);

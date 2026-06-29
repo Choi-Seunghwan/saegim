@@ -139,6 +139,11 @@ export interface SearchResult {
   posts: PostBundle[];
 }
 
+export interface AccountDetail {
+  account: AccountProfile;
+  posts: PostBundle[];
+}
+
 export interface FollowRelation {
   followerId: SaegimId;
   followingId: SaegimId;

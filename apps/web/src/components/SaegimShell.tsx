@@ -8,6 +8,7 @@ import {
   carvePost,
   createPost,
   createPostComment,
+  fetchAccountDetail,
   fetchPostComments,
   fetchCurrentAccount,
   fetchDrawer,
@@ -89,6 +90,29 @@ export function SaegimShell() {
   function replacePost(post: PostBundle) {
     setPosts((currentPosts) => currentPosts.map((item) => (item.post.id === post.post.id ? post : item)));
     setCommentPost((currentPost) => (currentPost?.post.id === post.post.id ? post : currentPost));
+  }
+
+  function mergePosts(nextPosts: PostBundle[]) {
+    setPosts((currentPosts) => {
+      const nextPostMap = new Map(nextPosts.map((post) => [post.post.id, post]));
+      const currentPostIds = new Set(currentPosts.map((post) => post.post.id));
+      const mergedPosts = currentPosts.map((post) => nextPostMap.get(post.post.id) ?? post);
+      const newPosts = nextPosts.filter((post) => !currentPostIds.has(post.post.id));
+
+      return [...mergedPosts, ...newPosts];
+    });
+  }
+
+  function upsertAccount(account: AccountProfile) {
+    setAccounts((currentAccounts) => {
+      const exists = currentAccounts.some((item) => item.id === account.id);
+
+      if (!exists) {
+        return [account, ...currentAccounts];
+      }
+
+      return currentAccounts.map((item) => (item.id === account.id ? account : item));
+    });
   }
 
   function replaceAccount(account: AccountProfile) {
@@ -204,22 +228,22 @@ export function SaegimShell() {
     setActiveTab("discover");
   }
 
-  function openProfile(account: AccountProfile) {
-    setAccounts((currentAccounts) => {
-      const exists = currentAccounts.some((item) => item.id === account.id);
-
-      if (!exists) {
-        return [account, ...currentAccounts];
-      }
-
-      return currentAccounts.map((item) => (item.id === account.id ? account : item));
-    });
+  async function openProfile(account: AccountProfile) {
+    upsertAccount(account);
     setSelectedProfileId(account.id);
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setCommentPost(null);
     setActiveTab("me");
+
+    try {
+      const detail = await fetchAccountDetail(account.id);
+      upsertAccount(detail.account);
+      mergePosts(detail.posts);
+    } catch {
+      // 계정 상세 API가 실패해도 이미 가진 계정 정보로 프로필을 유지한다.
+    }
   }
 
   function movePost(direction: -1 | 1) {

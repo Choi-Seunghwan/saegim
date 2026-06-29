@@ -12,6 +12,7 @@ import type {
   PostComment,
   PostBundle,
   SearchResult,
+  AccountDetail,
   UpdateAccountInput
 } from "./content.types.js";
 
@@ -523,6 +524,33 @@ export class ContentRepository {
 
     return {
       item: this.toAccountProfile(account)
+    };
+  }
+
+  async getAccountDetail(accountId: string, accountIdHint?: string): Promise<AccountDetail> {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+    const [account, posts] = await Promise.all([
+      this.prisma.account.findUnique({
+        where: { id: accountId },
+        include: accountIncludeForViewer(currentAccountId)
+      }),
+      this.prisma.post.findMany({
+        where: {
+          authorId: accountId,
+          visibility: "PUBLIC"
+        },
+        include: postIncludeForAccount(currentAccountId),
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+      })
+    ]);
+
+    if (!account) {
+      throw new NotFoundException("계정을 찾을 수 없어요.");
+    }
+
+    return {
+      account: this.toAccountProfile(account),
+      posts: posts.map((post) => this.toPostBundle(post))
     };
   }
 
