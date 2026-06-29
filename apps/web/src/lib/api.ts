@@ -21,6 +21,11 @@ interface ItemResponse<T> {
   item: T;
 }
 
+interface AuthSessionResponse {
+  authenticated: boolean;
+  accountId: string | null;
+}
+
 async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
@@ -30,6 +35,7 @@ async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: "include",
     ...init,
     headers
   });
@@ -39,6 +45,14 @@ async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+export async function fetchAuthSession(signal?: AbortSignal): Promise<AuthSessionResponse> {
+  return fetchJson<AuthSessionResponse>("/auth/session", signal ? { signal } : {});
+}
+
+export async function logoutSession(): Promise<{ ok: boolean }> {
+  return fetchJson<{ ok: boolean }>("/auth/logout", { method: "POST" });
 }
 
 export async function fetchFeed(signal?: AbortSignal): Promise<PostBundle[]> {

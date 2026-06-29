@@ -2,37 +2,63 @@ import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Patch, Pos
 import { ContentService } from "../content.service.js";
 import type { UpdateAccountInput } from "../content.types.js";
 
+function accountContext(accountIdHint?: string, cookieHeader?: string) {
+  return accountIdHint?.trim() || cookieHeader;
+}
+
 @Controller("accounts")
 export class AccountsController {
   constructor(private readonly contentService: ContentService) {}
 
   @Get("me")
-  getCurrentAccount(@Headers("x-saegim-account-id") accountIdHint?: string) {
-    return this.contentService.getCurrentAccount(accountIdHint);
+  getCurrentAccount(
+    @Headers("x-saegim-account-id") accountIdHint?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.getCurrentAccount(accountContext(accountIdHint, cookieHeader));
   }
 
   @Patch("me")
-  updateCurrentAccount(@Body() input: UpdateAccountInput, @Headers("x-saegim-account-id") accountIdHint?: string) {
-    return this.contentService.updateCurrentAccount(input, accountIdHint);
+  updateCurrentAccount(
+    @Body() input: UpdateAccountInput,
+    @Headers("x-saegim-account-id") accountIdHint?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.updateCurrentAccount(input, accountContext(accountIdHint, cookieHeader));
   }
 
   @Get("recommended")
-  getRecommendedAccounts(@Headers("x-saegim-account-id") accountIdHint?: string) {
-    return this.contentService.getRecommendedAccounts(accountIdHint);
+  getRecommendedAccounts(
+    @Headers("x-saegim-account-id") accountIdHint?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.getRecommendedAccounts(accountContext(accountIdHint, cookieHeader));
   }
 
   @Get(":accountId")
-  getAccountDetail(@Param("accountId") accountId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
-    return this.contentService.getAccountDetail(accountId, accountIdHint);
+  getAccountDetail(
+    @Param("accountId") accountId: string,
+    @Headers("x-saegim-account-id") accountIdHint?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.getAccountDetail(accountId, accountContext(accountIdHint, cookieHeader));
   }
 
   @HttpPost(":accountId/follow")
-  followAccount(@Param("accountId") accountId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
-    return this.contentService.followAccount(accountId, accountIdHint);
+  followAccount(
+    @Param("accountId") accountId: string,
+    @Headers("x-saegim-account-id") accountIdHint?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.followAccount(accountId, accountContext(accountIdHint, cookieHeader));
   }
 
   @HttpDelete(":accountId/follow")
-  unfollowAccount(@Param("accountId") accountId: string, @Headers("x-saegim-account-id") accountIdHint?: string) {
-    return this.contentService.unfollowAccount(accountId, accountIdHint);
+  unfollowAccount(
+    @Param("accountId") accountId: string,
+    @Headers("x-saegim-account-id") accountIdHint?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.unfollowAccount(accountId, accountContext(accountIdHint, cookieHeader));
   }
 }

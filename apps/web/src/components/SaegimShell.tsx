@@ -15,9 +15,11 @@ import {
   fetchFeed,
   fetchRecommendedAccounts,
   fetchSearch,
+  fetchAuthSession,
   followAccount,
   getGoogleOAuthStartUrl,
   likePost,
+  logoutSession,
   uncarvePost,
   unlikePost,
   unfollowAccount,
@@ -144,6 +146,7 @@ export function SaegimShell() {
   }
 
   function leaveApp() {
+    void logoutSession().catch(() => undefined);
     setActiveTab("home");
     setIsSearching(false);
     setIsEditingProfile(false);
@@ -267,7 +270,25 @@ export function SaegimShell() {
     const savedEntryState = window.localStorage.getItem(ENTRY_STATE_STORAGE_KEY);
     if (savedEntryState === "guest" || savedEntryState === "signed-in") {
       setEntryState(savedEntryState);
+      return;
     }
+
+    const controller = new AbortController();
+
+    async function restoreSession() {
+      try {
+        const session = await fetchAuthSession(controller.signal);
+        if (session.authenticated) {
+          setEntryState("signed-in");
+          window.localStorage.setItem(ENTRY_STATE_STORAGE_KEY, "signed-in");
+        }
+      } catch {
+        // 세션이 없거나 API가 꺼져 있으면 로그인 게이트를 유지한다.
+      }
+    }
+
+    void restoreSession();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
