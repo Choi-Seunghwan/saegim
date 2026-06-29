@@ -805,19 +805,6 @@ export function SaegimShell() {
   return (
     <main className="app-shell" aria-label="새김 앱">
       <section className={frameClassName}>
-        <div className="statusbar" aria-hidden="true">
-          <span>9:41</span>
-          <span className="statusbar-right">
-            <span className="signal-bars">
-              <span />
-              <span />
-              <span />
-              <span />
-            </span>
-            <span>5G</span>
-            <span className="battery-mark" />
-          </span>
-        </div>
         {entryState === "gate" ? (
           <AuthGate onEnter={enterApp} onGoogleLogin={startGoogleOAuth} />
         ) : (

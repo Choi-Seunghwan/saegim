@@ -32,7 +32,7 @@ html,
 body {
   height: 100%;
   margin: 0;
-  background: #2c2a26;
+  background: var(--mist);
   color: var(--ink);
   font-family: var(--font-ui);
   overflow: hidden;
@@ -73,20 +73,17 @@ textarea:focus-visible {
 }
 
 .mobile-frame {
-  width: 390px;
-  height: 844px;
+  width: min(100vw, 430px);
+  height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
   isolation: isolate;
   background:
     radial-gradient(120% 80% at 50% -10%, var(--paper-warm), transparent 60%),
     linear-gradient(180deg, var(--mist), var(--mist-2));
-  border-radius: 46px;
-  box-shadow:
-    0 0 0 12px #15140f,
-    0 0 0 14px #2f2b22,
-    0 50px 100px -30px rgba(0, 0, 0, 0.7),
-    0 20px 50px -20px rgba(0, 0, 0, 0.5);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .mobile-frame::before {
@@ -103,74 +100,6 @@ textarea:focus-visible {
 .mobile-frame > * {
   position: relative;
   z-index: 1;
-}
-
-.statusbar {
-  height: 46px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 0 22px 6px;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.statusbar-right,
-.signal-bars {
-  display: inline-flex;
-  align-items: flex-end;
-}
-
-.statusbar-right {
-  gap: 6px;
-  opacity: 0.85;
-}
-
-.signal-bars {
-  height: 11px;
-  gap: 1.5px;
-}
-
-.signal-bars span {
-  width: 3px;
-  border-radius: 1px;
-  background: currentColor;
-}
-
-.signal-bars span:nth-child(1) {
-  height: 5px;
-}
-
-.signal-bars span:nth-child(2) {
-  height: 7px;
-}
-
-.signal-bars span:nth-child(3) {
-  height: 9px;
-}
-
-.signal-bars span:nth-child(4) {
-  height: 11px;
-}
-
-.battery-mark {
-  width: 16px;
-  height: 10px;
-  position: relative;
-  display: inline-block;
-  border: 1.4px solid var(--ink);
-  border-radius: 3px;
-}
-
-.battery-mark::after {
-  content: "";
-  position: absolute;
-  inset: 1.6px;
-  right: 4px;
-  border-radius: 1px;
-  background: var(--ink);
 }
 
 .topbar {
@@ -254,14 +183,14 @@ textarea:focus-visible {
 }
 
 .screen {
-  height: calc(100% - 206px);
+  height: calc(100% - 160px);
   overflow: hidden auto;
   padding: 0 0 110px;
 }
 
 .mobile-frame.is-discover .screen,
 .mobile-frame.is-full .screen {
-  height: calc(100% - 46px);
+  height: 100%;
   padding: 0;
   overflow: hidden;
 }
@@ -1907,9 +1836,6 @@ textarea:focus-visible {
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
   }
 
   body {
