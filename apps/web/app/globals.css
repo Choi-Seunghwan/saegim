@@ -1417,17 +1417,81 @@ textarea:focus-visible {
   opacity: 0.64;
 }
 
+.capture-view {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 22px 34px;
+  background: var(--mist);
+}
+
+.capture-head {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 -6px;
+}
+
+.capture-head > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.capture-head h2,
+.capture-head p {
+  margin: 0;
+}
+
+.capture-head h2 {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.capture-head p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.capture-submit {
+  flex: 0 0 auto;
+  padding: 6px 2px;
+  background: none;
+  color: var(--ink-strong);
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.capture-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .capture-card {
-  min-height: 300px;
+  width: min(100%, 360px);
+  min-height: 0;
+  aspect-ratio: 9 / 13;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  margin: 4px auto 0;
   padding: 26px;
+  overflow: hidden;
 }
 
 .capture-card textarea {
   width: 100%;
-  min-height: 210px;
+  min-height: 0;
+  flex: 1;
   resize: none;
   border: 0;
   outline: 0;
@@ -1446,6 +1510,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 38px;
 }
 
 .capture-pagebar span {
@@ -1476,6 +1541,8 @@ textarea:focus-visible {
 .capture-page-tabs {
   display: flex;
   gap: 8px;
+  flex: 0 0 auto;
+  margin: 0 -2px;
   overflow-x: auto;
   padding-bottom: 2px;
 }
@@ -1527,14 +1594,16 @@ textarea:focus-visible {
 
 .capture-field input {
   width: 100%;
-  min-height: 42px;
+  min-height: 47px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 14px;
   outline: 0;
-  background: rgba(56, 50, 63, 0.06);
+  background: var(--mist-2);
   color: var(--ink);
-  padding: 0 13px;
+  padding: 0 14px;
   font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
 }
 
 .capture-field textarea {
@@ -1552,7 +1621,8 @@ textarea:focus-visible {
 
 .capture-field input:focus,
 .capture-field textarea:focus {
-  box-shadow: 0 0 0 3px rgba(56, 50, 63, 0.1);
+  background: var(--paper);
+  box-shadow: 0 0 0 2px rgba(56, 50, 63, 0.1);
 }
 
 .capture-field-grid {

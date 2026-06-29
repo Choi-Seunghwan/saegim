@@ -362,6 +362,7 @@ function AccountName({ account }: { account: AccountProfile }) {
 
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("home");
   const [entryState, setEntryState] = useState<EntryState>("gate");
   const [isSearching, setIsSearching] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -400,6 +401,7 @@ export function SaegimShell() {
   const noticePages = editorialPages.filter((page) => page.kind === "notice");
   const isFullPage =
     isSearching ||
+    activeTab === "capture" ||
     isEditingProfile ||
     isViewingDrawer ||
     isViewingSettings ||
@@ -505,6 +507,9 @@ export function SaegimShell() {
   }
 
   function selectTab(tab: TabKey) {
+    if (tab === "capture" && activeTab !== "capture") {
+      setCaptureReturnTab(activeTab);
+    }
     setActiveTab(tab);
     setIsSearching(false);
     setIsViewingNoticeList(false);
@@ -782,7 +787,9 @@ export function SaegimShell() {
         />
       );
     }
-    if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
+    if (activeTab === "capture") {
+      return <CaptureView onClose={() => selectTab(captureReturnTab)} onPublished={handlePostPublished} />;
+    }
     if (activeTab === "shelf") return <ShelfView posts={posts} onOpenPost={openPost} />;
     if (activeTab === "me") {
       if (isViewingSettings) {
@@ -845,6 +852,7 @@ export function SaegimShell() {
     activePost,
     activePostIndex,
     activeTab,
+    captureReturnTab,
     currentAccount,
     featuredPost,
     isEditingProfile,
@@ -944,10 +952,9 @@ export function SaegimShell() {
                   ))}
                 </nav>
                 <button
-                  className={activeTab === "capture" ? "fab is-active" : "fab"}
+                  className="fab"
                   type="button"
                   aria-label={tabLabels.capture}
-                  aria-current={activeTab === "capture" ? "page" : undefined}
                   onClick={() => selectTab("capture")}
                 >
                   <PlusIcon />
@@ -1122,7 +1129,8 @@ function SearchView({
     return () => controller.abort();
   }, [query]);
 
-  const isEmpty = cleanQuery.length > 0 && status !== "loading" && visibleAccounts.length === 0 && visiblePosts.length === 0;
+  const isEmpty =
+    cleanQuery.length > 0 && status !== "loading" && !error && visibleAccounts.length === 0 && visiblePosts.length === 0;
 
   return (
     <section className="search-view">
@@ -1757,7 +1765,9 @@ function CommentSheet({
 
         <div className="comment-list">
           {status === "loading" ? <p className="comment-empty">불러오는 중</p> : null}
-          {status !== "loading" && comments.length === 0 ? <p className="comment-empty">아직 댓글이 없어요.</p> : null}
+          {status !== "loading" && !error && comments.length === 0 ? (
+            <p className="comment-empty">아직 댓글이 없어요.</p>
+          ) : null}
           {comments.map((comment) => (
             <article className="comment-item" key={comment.id}>
               <Avatar displayName={comment.author.displayName} photoUrl={comment.author.photoUrl} size="mini" />
@@ -1792,7 +1802,7 @@ function CommentSheet({
   );
 }
 
-function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void }) {
+function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublished: (post: PostBundle) => void }) {
   const [cards, setCards] = useState([""]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
   const [title, setTitle] = useState("");
@@ -1884,6 +1894,21 @@ function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void 
 
   return (
     <form className="capture-view" onSubmit={handleSubmit}>
+      <div className="capture-head">
+        <div>
+          <button className="back-icon" type="button" onClick={onClose} aria-label="이전 화면으로 돌아가기">
+            ←
+          </button>
+          <div>
+            <h2>포착</h2>
+            <p>한 줄을 카드로 남기기</p>
+          </div>
+        </div>
+        <button className="capture-submit" type="submit" disabled={!canPublish}>
+          {status === "submitting" ? "발행 중" : "발행"}
+        </button>
+      </div>
+
       <div className="capture-pagebar" aria-label="장 관리">
         <button
           type="button"
@@ -1960,9 +1985,6 @@ function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void 
         <button type="button">태그</button>
       </div>
       {error ? <p className="capture-error">{error}</p> : null}
-      <button className="primary-button" type="submit" disabled={!canPublish}>
-        {status === "submitting" ? "발행 중" : "발행"}
-      </button>
     </form>
   );
 }
@@ -2272,10 +2294,10 @@ function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (p
       </div>
 
       {status === "loading" ? <p className="drawer-empty">불러오는 중</p> : null}
-      {status !== "loading" && drawerPosts.length === 0 ? (
+      {status !== "loading" && !error && drawerPosts.length === 0 ? (
         <p className="drawer-empty">아직 간직한 글이 없어요.</p>
       ) : null}
-      {status !== "loading" && drawerPosts.length > 0 && visiblePosts.length === 0 ? (
+      {status !== "loading" && !error && drawerPosts.length > 0 && visiblePosts.length === 0 ? (
         <p className="drawer-empty">검색에 맞는 글이 없어요.</p>
       ) : null}
       {error ? <p className="drawer-empty">{error}</p> : null}
