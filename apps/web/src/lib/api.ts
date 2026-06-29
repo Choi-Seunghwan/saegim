@@ -1,6 +1,7 @@
 import type { AccountProfile, CreatePostInput, PostBundle } from "@saegim/domain";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
+const DEV_ACCOUNT_ID = process.env.NEXT_PUBLIC_DEV_ACCOUNT_ID?.trim();
 
 interface ListResponse<T> {
   items: T[];
@@ -13,6 +14,10 @@ interface ItemResponse<T> {
 async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
+
+  if (process.env.NODE_ENV !== "production" && DEV_ACCOUNT_ID) {
+    headers.set("x-saegim-account-id", DEV_ACCOUNT_ID);
+  }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
