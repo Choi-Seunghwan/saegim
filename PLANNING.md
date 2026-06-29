@@ -193,7 +193,7 @@
 - **의미 임베딩**(취향 피드·유사 추천·자동 묶음) — 프로토타입의 클라 `similar()`는 폐기, '결' 사용자 선택 없음.
 - **인증/OAuth**(Google 우선, 카카오·네이버 후순위) — 현재 프로토타입은 `loggedIn` 플래그.
 - **발행 저장·관계 그래프·검색 인덱스** — 현재 클라 필터/큐.
-- 현재 API 계약: `GET /feed` · `GET /shelf` · `GET /posts/:postId` · `GET /accounts/me` · `GET /accounts/recommended` · `POST /posts` · `POST/DELETE /posts/:postId/like` · `POST/DELETE /posts/:postId/carve`(PostgreSQL 저장, 시드는 서버 시작 시 idempotent 보강).
+- 현재 API 계약: `GET /auth/google` · `GET /auth/google/callback` · `GET /feed` · `GET /shelf` · `GET /posts/:postId` · `GET /accounts/me` · `GET /accounts/recommended` · `POST /posts` · `POST/DELETE /posts/:postId/like` · `POST/DELETE /posts/:postId/carve`(PostgreSQL 저장, 시드는 서버 시작 시 idempotent 보강).
 - 현재 사용자 계정 경계: `apps/api/src/auth`의 개발용 현재 계정 서비스가 `DEV_ACCOUNT_ID`(기본 `acct-me`)를 반환한다. 개발 환경에서는 `x-saegim-account-id` 헤더를 계정 힌트로 받아 좋아요/새김/추천 제외 상태를 계정별로 검증한다. OAuth/session 연결 시 콘텐츠 저장소가 이 경계를 통해 실제 계정을 받도록 교체한다.
 - 웹 개발 계정 힌트: `NEXT_PUBLIC_DEV_ACCOUNT_ID`를 설정하면 웹 API 클라이언트가 개발 환경에서만 `x-saegim-account-id`를 자동 첨부한다.
 - 웹 로그인 게이트: 실서비스 골격에서는 `saegim_web_entry_state` localStorage로 로그인/게스트 입장 상태만 임시 저장한다. 실제 Google OAuth 세션이 붙으면 이 임시 플래그를 제거한다.
@@ -221,6 +221,7 @@
 - 2026-06-29 — **웹 나 탭 현재 계정 API 연결**: 웹 API 클라이언트에 `fetchCurrentAccount()` 추가. `SaegimShell` 초기 로드가 `/feed`·`/accounts/recommended`·`/accounts/me`를 함께 읽고, 나 탭 프로필 표시(아바타 첫 글자·닉네임·한줄 소개글·글 수·글벗 수)를 현재 계정 응답으로 갱신하도록 연결. API 실패 시 기존 샘플 프로필 유지.
 - 2026-06-29 — **웹 개발용 계정 헤더 옵션 추가**: `NEXT_PUBLIC_DEV_ACCOUNT_ID`가 설정된 개발 환경에서 웹 API 클라이언트가 모든 API 요청에 `x-saegim-account-id`를 자동 첨부하도록 연결. OAuth 전에도 브라우저에서 계정별 좋아요·새김·추천 제외·나 탭 프로필을 확인할 수 있게 함. `.env.example`/README/HANDOFF 갱신.
 - 2026-06-29 — **웹 로그인 게이트 최소 구현**: Next 웹 셸 첫 진입에 로그인/회원가입 토글, Google 계정 버튼, 이메일·비밀번호 입력, `로그인 없이 둘러보기` 게이트를 추가. 입장 상태는 OAuth 전 임시로 `saegim_web_entry_state` localStorage에 저장하고, 게이트 통과 후에만 `/feed`·`/accounts/recommended`·`/accounts/me` 초기 로드를 수행하도록 변경. 실제 Google OAuth 세션 도입 시 교체 예정.
+- 2026-06-29 — **Google OAuth API 시작점 골격 추가**: Nest `AuthController`/`GoogleOAuthService` 추가. `GET /auth/google`은 `GOOGLE_OAUTH_CLIENT_ID`가 설정된 경우 Google 인증 URL로 302 리다이렉트하고, 미설정 시 503을 반환한다. `GET /auth/google/callback`은 인증 코드 수신 자리만 열어 두고 다음 단계(`token-exchange`)를 반환한다. 토큰 교환·계정 연결·세션 쿠키는 후속 작업.
 - 2026-06-29 — **좋아요·새김 액션 API 연결**: Nest API에 `POST/DELETE /posts/:postId/like`, `POST/DELETE /posts/:postId/carve` 추가. 좋아요는 `viewerState.liked`와 공개 `likeCount`를 함께 갱신하고, 새김은 수치 없이 `viewerState.carved`만 갱신. 웹 발견 화면 액션 레일이 API 응답으로 해당 글 bundle을 교체하도록 연결하고, 좋아요/댓글 수를 작은 카운터로 표시. `pnpm typecheck` 통과, 브라우저에서 발견 탭 좋아요 1,842→1,843→1,842 및 새김/새김 취소 상태 전환 확인.
 - 2026-06-29 — **포착 발행 API 1차 연결**: `packages/domain`에 `CreatePostInput` 계약 추가. Nest API에 `POST /posts` 추가(입력 검증, 제목 자동 생성, 태그 0~3 정규화, 기본 `comp` 보강, 현재 계정 `acct-me` 작성자로 런타임 메모리 저장). 웹 포착 탭을 한 장짜리 글 작성 폼으로 바꾸고 `createPost()` 성공 시 피드 상태 prepend + 발견 탭 이동. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 포착→발행→발견 반영 및 `/feed` 응답 prepend 확인.
 - 2026-06-29 — **웹 초기 화면 API 연동**: `apps/web/src/lib/api.ts` 추가. `NEXT_PUBLIC_API_BASE_URL`(기본 `http://127.0.0.1:4000`) 기준으로 `/feed`, `/accounts/recommended`를 읽고, `SaegimShell`이 홈/발견/둘러보기/추천 글벗 데이터를 API 응답으로 갱신하도록 연결. API가 꺼져 있거나 요청 실패 시 기존 샘플 데이터로 첫 화면 유지. API CORS 기본 허용 origin을 `127.0.0.1:3000`/`localhost:3000`로 맞춤. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 API 응답(`무월`, `천천히 남는 말`) 반영 확인.
