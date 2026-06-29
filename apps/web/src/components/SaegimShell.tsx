@@ -46,6 +46,12 @@ type DetailReturnTarget =
   | { surface: "tab"; tab: MainReturnTab }
   | { surface: "search"; tab: MainReturnTab }
   | { surface: "drawer" };
+type DetailDragState = {
+  x: number;
+  y: number;
+  axis: "x" | "y" | null;
+  isAnimating: boolean;
+};
 type EditorialPageState = { pageId: string; origin: EditorialPageOrigin };
 type EditorialPage = {
   id: string;
@@ -898,9 +904,11 @@ export function SaegimShell() {
         <DiscoverView
           activeCardIndex={activeCardIndex}
           currentAccountId={currentAccount.id}
+          nextPost={posts[activePostIndex + 1] ?? null}
           post={activePost}
           postCount={posts.length}
           postIndex={activePostIndex}
+          previousPost={posts[activePostIndex - 1] ?? null}
           {...(detailReturnTarget ? { onBack: closePostDetail } : {})}
           onNextCard={() => selectCard(activeCardIndex + 1)}
           onNextPost={() => movePost(1)}
@@ -1565,9 +1573,11 @@ function HomeView({
 function DiscoverView({
   activeCardIndex,
   currentAccountId,
+  nextPost,
   post,
   postCount,
   postIndex,
+  previousPost,
   onBack,
   onNextCard,
   onNextPost,
@@ -1583,9 +1593,11 @@ function DiscoverView({
 }: {
   activeCardIndex: number;
   currentAccountId: string;
+  nextPost: PostBundle | null;
   post: PostBundle;
   postCount: number;
   postIndex: number;
+  previousPost: PostBundle | null;
   onBack?: () => void;
   onNextCard: () => void;
   onNextPost: () => void;
@@ -1609,20 +1621,36 @@ function DiscoverView({
   const hasNextCard = activeCardIndex < post.cards.length - 1;
   const shouldShowTitle = post.post.title.trim() !== card.text.trim();
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragResetTimerRef = useRef<number | null>(null);
+  const [dragState, setDragState] = useState<DetailDragState | null>(null);
+  const activeDragAxis = dragState?.axis;
+  const dragTrackStyle = {
+    "--detail-drag-x": `${dragState?.x ?? 0}px`,
+    "--detail-drag-y": `${dragState?.y ?? 0}px`
+  } as CSSProperties;
+  const dragTrackClassName = dragState?.isAnimating ? "detail-carousel-track is-animating" : "detail-carousel-track";
+
+  function clearDragResetTimer() {
+    if (dragResetTimerRef.current) {
+      window.clearTimeout(dragResetTimerRef.current);
+      dragResetTimerRef.current = null;
+    }
+  }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
-    if ((event.target as HTMLElement).closest("button")) {
+    if (dragState?.isAnimating || (event.target as HTMLElement).closest("button, input, textarea")) {
       return;
     }
 
+    clearDragResetTimer();
     pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragState({ x: 0, y: 0, axis: null, isAnimating: false });
   }
 
-  function handlePointerUp(event: ReactPointerEvent<HTMLElement>) {
+  function handlePointerMove(event: ReactPointerEvent<HTMLElement>) {
     const start = pointerStartRef.current;
-    pointerStartRef.current = null;
-
-    if (!start || (event.target as HTMLElement).closest("button")) {
+    if (!start || dragState?.isAnimating) {
       return;
     }
 
@@ -1630,17 +1658,96 @@ function DiscoverView({
     const dy = event.clientY - start.y;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
-    const threshold = 42;
+    const nextAxis = dragState?.axis ?? (Math.max(absX, absY) > 10 ? (absX > absY ? "x" : "y") : null);
 
-    if (absY > absX && absY > threshold) {
-      if (dy < 0 && hasNextPost) onNextPost();
-      if (dy > 0 && hasPreviousPost) onPreviousPost();
+    if (!nextAxis) {
+      setDragState({ x: 0, y: 0, axis: null, isAnimating: false });
       return;
     }
 
-    if (absX > absY && absX > threshold) {
-      if (dx < 0 && hasNextCard) onNextCard();
-      if (dx > 0 && hasPreviousCard) onPreviousCard();
+    if (nextAxis === "x") {
+      const canMove = (dx < 0 && hasNextCard) || (dx > 0 && hasPreviousCard);
+      setDragState({ x: canMove ? dx : dx * 0.24, y: 0, axis: "x", isAnimating: false });
+      return;
+    }
+
+    const canMove = (dy < 0 && hasNextPost) || (dy > 0 && hasPreviousPost);
+    setDragState({ x: 0, y: canMove ? dy : dy * 0.24, axis: "y", isAnimating: false });
+  }
+
+  function handlePointerUp(event: ReactPointerEvent<HTMLElement>) {
+    const start = pointerStartRef.current;
+    const currentDragState = dragState;
+    pointerStartRef.current = null;
+
+    if (!start || !currentDragState || (event.target as HTMLElement).closest("button, input, textarea")) {
+      return;
+    }
+
+    const dx = currentDragState.x || event.clientX - start.x;
+    const dy = currentDragState.y || event.clientY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    const axis = currentDragState.axis ?? (absX > absY ? "x" : "y");
+    const threshold = Math.min(axis === "x" ? event.currentTarget.clientWidth * 0.2 : event.currentTarget.clientHeight * 0.16, 96);
+
+    if (axis === "y" && absY > threshold) {
+      const direction = dy < 0 ? 1 : -1;
+      const canMove = direction > 0 ? hasNextPost : hasPreviousPost;
+      if (canMove) {
+        const targetY = direction > 0 ? -event.currentTarget.clientHeight : event.currentTarget.clientHeight;
+        setDragState({ x: 0, y: targetY, axis: "y", isAnimating: true });
+        dragResetTimerRef.current = window.setTimeout(() => {
+          if (direction > 0) onNextPost();
+          else onPreviousPost();
+          setDragState(null);
+          dragResetTimerRef.current = null;
+        }, 230);
+        return;
+      }
+    }
+
+    if (axis === "x" && absX > threshold) {
+      const direction = dx < 0 ? 1 : -1;
+      const canMove = direction > 0 ? hasNextCard : hasPreviousCard;
+      if (canMove) {
+        const targetX = direction > 0 ? -event.currentTarget.clientWidth : event.currentTarget.clientWidth;
+        setDragState({ x: targetX, y: 0, axis: "x", isAnimating: true });
+        dragResetTimerRef.current = window.setTimeout(() => {
+          if (direction > 0) onNextCard();
+          else onPreviousCard();
+          setDragState(null);
+          dragResetTimerRef.current = null;
+        }, 230);
+        return;
+      }
+    }
+
+    setDragState({ x: 0, y: 0, axis, isAnimating: true });
+    dragResetTimerRef.current = window.setTimeout(() => {
+      setDragState(null);
+      dragResetTimerRef.current = null;
+    }, 180);
+  }
+
+  useEffect(() => {
+    return () => clearDragResetTimer();
+  }, []);
+
+  useEffect(() => {
+    setDragState(null);
+    pointerStartRef.current = null;
+  }, [activeCardIndex, post.post.id]);
+
+  function handlePointerCancel() {
+    pointerStartRef.current = null;
+    if (dragState) {
+      setDragState({ x: 0, y: 0, axis: dragState.axis, isAnimating: true });
+      clearDragResetTimer();
+      dragResetTimerRef.current = window.setTimeout(() => {
+        setDragState(null);
+        dragResetTimerRef.current = null;
+      }, 180);
     }
   }
 
@@ -1698,8 +1805,39 @@ function DiscoverView({
           ↓
         </button>
       </div>
-      <div className="sentence-card discover-card" style={cardSurfaceStyle(card)}>
-        <div className="cv-grain" aria-hidden="true" />
+      <div className="detail-carousel" style={dragTrackStyle}>
+        <div className={dragTrackClassName}>
+          {hasPreviousCard ? (
+            <DetailCardSurface
+              className={`is-prev-card${activeDragAxis === "x" ? " is-adjacent-active" : ""}`}
+              cardIndex={activeCardIndex - 1}
+              post={post}
+            />
+          ) : null}
+          {hasNextCard ? (
+            <DetailCardSurface
+              className={`is-next-card${activeDragAxis === "x" ? " is-adjacent-active" : ""}`}
+              cardIndex={activeCardIndex + 1}
+              post={post}
+            />
+          ) : null}
+          {previousPost ? (
+            <DetailCardSurface
+              className={`is-prev-post${activeDragAxis === "y" ? " is-adjacent-active" : ""}`}
+              cardIndex={0}
+              post={previousPost}
+            />
+          ) : null}
+          {nextPost ? (
+            <DetailCardSurface
+              className={`is-next-post${activeDragAxis === "y" ? " is-adjacent-active" : ""}`}
+              cardIndex={0}
+              post={nextPost}
+            />
+          ) : null}
+          <DetailCardSurface className="is-current" cardIndex={activeCardIndex} post={post} />
+        </div>
+
         {post.cards.length > 1 ? (
           <button
             className="card-step card-step-prev"
@@ -1711,12 +1849,6 @@ function DiscoverView({
             ‹
           </button>
         ) : null}
-        <div className="cmp-layer">
-          <p className="cmp-text" style={cardTextStyle(card.comp)}>
-            {card.text}
-          </p>
-          {cardSourceLabel(card) ? <div className="cmp-src">{cardSourceLabel(card)}</div> : null}
-        </div>
         {post.cards.length > 1 ? (
           <button
             className="card-step card-step-next"
@@ -1796,6 +1928,26 @@ function DiscoverView({
         </button>
       </aside>
     </article>
+  );
+}
+
+function DetailCardSurface({ cardIndex, className, post }: { cardIndex: number; className: string; post: PostBundle }) {
+  const card = post.cards[cardIndex] ?? post.cards[0]!;
+
+  return (
+    <div
+      className={`sentence-card discover-card detail-card-surface ${className}`}
+      style={cardSurfaceStyle(card)}
+      aria-hidden={className !== "is-current" ? "true" : undefined}
+    >
+      <div className="cv-grain" aria-hidden="true" />
+      <div className="cmp-layer">
+        <p className="cmp-text" style={cardTextStyle(card.comp)}>
+          {card.text}
+        </p>
+        {cardSourceLabel(card) ? <div className="cmp-src">{cardSourceLabel(card)}</div> : null}
+      </div>
+    </div>
   );
 }
 
