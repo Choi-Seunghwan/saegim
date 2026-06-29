@@ -57,6 +57,7 @@ export function SaegimShell() {
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
   const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
   const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
@@ -64,6 +65,14 @@ export function SaegimShell() {
   );
   const featuredPost = posts[0] ?? samplePosts[0]!;
   const activePost = posts.find((post) => post.post.id === activePostId) ?? featuredPost;
+  const selectedProfile =
+    selectedProfileId === currentAccount.id
+      ? currentAccount
+      : accounts.find((account) => account.id === selectedProfileId) ??
+        posts.find((post) => post.author.id === selectedProfileId)?.author ??
+        currentAccount;
+  const selectedProfilePosts = posts.filter((post) => post.author.id === selectedProfile.id);
+  const isOwnProfile = selectedProfile.id === currentAccount.id;
   const activePostIndex = Math.max(
     0,
     posts.findIndex((post) => post.post.id === activePost.post.id)
@@ -106,6 +115,7 @@ export function SaegimShell() {
 
   function enterApp(nextEntryState: Exclude<EntryState, "gate">) {
     setEntryState(nextEntryState);
+    setSelectedProfileId(currentAccount.id);
     window.localStorage.setItem(ENTRY_STATE_STORAGE_KEY, nextEntryState);
   }
 
@@ -115,6 +125,7 @@ export function SaegimShell() {
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setCommentPost(null);
+    setSelectedProfileId(currentAccount.id);
     setEntryState("gate");
     window.localStorage.removeItem(ENTRY_STATE_STORAGE_KEY);
   }
@@ -132,6 +143,8 @@ export function SaegimShell() {
     if (tab !== "me") {
       setIsEditingProfile(false);
       setIsViewingDrawer(false);
+    } else {
+      setSelectedProfileId(currentAccount.id);
     }
   }
 
@@ -189,6 +202,24 @@ export function SaegimShell() {
     setIsViewingDrawer(false);
     setCommentPost(null);
     setActiveTab("discover");
+  }
+
+  function openProfile(account: AccountProfile) {
+    setAccounts((currentAccounts) => {
+      const exists = currentAccounts.some((item) => item.id === account.id);
+
+      if (!exists) {
+        return [account, ...currentAccounts];
+      }
+
+      return currentAccounts.map((item) => (item.id === account.id ? account : item));
+    });
+    setSelectedProfileId(account.id);
+    setIsSearching(false);
+    setIsEditingProfile(false);
+    setIsViewingDrawer(false);
+    setCommentPost(null);
+    setActiveTab("me");
   }
 
   function movePost(direction: -1 | 1) {
@@ -254,7 +285,7 @@ export function SaegimShell() {
 
   const content = useMemo(() => {
     if (isSearching) {
-      return <SearchView onClose={() => setIsSearching(false)} onOpenPost={openPost} />;
+      return <SearchView onClose={() => setIsSearching(false)} onOpenPost={openPost} onOpenProfile={openProfile} />;
     }
 
     if (activeTab === "discover") {
@@ -272,6 +303,7 @@ export function SaegimShell() {
           onSelectCard={selectCard}
           onToggleCarve={handleToggleCarve}
           onOpenComments={setCommentPost}
+          onOpenProfile={openProfile}
           onToggleFollow={handleToggleFollow}
           onToggleLike={handleToggleLike}
         />
@@ -292,10 +324,15 @@ export function SaegimShell() {
         />
       ) : (
         <ProfileView
-          account={currentAccount}
+          account={selectedProfile}
           onEdit={() => setIsEditingProfile(true)}
+          isOwnProfile={isOwnProfile}
           onLogout={leaveApp}
           onOpenDrawer={() => setIsViewingDrawer(true)}
+          onOpenPost={openPost}
+          onOpenProfile={() => setSelectedProfileId(currentAccount.id)}
+          onToggleFollow={handleToggleFollow}
+          posts={selectedProfilePosts}
         />
       );
     }
@@ -304,6 +341,7 @@ export function SaegimShell() {
         post={featuredPost}
         accounts={accounts}
         onOpenDiscover={() => openPost(featuredPost)}
+        onOpenProfile={openProfile}
         onToggleFollow={handleToggleFollow}
       />
     );
@@ -318,7 +356,10 @@ export function SaegimShell() {
     isEditingProfile,
     isSearching,
     isViewingDrawer,
-    posts
+    isOwnProfile,
+    posts,
+    selectedProfile,
+    selectedProfilePosts
   ]);
 
   return (
@@ -443,10 +484,12 @@ function AuthGate({
 
 function SearchView({
   onClose,
-  onOpenPost
+  onOpenPost,
+  onOpenProfile
 }: {
   onClose: () => void;
   onOpenPost: (post: PostBundle) => void;
+  onOpenProfile: (account: AccountProfile) => void;
 }) {
   const [query, setQuery] = useState("");
   const [accounts, setAccounts] = useState<AccountProfile[]>([]);
@@ -501,7 +544,12 @@ function SearchView({
           <h2>계정</h2>
           <div className="search-account-list">
             {accounts.map((account) => (
-              <article className="search-account-row" key={account.id}>
+              <button
+                className="search-account-row"
+                key={account.id}
+                type="button"
+                onClick={() => onOpenProfile(account)}
+              >
                 <div className="avatar">{account.displayName.slice(0, 1)}</div>
                 <div>
                   <strong>{account.displayName}</strong>
@@ -510,7 +558,7 @@ function SearchView({
                     글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
                   </small>
                 </div>
-              </article>
+              </button>
             ))}
           </div>
         </section>
@@ -558,11 +606,13 @@ function HomeView({
   post,
   accounts,
   onOpenDiscover,
+  onOpenProfile,
   onToggleFollow
 }: {
   post: PostBundle;
   accounts: AccountProfile[];
   onOpenDiscover: () => void;
+  onOpenProfile: (account: AccountProfile) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
 }) {
   return (
@@ -582,11 +632,13 @@ function HomeView({
 
             return (
               <article className="account-chip" key={account.id}>
-                <div className="avatar">{account.displayName.slice(0, 1)}</div>
-                <div>
-                  <strong>{account.displayName}</strong>
-                  <p>{account.tagline}</p>
-                </div>
+                <button className="account-chip-main" type="button" onClick={() => onOpenProfile(account)}>
+                  <div className="avatar">{account.displayName.slice(0, 1)}</div>
+                  <div>
+                    <strong>{account.displayName}</strong>
+                    <p>{account.tagline}</p>
+                  </div>
+                </button>
                 <button
                   className={isSubscribed ? "is-subscribed" : undefined}
                   type="button"
@@ -617,6 +669,7 @@ function DiscoverView({
   onSelectCard,
   onToggleCarve,
   onOpenComments,
+  onOpenProfile,
   onToggleFollow,
   onToggleLike
 }: {
@@ -632,6 +685,7 @@ function DiscoverView({
   onSelectCard: (index: number) => void;
   onToggleCarve: (post: PostBundle) => void;
   onOpenComments: (post: PostBundle) => void;
+  onOpenProfile: (account: AccountProfile) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
   onToggleLike: (post: PostBundle) => void;
 }) {
@@ -726,8 +780,10 @@ function DiscoverView({
         </div>
       ) : null}
       <div className="writer-bar">
-        <div className="avatar">{post.author.displayName.slice(0, 1)}</div>
-        <strong>{post.author.displayName}</strong>
+        <button className="writer-identity" type="button" onClick={() => onOpenProfile(post.author)}>
+          <div className="avatar">{post.author.displayName.slice(0, 1)}</div>
+          <strong>{post.author.displayName}</strong>
+        </button>
         {isOwnPost ? null : (
           <button
             className={isSubscribed ? "is-subscribed" : undefined}
@@ -1058,15 +1114,27 @@ function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (p
 
 function ProfileView({
   account,
+  isOwnProfile,
   onEdit,
   onLogout,
-  onOpenDrawer
+  onOpenDrawer,
+  onOpenPost,
+  onOpenProfile,
+  onToggleFollow,
+  posts
 }: {
   account: AccountProfile;
+  isOwnProfile: boolean;
   onEdit: () => void;
   onLogout: () => void;
   onOpenDrawer: () => void;
+  onOpenPost: (post: PostBundle) => void;
+  onOpenProfile: () => void;
+  onToggleFollow: (accountId: string, subscribed: boolean) => void;
+  posts: PostBundle[];
 }) {
+  const isSubscribed = account.viewerState?.subscribed ?? false;
+
   return (
     <section className="profile-view">
       <div className="profile-head">
@@ -1074,20 +1142,55 @@ function ProfileView({
         <div>
           <h2>{account.displayName}</h2>
           <p>{account.tagline}</p>
+          {account.bio ? <p className="profile-bio">{account.bio}</p> : null}
           <small>
             글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
           </small>
         </div>
       </div>
-      <button className="primary-button ghost" type="button" onClick={onEdit}>
-        프로필 편집
-      </button>
-      <button className="primary-button ghost" type="button" onClick={onOpenDrawer}>
-        내 서랍
-      </button>
-      <button className="profile-logout" type="button" onClick={onLogout}>
-        로그아웃
-      </button>
+      {isOwnProfile ? (
+        <>
+          <button className="primary-button ghost" type="button" onClick={onEdit}>
+            프로필 편집
+          </button>
+          <button className="primary-button ghost" type="button" onClick={onOpenDrawer}>
+            내 서랍
+          </button>
+          <button className="profile-logout" type="button" onClick={onLogout}>
+            로그아웃
+          </button>
+        </>
+      ) : (
+        <div className="profile-actions">
+          <button
+            className={isSubscribed ? "primary-button ghost" : "primary-button"}
+            type="button"
+            aria-pressed={isSubscribed}
+            onClick={() => onToggleFollow(account.id, isSubscribed)}
+          >
+            {isSubscribed ? "구독중" : "구독"}
+          </button>
+          <button className="primary-button ghost" type="button" onClick={onOpenProfile}>
+            내 프로필
+          </button>
+        </div>
+      )}
+
+      <section className="profile-posts">
+        <div className="section-head">
+          <h2>글</h2>
+          <span>{formatCount(posts.length)}개</span>
+        </div>
+        {posts.length > 0 ? (
+          <div className="masonry">
+            {posts.map((post) => (
+              <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+            ))}
+          </div>
+        ) : (
+          <p className="profile-empty">아직 공개된 글이 없어요.</p>
+        )}
+      </section>
     </section>
   );
 }

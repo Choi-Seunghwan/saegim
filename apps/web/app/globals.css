@@ -259,12 +259,25 @@ button.post-card {
 .account-chip {
   flex: 0 0 240px;
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 12px;
   background: rgba(56, 50, 63, 0.04);
   border-radius: 8px;
+}
+
+.account-chip-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .account-chip strong,
@@ -274,8 +287,8 @@ button.post-card {
   font-size: 13px;
 }
 
-.account-chip button,
-.writer-bar button,
+.account-chip > button:not(.account-chip-main),
+.writer-bar > button:not(.writer-identity),
 .tool-row button,
 .primary-button {
   min-height: 36px;
@@ -287,8 +300,8 @@ button.post-card {
   cursor: pointer;
 }
 
-.account-chip button.is-subscribed,
-.writer-bar button.is-subscribed {
+.account-chip > button:not(.account-chip-main).is-subscribed,
+.writer-bar > button:not(.writer-identity).is-subscribed {
   background: rgba(56, 50, 63, 0.1);
   color: var(--ink);
 }
@@ -429,6 +442,14 @@ button.post-card {
 .writer-bar button {
   background: transparent;
   color: var(--ink);
+}
+
+.writer-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0;
+  cursor: pointer;
 }
 
 .action-rail {
@@ -807,13 +828,18 @@ button.post-card {
 }
 
 .search-account-row {
+  width: 100%;
   display: grid;
   grid-template-columns: 38px 1fr;
   align-items: center;
   gap: 10px;
   padding: 11px;
+  border: 0;
   border-radius: 8px;
   background: rgba(56, 50, 63, 0.04);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .search-account-row strong,
@@ -879,6 +905,30 @@ button.post-card {
 .profile-head small {
   display: block;
   margin: 5px 0 0;
+}
+
+.profile-bio {
+  max-width: 280px;
+  font-family: var(--font-card);
+  line-height: 1.5;
+}
+
+.profile-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.profile-posts {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-empty {
+  margin: 0;
+  padding: 18px 2px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .tabbar {

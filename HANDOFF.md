@@ -48,6 +48,7 @@
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면의 좋아요(공개 수치)와 새김(비공개 상태) 버튼은 API 응답으로 viewerState를 갱신한다.
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면 댓글 버튼은 댓글 시트를 열고, `GET/POST /posts/:postId/comments`로 댓글 목록과 작성 흐름을 처리한다. 작성 성공 시 응답의 갱신된 글 bundle로 댓글 수를 즉시 반영한다.
 - `apps/web/src/components/SaegimShell.tsx`: 홈 추천 글벗과 발견 작성자 바의 구독 버튼은 `POST/DELETE /accounts/:accountId/follow` 응답으로 계정 `viewerState.subscribed`와 같은 작성자의 글 `viewerState.subscribed`를 함께 갱신한다.
+- `apps/web/src/components/SaegimShell.tsx`: 홈 추천 글벗·발견 작성자·검색 계정 결과를 동일 프로필 화면으로 열고, 타인 프로필에는 구독 액션과 해당 계정 글 그리드를 표시한다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭의 `내 서랍`은 `GET /drawer`로 현재 계정이 새김한 글 목록을 읽어 둘러보기 카드 그리드로 보여준다.
 - `apps/web/src/components/SaegimShell.tsx`: 상단 검색 버튼은 검색 화면을 열고, `GET /search?q=`로 계정·글 통합 결과를 표시한다. 글 결과를 누르면 해당 글을 발견 화면으로 올린다.
 - `apps/web/src/components/SaegimShell.tsx`: 로그인 게이트(로그인/회원가입/Google/게스트)를 먼저 보여주고, Google 버튼은 `/auth/google`로 이동한다. 이메일/게스트 입장 상태는 임시로 `saegim_web_entry_state` localStorage에 저장한다. 나 탭 로그아웃은 이 값을 지우고 게이트로 돌아간다. 실제 OAuth 세션 도입 시 교체한다.
