@@ -17,6 +17,9 @@ import {
 import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
+type EntryState = "gate" | "guest" | "signed-in";
+
+const ENTRY_STATE_STORAGE_KEY = "saegim_web_entry_state";
 
 const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
   { key: "home", label: "홈", icon: "⌂" },
@@ -32,6 +35,7 @@ function formatCount(value: number) {
 
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [entryState, setEntryState] = useState<EntryState>("gate");
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
   const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
   const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
@@ -46,6 +50,11 @@ export function SaegimShell() {
 
   function replacePost(post: PostBundle) {
     setPosts((currentPosts) => currentPosts.map((item) => (item.post.id === post.post.id ? post : item)));
+  }
+
+  function enterApp(nextEntryState: Exclude<EntryState, "gate">) {
+    setEntryState(nextEntryState);
+    window.localStorage.setItem(ENTRY_STATE_STORAGE_KEY, nextEntryState);
   }
 
   async function handleToggleLike(post: PostBundle) {
@@ -67,6 +76,17 @@ export function SaegimShell() {
   }
 
   useEffect(() => {
+    const savedEntryState = window.localStorage.getItem(ENTRY_STATE_STORAGE_KEY);
+    if (savedEntryState === "guest" || savedEntryState === "signed-in") {
+      setEntryState(savedEntryState);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (entryState === "gate") {
+      return;
+    }
+
     const controller = new AbortController();
 
     async function loadInitialData() {
@@ -93,7 +113,7 @@ export function SaegimShell() {
 
     void loadInitialData();
     return () => controller.abort();
-  }, []);
+  }, [entryState]);
 
   const content = useMemo(() => {
     if (activeTab === "discover") {
@@ -108,31 +128,102 @@ export function SaegimShell() {
   return (
     <main className="app-shell" aria-label="새김 앱">
       <section className="mobile-frame">
-        <header className="topbar">
-          <div className="wordmark">새김</div>
-          <button className="icon-button" type="button" aria-label="검색">
-            ⌕
-          </button>
-        </header>
+        {entryState === "gate" ? (
+          <AuthGate onEnter={enterApp} />
+        ) : (
+          <>
+            <header className="topbar">
+              <div className="wordmark">새김</div>
+              <button className="icon-button" type="button" aria-label="검색">
+                ⌕
+              </button>
+            </header>
 
-        <div className="screen">{content}</div>
+            <div className="screen">{content}</div>
 
-        <nav className="tabbar" aria-label="주요 메뉴">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              className={tab.key === activeTab ? "tab is-active" : "tab"}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              aria-label={tab.label}
-              aria-current={tab.key === activeTab ? "page" : undefined}
-            >
-              <span className="tab-icon">{tab.icon}</span>
-            </button>
-          ))}
-        </nav>
+            <nav className="tabbar" aria-label="주요 메뉴">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  className={tab.key === activeTab ? "tab is-active" : "tab"}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  aria-label={tab.label}
+                  aria-current={tab.key === activeTab ? "page" : undefined}
+                >
+                  <span className="tab-icon">{tab.icon}</span>
+                </button>
+              ))}
+            </nav>
+          </>
+        )}
       </section>
     </main>
+  );
+}
+
+function AuthGate({ onEnter }: { onEnter: (entryState: Exclude<EntryState, "gate">) => void }) {
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const submitLabel = mode === "login" ? "로그인" : "회원가입";
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onEnter("signed-in");
+  }
+
+  return (
+    <section className="auth-gate" aria-label="로그인">
+      <div className="auth-brand">
+        <div className="wordmark">새김</div>
+        <p>한 줄을 카드로 만들어, 발견하고, 마음에 새겨 간직하는 곳</p>
+      </div>
+
+      <div className="auth-mode-tabs" aria-label="인증 모드">
+        <button className={mode === "login" ? "is-active" : undefined} type="button" onClick={() => setMode("login")}>
+          로그인
+        </button>
+        <button className={mode === "signup" ? "is-active" : undefined} type="button" onClick={() => setMode("signup")}>
+          회원가입
+        </button>
+      </div>
+
+      <button className="google-button" type="button" onClick={() => onEnter("signed-in")}>
+        Google 계정으로 계속
+      </button>
+
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <label className="capture-field">
+          <span>이메일</span>
+          <input
+            autoComplete="email"
+            inputMode="email"
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="name@example.com"
+            type="email"
+            value={email}
+          />
+        </label>
+        <label className="capture-field">
+          <span>비밀번호</span>
+          <input
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="8자 이상"
+            type="password"
+            value={password}
+          />
+        </label>
+        <button className="primary-button" type="submit">
+          {submitLabel}
+        </button>
+      </form>
+
+      <button className="guest-button" type="button" onClick={() => onEnter("guest")}>
+        로그인 없이 둘러보기
+      </button>
+    </section>
   );
 }
 

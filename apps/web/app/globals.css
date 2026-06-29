@@ -91,9 +91,66 @@ button {
 .view-stack,
 .section,
 .capture-view,
-.profile-view {
+.profile-view,
+.auth-gate,
+.auth-form {
   display: grid;
   gap: 18px;
+}
+
+.auth-gate {
+  min-height: 100%;
+  align-content: center;
+  padding: 40px 22px;
+}
+
+.auth-brand {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.auth-brand .wordmark {
+  font-size: 34px;
+}
+
+.auth-brand p {
+  max-width: 280px;
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-card);
+  font-size: 18px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.auth-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.06);
+}
+
+.auth-mode-tabs button,
+.guest-button,
+.google-button {
+  min-height: 44px;
+  border-radius: 999px;
+  background: transparent;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.auth-mode-tabs button.is-active,
+.google-button {
+  background: var(--ink-strong);
+  color: #fff;
+}
+
+.guest-button {
+  color: var(--muted);
 }
 
 .banner-card {

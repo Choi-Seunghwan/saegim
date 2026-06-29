@@ -161,7 +161,7 @@
 > **개발 세션 인수인계는 `HANDOFF.md`**(빌드 요구사항·계약만, 기획 히스토리 제외 — 편향 방지).
 
 - **기술 스택(확정, 2026-06-29)**: 프론트 **Next.js(App Router)** · 백엔드 **NestJS** · DB **PostgreSQL** · 인증 **Google OAuth 우선**(심사 불필요, provider 추상화한 범용 OAuth 모듈로 설계 → 카카오·네이버 이후 추가). 프로토타입(바닐라 단일 HTML)은 **동작·디자인 레퍼런스**일 뿐, 그대로 포팅하지 말고 Next.js/NestJS 구조로 새로 구현.
-- **현재 코드 골격**: `apps/web` · `apps/api` · `packages/domain`으로 시작. `packages/domain`의 카드/글/계정 타입을 프론트 공통 계약으로 사용하고, `apps/api/prisma/schema.prisma`를 PostgreSQL 모델 계약으로 둔다. 웹은 `NEXT_PUBLIC_API_BASE_URL`로 API를 읽고, 실패 시 샘플 데이터로 유지한다. 포착 탭은 한 장짜리 글을 `POST /posts`로 발행해 발견 피드에 즉시 반영한다. 발견 화면의 좋아요/새김 버튼은 API 응답으로 `viewerState`를 갱신한다. 나 탭은 `GET /accounts/me` 현재 계정 프로필을 반영한다. API는 Prisma 저장소를 통해 PostgreSQL에 발행·좋아요·새김을 저장한다. 현재 사용자 컨텍스트는 `DEV_ACCOUNT_ID` 개발 계정 경계로 분리해 두었고, 개발 환경에서는 `x-saegim-account-id` 헤더로 계정 컨텍스트를 임시 전환할 수 있다. 웹은 `NEXT_PUBLIC_DEV_ACCOUNT_ID`가 있으면 이 헤더를 자동으로 보낸다. Google OAuth 세션 도입 시 이 경계를 실제 로그인 계정으로 교체한다.
+- **현재 코드 골격**: `apps/web` · `apps/api` · `packages/domain`으로 시작. `packages/domain`의 카드/글/계정 타입을 프론트 공통 계약으로 사용하고, `apps/api/prisma/schema.prisma`를 PostgreSQL 모델 계약으로 둔다. 웹은 로그인 게이트(로그인/회원가입/Google/게스트) 뒤에서 `NEXT_PUBLIC_API_BASE_URL`로 API를 읽고, 실패 시 샘플 데이터로 유지한다. 포착 탭은 한 장짜리 글을 `POST /posts`로 발행해 발견 피드에 즉시 반영한다. 발견 화면의 좋아요/새김 버튼은 API 응답으로 `viewerState`를 갱신한다. 나 탭은 `GET /accounts/me` 현재 계정 프로필을 반영한다. API는 Prisma 저장소를 통해 PostgreSQL에 발행·좋아요·새김을 저장한다. 현재 사용자 컨텍스트는 `DEV_ACCOUNT_ID` 개발 계정 경계로 분리해 두었고, 개발 환경에서는 `x-saegim-account-id` 헤더로 계정 컨텍스트를 임시 전환할 수 있다. 웹은 `NEXT_PUBLIC_DEV_ACCOUNT_ID`가 있으면 이 헤더를 자동으로 보낸다. Google OAuth 세션 도입 시 이 경계를 실제 로그인 계정으로 교체한다.
 
 ### 14.1 화면 라우팅 (app.html · 해시 딥링크)
 
@@ -196,6 +196,7 @@
 - 현재 API 계약: `GET /feed` · `GET /shelf` · `GET /posts/:postId` · `GET /accounts/me` · `GET /accounts/recommended` · `POST /posts` · `POST/DELETE /posts/:postId/like` · `POST/DELETE /posts/:postId/carve`(PostgreSQL 저장, 시드는 서버 시작 시 idempotent 보강).
 - 현재 사용자 계정 경계: `apps/api/src/auth`의 개발용 현재 계정 서비스가 `DEV_ACCOUNT_ID`(기본 `acct-me`)를 반환한다. 개발 환경에서는 `x-saegim-account-id` 헤더를 계정 힌트로 받아 좋아요/새김/추천 제외 상태를 계정별로 검증한다. OAuth/session 연결 시 콘텐츠 저장소가 이 경계를 통해 실제 계정을 받도록 교체한다.
 - 웹 개발 계정 힌트: `NEXT_PUBLIC_DEV_ACCOUNT_ID`를 설정하면 웹 API 클라이언트가 개발 환경에서만 `x-saegim-account-id`를 자동 첨부한다.
+- 웹 로그인 게이트: 실서비스 골격에서는 `saegim_web_entry_state` localStorage로 로그인/게스트 입장 상태만 임시 저장한다. 실제 Google OAuth 세션이 붙으면 이 임시 플래그를 제거한다.
 
 ### 14.7 재사용 컴포넌트
 
@@ -219,6 +220,7 @@
 - 2026-06-29 — **현재 계정 조회 API 추가**: `GET /accounts/me`를 추가해 현재 계정 프로필(닉네임·한줄 소개글·인증·글 수·글벗 수)을 API로 조회할 수 있게 함. `DEV_ACCOUNT_ID`/`x-saegim-account-id` 계정 컨텍스트를 그대로 사용해 이후 로그인 게이트·내 프로필 화면 연결의 기준점으로 둠.
 - 2026-06-29 — **웹 나 탭 현재 계정 API 연결**: 웹 API 클라이언트에 `fetchCurrentAccount()` 추가. `SaegimShell` 초기 로드가 `/feed`·`/accounts/recommended`·`/accounts/me`를 함께 읽고, 나 탭 프로필 표시(아바타 첫 글자·닉네임·한줄 소개글·글 수·글벗 수)를 현재 계정 응답으로 갱신하도록 연결. API 실패 시 기존 샘플 프로필 유지.
 - 2026-06-29 — **웹 개발용 계정 헤더 옵션 추가**: `NEXT_PUBLIC_DEV_ACCOUNT_ID`가 설정된 개발 환경에서 웹 API 클라이언트가 모든 API 요청에 `x-saegim-account-id`를 자동 첨부하도록 연결. OAuth 전에도 브라우저에서 계정별 좋아요·새김·추천 제외·나 탭 프로필을 확인할 수 있게 함. `.env.example`/README/HANDOFF 갱신.
+- 2026-06-29 — **웹 로그인 게이트 최소 구현**: Next 웹 셸 첫 진입에 로그인/회원가입 토글, Google 계정 버튼, 이메일·비밀번호 입력, `로그인 없이 둘러보기` 게이트를 추가. 입장 상태는 OAuth 전 임시로 `saegim_web_entry_state` localStorage에 저장하고, 게이트 통과 후에만 `/feed`·`/accounts/recommended`·`/accounts/me` 초기 로드를 수행하도록 변경. 실제 Google OAuth 세션 도입 시 교체 예정.
 - 2026-06-29 — **좋아요·새김 액션 API 연결**: Nest API에 `POST/DELETE /posts/:postId/like`, `POST/DELETE /posts/:postId/carve` 추가. 좋아요는 `viewerState.liked`와 공개 `likeCount`를 함께 갱신하고, 새김은 수치 없이 `viewerState.carved`만 갱신. 웹 발견 화면 액션 레일이 API 응답으로 해당 글 bundle을 교체하도록 연결하고, 좋아요/댓글 수를 작은 카운터로 표시. `pnpm typecheck` 통과, 브라우저에서 발견 탭 좋아요 1,842→1,843→1,842 및 새김/새김 취소 상태 전환 확인.
 - 2026-06-29 — **포착 발행 API 1차 연결**: `packages/domain`에 `CreatePostInput` 계약 추가. Nest API에 `POST /posts` 추가(입력 검증, 제목 자동 생성, 태그 0~3 정규화, 기본 `comp` 보강, 현재 계정 `acct-me` 작성자로 런타임 메모리 저장). 웹 포착 탭을 한 장짜리 글 작성 폼으로 바꾸고 `createPost()` 성공 시 피드 상태 prepend + 발견 탭 이동. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 포착→발행→발견 반영 및 `/feed` 응답 prepend 확인.
 - 2026-06-29 — **웹 초기 화면 API 연동**: `apps/web/src/lib/api.ts` 추가. `NEXT_PUBLIC_API_BASE_URL`(기본 `http://127.0.0.1:4000`) 기준으로 `/feed`, `/accounts/recommended`를 읽고, `SaegimShell`이 홈/발견/둘러보기/추천 글벗 데이터를 API 응답으로 갱신하도록 연결. API가 꺼져 있거나 요청 실패 시 기존 샘플 데이터로 첫 화면 유지. API CORS 기본 허용 origin을 `127.0.0.1:3000`/`localhost:3000`로 맞춤. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 API 응답(`무월`, `천천히 남는 말`) 반영 확인.
