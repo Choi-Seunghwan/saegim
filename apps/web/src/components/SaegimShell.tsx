@@ -308,6 +308,14 @@ function MoreIcon() {
   );
 }
 
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
 function Avatar({
   displayName,
   photoUrl,
@@ -371,15 +379,16 @@ export function SaegimShell() {
   const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
     sampleAccounts.find((account) => account.id === "acct-me") ?? sampleAccounts[0]!
   );
-  const featuredPost = posts[0] ?? samplePosts[0]!;
+  const displayPostsForUi = mergeUniquePosts(posts, samplePosts);
+  const featuredPost = displayPostsForUi[0] ?? samplePosts[0]!;
   const activePost = posts.find((post) => post.post.id === activePostId) ?? featuredPost;
   const selectedProfile =
     selectedProfileId === currentAccount.id
       ? currentAccount
       : accounts.find((account) => account.id === selectedProfileId) ??
-        posts.find((post) => post.author.id === selectedProfileId)?.author ??
+        displayPostsForUi.find((post) => post.author.id === selectedProfileId)?.author ??
         currentAccount;
-  const selectedProfilePosts = posts.filter((post) => post.author.id === selectedProfile.id);
+  const selectedProfilePosts = displayPostsForUi.filter((post) => post.author.id === selectedProfile.id);
   const isOwnProfile = selectedProfile.id === currentAccount.id;
   const infoSheetPost = infoSheet ? posts.find((post) => post.post.id === infoSheet.postId) : null;
   const infoSheetCardIndex = infoSheetPost
@@ -397,7 +406,13 @@ export function SaegimShell() {
     isViewingNoticeList ||
     Boolean(editorialPageState);
   const isDiscoverMode = activeTab === "discover" && !isFullPage;
-  const frameClassName = ["mobile-frame", isDiscoverMode ? "is-discover" : "", isFullPage ? "is-full" : ""]
+  const isProfileTab = activeTab === "me" && !isFullPage;
+  const frameClassName = [
+    "mobile-frame",
+    isDiscoverMode ? "is-discover" : "",
+    isFullPage ? "is-full" : "",
+    isProfileTab ? "is-profile" : ""
+  ]
     .filter(Boolean)
     .join(" ");
   const topbar = activeTab === "discover" ? topbarCopy.home : topbarCopy[activeTab];
@@ -840,6 +855,7 @@ export function SaegimShell() {
     isOwnProfile,
     noticePages,
     posts,
+    displayPostsForUi,
     selectedEditorialPage,
     selectedProfile,
     selectedProfilePosts
@@ -852,7 +868,7 @@ export function SaegimShell() {
           <AuthGate onEnter={enterApp} onGoogleLogin={startGoogleOAuth} />
         ) : (
           <>
-            {isDiscoverMode || isFullPage ? null : (
+            {isDiscoverMode || isFullPage || isProfileTab ? null : (
               <header className="topbar">
                 <div>
                   <div className={activeTab === "home" ? "wordmark brand" : "wordmark"}>{topbar.title}</div>
@@ -1026,10 +1042,34 @@ function SearchView({
   onOpenProfile: (account: AccountProfile) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [segment, setSegment] = useState<"all" | "accounts" | "posts">("all");
   const [accounts, setAccounts] = useState<AccountProfile[]>([]);
   const [posts, setPosts] = useState<PostBundle[]>([]);
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [error, setError] = useState("");
+  const cleanQuery = query.trim();
+  const lowerQuery = cleanQuery.toLowerCase();
+  const recentQueries = ["윤동주", "위로", "밤"];
+  const fallbackAccounts = cleanQuery
+    ? sampleAccounts.filter((account) =>
+        `${account.displayName} ${account.handle} ${account.tagline} ${account.bio ?? ""}`.toLowerCase().includes(lowerQuery)
+      )
+    : [];
+  const fallbackPosts = cleanQuery
+    ? samplePosts.filter((post) =>
+        `${post.post.title} ${post.author.displayName} ${post.cards
+          .map((card) => `${card.text} ${card.tags.join(" ")}`)
+          .join(" ")}`.toLowerCase().includes(lowerQuery)
+      )
+    : [];
+  const resultAccounts = cleanQuery ? mergeUniqueAccounts(accounts, fallbackAccounts) : accounts;
+  const resultPosts = cleanQuery ? mergeUniquePosts(posts, fallbackPosts) : posts;
+  const suggestedPosts = mergeUniquePosts(posts, samplePosts)
+    .slice()
+    .sort((a, b) => (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0))
+    .slice(0, 4);
+  const visibleAccounts = segment === "posts" ? [] : resultAccounts;
+  const visiblePosts = segment === "accounts" ? [] : resultPosts;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1054,7 +1094,7 @@ function SearchView({
     return () => controller.abort();
   }, [query]);
 
-  const isEmpty = status !== "loading" && accounts.length === 0 && posts.length === 0;
+  const isEmpty = cleanQuery.length > 0 && status !== "loading" && visibleAccounts.length === 0 && visiblePosts.length === 0;
 
   return (
     <section className="search-view">
@@ -1063,21 +1103,64 @@ function SearchView({
           ←
         </button>
         <label className="search-input">
-          <span>검색</span>
+          <SearchIcon />
           <input
             autoFocus
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="계정·글 검색"
+            placeholder="계정 · 글 검색"
             value={query}
           />
+          {query ? (
+            <button type="button" onClick={() => setQuery("")} aria-label="검색어 지우기">
+              ×
+            </button>
+          ) : null}
         </label>
       </div>
 
-      {accounts.length > 0 ? (
+      {cleanQuery ? (
+        <div className="search-segments" aria-label="검색 결과 종류">
+          {[
+            ["all", "전체"],
+            ["accounts", "계정"],
+            ["posts", "글"]
+          ].map(([key, label]) => (
+            <button
+              className={segment === key ? "is-active" : undefined}
+              key={key}
+              type="button"
+              onClick={() => setSegment(key as "all" | "accounts" | "posts")}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {!cleanQuery ? (
+        <section className="search-suggest">
+          <div className="search-label">최근 검색</div>
+          <div className="search-chip-row">
+            {recentQueries.map((item) => (
+              <button key={item} type="button" onClick={() => setQuery(item)}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <div className="search-label">인기 있는 글</div>
+          <div className="masonry">
+            {suggestedPosts.map((post) => (
+              <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {cleanQuery && visibleAccounts.length > 0 ? (
         <section className="search-section">
           <h2>계정</h2>
           <div className="search-account-list">
-            {accounts.map((account) => (
+            {visibleAccounts.map((account) => (
               <button
                 className="search-account-row"
                 key={account.id}
@@ -1100,20 +1183,20 @@ function SearchView({
         </section>
       ) : null}
 
-      {posts.length > 0 ? (
+      {cleanQuery && visiblePosts.length > 0 ? (
         <section className="search-section">
           <h2>글</h2>
           <div className="masonry">
-            {posts.map((post) => (
+            {visiblePosts.map((post) => (
               <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
             ))}
           </div>
         </section>
       ) : null}
 
-      {status === "loading" ? <p className="search-empty">찾는 중</p> : null}
-      {isEmpty ? <p className="search-empty">아직 맞는 결과가 없어요.</p> : null}
-      {error ? <p className="search-empty">{error}</p> : null}
+      {cleanQuery && status === "loading" ? <p className="search-empty">찾는 중</p> : null}
+      {isEmpty ? <p className="search-empty">‘{cleanQuery}’에 대한 결과가 없어요.</p> : null}
+      {error && visibleAccounts.length === 0 && visiblePosts.length === 0 ? <p className="search-empty">{error}</p> : null}
     </section>
   );
 }
@@ -1857,14 +1940,54 @@ function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void 
 }
 
 function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (post: PostBundle) => void }) {
+  const [sortMode, setSortMode] = useState<"popular" | "new">("popular");
+  const displayPosts = mergeUniquePosts(posts, samplePosts);
+  const heroPost = displayPosts
+    .slice()
+    .sort((a, b) => (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0))[0]!;
+  const heroCard = heroPost.cards[0]!;
+  const sortedPosts = displayPosts.slice().sort((a, b) => {
+    if (sortMode === "popular") {
+      return (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0);
+    }
+
+    return Date.parse(b.post.createdAt) - Date.parse(a.post.createdAt);
+  });
+
   return (
-    <section className="section">
-      <div className="section-head">
-        <h2>둘러보기</h2>
-        <span>인기</span>
+    <section className="shelf-view">
+      <button className="shelf-hero" type="button" onClick={() => onOpenPost(heroPost)} style={cardSurfaceStyle(heroCard)}>
+        <div className="tag">✦ 에디터 픽 · 오늘의 글</div>
+        <div className="htt">{heroPost.post.title}</div>
+        <div className="hq">{heroCard.text}</div>
+        <div className="hm">
+          {heroPost.post.cardCount}장 · ♡ {formatCount(heroPost.viewerState?.likeCount ?? 0)} ·{" "}
+          <AccountName account={heroPost.author} />
+        </div>
+      </button>
+      <div className="shelf-bar">
+        <div className="shelf-seclabel">
+          <span>글 둘러보기</span>
+          <div className="shelf-sort" aria-label="둘러보기 정렬">
+            <button
+              className={sortMode === "popular" ? "is-active" : undefined}
+              type="button"
+              onClick={() => setSortMode("popular")}
+            >
+              인기순
+            </button>
+            <button
+              className={sortMode === "new" ? "is-active" : undefined}
+              type="button"
+              onClick={() => setSortMode("new")}
+            >
+              최신순
+            </button>
+          </div>
+        </div>
       </div>
-      <div className="masonry">
-        {posts.map((post) => (
+      <div className="shelf-grid masonry">
+        {sortedPosts.map((post) => (
           <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
         ))}
       </div>
@@ -2029,12 +2152,15 @@ function SettingsView({
       <button className="settings-logout" type="button" onClick={onLogout}>
         로그아웃
       </button>
+      <p className="settings-version">새김 · 버전 1.0.0 (MVP)</p>
     </section>
   );
 }
 
 function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (post: PostBundle) => void }) {
   const [drawerPosts, setDrawerPosts] = useState<PostBundle[]>([]);
+  const [query, setQuery] = useState("");
+  const [sortMode, setSortMode] = useState<"recent" | "author">("recent");
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [error, setError] = useState("");
 
@@ -2060,6 +2186,23 @@ function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (p
     return () => controller.abort();
   }, []);
 
+  const visiblePosts = drawerPosts
+    .filter((post) => {
+      const cleanQuery = query.trim().toLowerCase();
+      if (!cleanQuery) return true;
+
+      return `${post.post.title} ${post.author.displayName} ${post.cards.map((card) => card.text).join(" ")}`
+        .toLowerCase()
+        .includes(cleanQuery);
+    })
+    .sort((a, b) => {
+      if (sortMode === "author") {
+        return a.author.displayName.localeCompare(b.author.displayName, "ko");
+      }
+
+      return Date.parse(b.post.updatedAt) - Date.parse(a.post.updatedAt);
+    });
+
   return (
     <section className="drawer-view">
       <div className="drawer-head">
@@ -2072,14 +2215,45 @@ function DrawerView({ onBack, onOpenPost }: { onBack: () => void; onOpenPost: (p
         </div>
       </div>
 
+      <div className="drawer-tools">
+        <label className="drawer-search">
+          <SearchIcon />
+          <input
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="새긴 글 찾기"
+            type="search"
+            value={query}
+          />
+        </label>
+        <div className="drawer-sort" aria-label="서랍 정렬">
+          <button
+            className={sortMode === "recent" ? "is-active" : undefined}
+            type="button"
+            onClick={() => setSortMode("recent")}
+          >
+            최신
+          </button>
+          <button
+            className={sortMode === "author" ? "is-active" : undefined}
+            type="button"
+            onClick={() => setSortMode("author")}
+          >
+            작가
+          </button>
+        </div>
+      </div>
+
       {status === "loading" ? <p className="drawer-empty">불러오는 중</p> : null}
       {status !== "loading" && drawerPosts.length === 0 ? (
         <p className="drawer-empty">아직 간직한 글이 없어요.</p>
       ) : null}
+      {status !== "loading" && drawerPosts.length > 0 && visiblePosts.length === 0 ? (
+        <p className="drawer-empty">검색에 맞는 글이 없어요.</p>
+      ) : null}
       {error ? <p className="drawer-empty">{error}</p> : null}
-      {drawerPosts.length > 0 ? (
+      {visiblePosts.length > 0 ? (
         <div className="masonry">
-          {drawerPosts.map((post) => (
+          {visiblePosts.map((post) => (
             <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
           ))}
         </div>
@@ -2108,51 +2282,58 @@ function ProfileView({
   posts: PostBundle[];
 }) {
   const isSubscribed = account.viewerState?.subscribed ?? false;
+  const shelfTitle = isOwnProfile ? "내 글" : `${account.displayName}의 글`;
 
   return (
     <section className="profile-view">
+      <div className="profile-top">
+        {isOwnProfile ? (
+          <span aria-hidden="true" />
+        ) : (
+          <button className="profile-icon-button" type="button" onClick={onOpenProfile} aria-label="내 프로필로 돌아가기">
+            ←
+          </button>
+        )}
+        {isOwnProfile ? (
+          <button className="profile-icon-button" type="button" onClick={onOpenSettings} aria-label="설정">
+            <MenuIcon />
+          </button>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+      </div>
       <div className="profile-head">
         <Avatar displayName={account.displayName} photoUrl={account.photoUrl} size="large" />
-        <div>
+        <div className="profile-meta">
           <h2>
             <AccountName account={account} />
           </h2>
           <p>{account.tagline}</p>
-          {account.bio ? <p className="profile-bio">{account.bio}</p> : null}
           <small>
             글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
           </small>
         </div>
-      </div>
-      {isOwnProfile ? (
-        <>
-          <button className="primary-button ghost" type="button" onClick={onEdit}>
+        {isOwnProfile ? (
+          <button className="profile-sub ghost" type="button" onClick={onEdit}>
             프로필 편집
           </button>
-          <button className="primary-button ghost" type="button" onClick={onOpenSettings}>
-            설정
-          </button>
-        </>
-      ) : (
-        <div className="profile-actions">
+        ) : (
           <button
-            className={isSubscribed ? "primary-button ghost" : "primary-button"}
+            className={isSubscribed ? "profile-sub is-subscribed" : "profile-sub"}
             type="button"
             aria-pressed={isSubscribed}
             onClick={() => onToggleFollow(account.id, isSubscribed)}
           >
             {isSubscribed ? "구독중" : "구독"}
           </button>
-          <button className="primary-button ghost" type="button" onClick={onOpenProfile}>
-            내 프로필
-          </button>
-        </div>
-      )}
+        )}
+      </div>
+      {account.bio && account.bio !== account.tagline ? <div className="profile-bio">{account.bio}</div> : null}
 
       <section className="profile-posts">
-        <div className="section-head">
-          <h2>글</h2>
-          <span>{formatCount(posts.length)}개</span>
+        <div className="profile-shelf-head">
+          <h2>{shelfTitle}</h2>
+          <span>글 {formatCount(posts.length)}</span>
         </div>
         {posts.length > 0 ? (
           <div className="masonry">
