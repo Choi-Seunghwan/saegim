@@ -1327,20 +1327,47 @@ function CommentSheet({
 }
 
 function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void }) {
-  const [sentence, setSentence] = useState("");
+  const [cards, setCards] = useState([""]);
+  const [activeDraftIndex, setActiveDraftIndex] = useState(0);
   const [title, setTitle] = useState("");
   const [sourceAuthor, setSourceAuthor] = useState("");
   const [sourceWork, setSourceWork] = useState("");
   const [tags, setTags] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState("");
-  const canPublish = sentence.trim().length > 0 && status !== "submitting";
+  const activeSentence = cards[activeDraftIndex] ?? "";
+  const canPublish = cards.some((card) => card.trim().length > 0) && status !== "submitting";
+
+  function updateActiveSentence(value: string) {
+    setCards((currentCards) => currentCards.map((card, index) => (index === activeDraftIndex ? value : card)));
+  }
+
+  function addDraftCard() {
+    setCards((currentCards) => [...currentCards, ""]);
+    setActiveDraftIndex(cards.length);
+    setError("");
+  }
+
+  function removeDraftCard() {
+    if (cards.length <= 1) {
+      return;
+    }
+
+    if (!window.confirm("이 장을 삭제할까요?")) {
+      return;
+    }
+
+    const nextCards = cards.filter((_, index) => index !== activeDraftIndex);
+    setCards(nextCards);
+    setActiveDraftIndex(Math.min(activeDraftIndex, nextCards.length - 1));
+    setError("");
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const cleanText = sentence.trim();
-    if (!cleanText) {
+    const cleanCards = cards.map((card) => card.trim()).filter(Boolean);
+    if (cleanCards.length === 0) {
       setError("문장을 먼저 적어 주세요.");
       return;
     }
@@ -1356,18 +1383,16 @@ function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void 
     const input: CreatePostInput = {
       visibility: "public",
       creationType: "original",
-      cards: [
-        {
-          text: cleanText,
-          comp: DEFAULT_CARD_COMP,
-          source: {
-            kind: "direct",
-            ...(cleanAuthor ? { author: cleanAuthor } : {}),
-            ...(cleanWork ? { work: cleanWork } : {})
-          },
-          tags: tagList
-        }
-      ]
+      cards: cleanCards.map((text) => ({
+        text,
+        comp: DEFAULT_CARD_COMP,
+        source: {
+          kind: "direct",
+          ...(cleanAuthor ? { author: cleanAuthor } : {}),
+          ...(cleanWork ? { work: cleanWork } : {})
+        },
+        tags: tagList
+      }))
     };
 
     if (cleanTitle) {
@@ -1378,7 +1403,8 @@ function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void 
       setStatus("submitting");
       setError("");
       const publishedPost = await createPost(input);
-      setSentence("");
+      setCards([""]);
+      setActiveDraftIndex(0);
       setTitle("");
       setSourceAuthor("");
       setSourceWork("");
@@ -1392,12 +1418,54 @@ function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void 
 
   return (
     <form className="capture-view" onSubmit={handleSubmit}>
+      <div className="capture-pagebar" aria-label="장 관리">
+        <button
+          type="button"
+          onClick={() => setActiveDraftIndex(Math.max(activeDraftIndex - 1, 0))}
+          disabled={activeDraftIndex === 0}
+          aria-label="이전 장"
+        >
+          ←
+        </button>
+        <span>
+          {activeDraftIndex + 1}/{cards.length}장
+        </span>
+        <button
+          type="button"
+          onClick={() => setActiveDraftIndex(Math.min(activeDraftIndex + 1, cards.length - 1))}
+          disabled={activeDraftIndex === cards.length - 1}
+          aria-label="다음 장"
+        >
+          →
+        </button>
+        <button type="button" onClick={addDraftCard}>
+          + 장
+        </button>
+        <button type="button" onClick={removeDraftCard} disabled={cards.length <= 1}>
+          삭제
+        </button>
+      </div>
+
+      <div className="capture-page-tabs" aria-label="장 목록">
+        {cards.map((card, index) => (
+          <button
+            className={index === activeDraftIndex ? "is-active" : undefined}
+            key={index}
+            type="button"
+            onClick={() => setActiveDraftIndex(index)}
+          >
+            <span>{index + 1}장</span>
+            <small>{card.trim() ? "작성됨" : "비어 있음"}</small>
+          </button>
+        ))}
+      </div>
+
       <div className="sentence-card editable capture-card">
         <textarea
-          aria-label="문장"
-          value={sentence}
-          onChange={(event) => setSentence(event.target.value)}
-          placeholder="탭하여 문장 쓰기"
+          aria-label={`${activeDraftIndex + 1}장 문장`}
+          value={activeSentence}
+          onChange={(event) => updateActiveSentence(event.target.value)}
+          placeholder={`${activeDraftIndex + 1}장 문장 쓰기`}
           maxLength={240}
         />
       </div>

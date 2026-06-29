@@ -61,7 +61,7 @@ API 기본 조회 계약:
 - `POST /posts/:postId/like` / `DELETE /posts/:postId/like`
 - `POST /posts/:postId/carve` / `DELETE /posts/:postId/carve`
 
-웹은 `NEXT_PUBLIC_API_BASE_URL`을 기준으로 위 API를 읽고, API가 꺼져 있으면 로컬 샘플 데이터로 첫 화면을 유지한다. 포착 탭은 한 장짜리 글을 `POST /posts`로 발행하고 성공 시 발견 피드로 이동한다.
+웹은 `NEXT_PUBLIC_API_BASE_URL`을 기준으로 위 API를 읽고, API가 꺼져 있으면 로컬 샘플 데이터로 첫 화면을 유지한다. 포착 탭은 1~N장 글을 `POST /posts`로 발행하고 성공 시 발견 피드로 이동한다.
 
 API의 현재 계정은 Google OAuth 세션 쿠키(`saegim_session`)로 해석한다. 개발 환경에서는 요청 헤더 `x-saegim-account-id`로 현재 계정을 임시 전환할 수 있고, 웹은 `NEXT_PUBLIC_DEV_ACCOUNT_ID`가 있으면 이 헤더를 자동으로 붙인다. 세션도 개발 헤더도 없으면 개발 기본값 `DEV_ACCOUNT_ID`를 사용하며, 운영 환경에서는 세션이 없으면 인증 오류를 반환한다.
 
