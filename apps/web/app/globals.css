@@ -306,6 +306,35 @@ button.post-card {
   color: var(--ink);
 }
 
+.account-name {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  vertical-align: -2px;
+}
+
+.account-name > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-name .official-mark {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--ink-strong);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .news-rail {
   display: flex;
   gap: 10px;
@@ -386,6 +415,13 @@ button.post-card {
   width: 30px;
   height: 30px;
   font-size: 12px;
+}
+
+.avatar.tab {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+  box-shadow: 0 0 0 1px rgba(56, 50, 63, 0.16);
 }
 
 .discover-view {
@@ -510,6 +546,14 @@ button.post-card {
   gap: 9px;
   padding: 0;
   cursor: pointer;
+}
+
+.writer-identity strong {
+  min-width: 0;
+}
+
+.writer-identity .account-name {
+  max-width: 116px;
 }
 
 .action-rail {
@@ -1368,6 +1412,10 @@ button.post-card {
 .tab.is-active {
   background: var(--ink-strong);
   color: #fff;
+}
+
+.tab.is-active .avatar.tab {
+  box-shadow: 0 0 0 2px #fff;
 }
 
 @media (max-width: 520px) {

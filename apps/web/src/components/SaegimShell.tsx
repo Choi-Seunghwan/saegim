@@ -145,7 +145,7 @@ function Avatar({
 }: {
   displayName: string;
   photoUrl?: string | null | undefined;
-  size?: "large" | "mini";
+  size?: "large" | "mini" | "tab";
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const cleanPhotoUrl = photoUrl?.trim();
@@ -160,6 +160,25 @@ function Avatar({
     <div className={size ? `avatar ${size}` : "avatar"}>
       {showImage ? <img src={cleanPhotoUrl} alt="" onError={() => setImageFailed(true)} /> : initial}
     </div>
+  );
+}
+
+function OfficialMark({ verification }: { verification: AccountProfile["verification"] }) {
+  if (verification !== "official") return null;
+
+  return (
+    <span className="official-mark" aria-label="공식 계정" title="공식 계정">
+      ✓
+    </span>
+  );
+}
+
+function AccountName({ account }: { account: AccountProfile }) {
+  return (
+    <span className="account-name">
+      <span>{account.displayName}</span>
+      <OfficialMark verification={account.verification} />
+    </span>
   );
 }
 
@@ -700,7 +719,11 @@ export function SaegimShell() {
                     aria-label={tab.label}
                     aria-current={tab.key === activeTab ? "page" : undefined}
                   >
-                    <span className="tab-icon">{tab.icon}</span>
+                    {tab.key === "me" ? (
+                      <Avatar displayName={currentAccount.displayName} photoUrl={currentAccount.photoUrl} size="tab" />
+                    ) : (
+                      <span className="tab-icon">{tab.icon}</span>
+                    )}
                   </button>
                 ))}
               </nav>
@@ -853,7 +876,9 @@ function SearchView({
               >
                 <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
                 <div>
-                  <strong>{account.displayName}</strong>
+                  <strong>
+                    <AccountName account={account} />
+                  </strong>
                   <p>{account.tagline}</p>
                   <small>
                     글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
@@ -963,7 +988,9 @@ function HomeView({
                 <button className="account-chip-main" type="button" onClick={() => onOpenProfile(account)}>
                   <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
                   <div>
-                    <strong>{account.displayName}</strong>
+                    <strong>
+                      <AccountName account={account} />
+                    </strong>
                     <p>{account.tagline}</p>
                   </div>
                 </button>
@@ -1112,7 +1139,9 @@ function DiscoverView({
       <div className="writer-bar">
         <button className="writer-identity" type="button" onClick={() => onOpenProfile(post.author)}>
           <Avatar displayName={post.author.displayName} photoUrl={post.author.photoUrl} />
-          <strong>{post.author.displayName}</strong>
+          <strong>
+            <AccountName account={post.author} />
+          </strong>
         </button>
         {isOwnPost ? null : (
           <button
@@ -1188,7 +1217,9 @@ function PostInfoSheet({
           <Avatar displayName={post.author.displayName} photoUrl={post.author.photoUrl} size="mini" />
           <div>
             <strong>{post.post.title}</strong>
-            <span>{post.author.displayName}</span>
+            <span>
+              <AccountName account={post.author} />
+            </span>
           </div>
         </div>
 
@@ -1307,7 +1338,9 @@ function CommentSheet({
               <Avatar displayName={comment.author.displayName} photoUrl={comment.author.photoUrl} size="mini" />
               <div>
                 <header>
-                  <strong>{comment.author.displayName}</strong>
+                  <strong>
+                    <AccountName account={comment.author} />
+                  </strong>
                   <time dateTime={comment.createdAt}>{formatCommentDate(comment.createdAt)}</time>
                 </header>
                 <p>{comment.body}</p>
@@ -1767,7 +1800,9 @@ function ProfileView({
       <div className="profile-head">
         <Avatar displayName={account.displayName} photoUrl={account.photoUrl} size="large" />
         <div>
-          <h2>{account.displayName}</h2>
+          <h2>
+            <AccountName account={account} />
+          </h2>
           <p>{account.tagline}</p>
           {account.bio ? <p className="profile-bio">{account.bio}</p> : null}
           <small>
