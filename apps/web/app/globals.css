@@ -535,6 +535,130 @@ button.post-card {
   cursor: pointer;
 }
 
+.info-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 22px;
+  border-radius: 18px 18px 0 0;
+  background: var(--paper);
+  box-shadow: 0 -20px 60px -44px rgba(53, 48, 57, 0.72);
+}
+
+.info-sheet-head,
+.info-summary,
+.info-actions button {
+  display: flex;
+  align-items: center;
+}
+
+.info-sheet-head {
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.info-sheet-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.info-sheet-head strong {
+  font-size: 17px;
+}
+
+.info-sheet-head span,
+.info-summary span,
+.info-field span,
+.info-field small,
+.info-actions small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.info-sheet-head button {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.07);
+  cursor: pointer;
+}
+
+.info-summary {
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(56, 50, 63, 0.06);
+}
+
+.info-summary div:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.info-summary strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.info-field {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(56, 50, 63, 0.045);
+}
+
+.info-field strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.info-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.info-tags small {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.08);
+  color: var(--ink);
+}
+
+.info-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.info-actions button {
+  min-height: 42px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: rgba(56, 50, 63, 0.06);
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.info-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .comment-list {
   min-height: 120px;
   overflow: auto;

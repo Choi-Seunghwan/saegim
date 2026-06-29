@@ -29,6 +29,7 @@ import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
 type EntryState = "gate" | "guest" | "signed-in";
+type InfoSheetState = { postId: string; cardIndex: number };
 
 const ENTRY_STATE_STORAGE_KEY = "saegim_web_entry_state";
 
@@ -51,6 +52,28 @@ function formatCommentDate(value: string) {
   }).format(new Date(value));
 }
 
+function sourceKindLabel(kind: PostBundle["cards"][number]["source"]["kind"]) {
+  if (kind === "book") return "책";
+  if (kind === "web") return "웹";
+  if (kind === "publisher") return "출판사";
+  return "직접 새김";
+}
+
+function formatSource(source: PostBundle["cards"][number]["source"]) {
+  const author = source.author?.trim();
+  const work = source.work?.trim();
+
+  if (work && work !== "직접 새김") {
+    return author ? `『${work}』 · ${author}` : `『${work}』`;
+  }
+
+  if (author) {
+    return `${author}의 직접 새김`;
+  }
+
+  return work || "직접 새김";
+}
+
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [entryState, setEntryState] = useState<EntryState>("gate");
@@ -58,6 +81,7 @@ export function SaegimShell() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
+  const [infoSheet, setInfoSheet] = useState<InfoSheetState | null>(null);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -76,6 +100,10 @@ export function SaegimShell() {
         currentAccount;
   const selectedProfilePosts = posts.filter((post) => post.author.id === selectedProfile.id);
   const isOwnProfile = selectedProfile.id === currentAccount.id;
+  const infoSheetPost = infoSheet ? posts.find((post) => post.post.id === infoSheet.postId) : null;
+  const infoSheetCardIndex = infoSheetPost
+    ? Math.min(infoSheet?.cardIndex ?? 0, Math.max(infoSheetPost.cards.length - 1, 0))
+    : 0;
   const activePostIndex = Math.max(
     0,
     posts.findIndex((post) => post.post.id === activePost.post.id)
@@ -86,6 +114,7 @@ export function SaegimShell() {
     setActivePostId(post.post.id);
     setActiveCardIndex(0);
     setIsSearching(false);
+    setInfoSheet(null);
     setActiveTab("discover");
   }
 
@@ -152,6 +181,7 @@ export function SaegimShell() {
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setCommentPost(null);
+    setInfoSheet(null);
     setSelectedProfileId(currentAccount.id);
     setEntryState("gate");
     window.localStorage.removeItem(ENTRY_STATE_STORAGE_KEY);
@@ -161,6 +191,7 @@ export function SaegimShell() {
     setActiveTab(tab);
     setIsSearching(false);
     setCommentPost(null);
+    setInfoSheet(null);
 
     if (tab === "discover") {
       setActivePostId((currentPostId) => currentPostId ?? featuredPost.post.id);
@@ -228,6 +259,7 @@ export function SaegimShell() {
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setCommentPost(null);
+    setInfoSheet(null);
     setActiveTab("discover");
   }
 
@@ -238,6 +270,7 @@ export function SaegimShell() {
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setCommentPost(null);
+    setInfoSheet(null);
     setActiveTab("me");
 
     try {
@@ -260,10 +293,16 @@ export function SaegimShell() {
     setActivePostId(nextPost.post.id);
     setActiveCardIndex(0);
     setCommentPost(null);
+    setInfoSheet(null);
   }
 
   function selectCard(index: number) {
     setActiveCardIndex(Math.min(Math.max(index, 0), activePost.cards.length - 1));
+  }
+
+  function openInfoSheet(post: PostBundle, cardIndex: number) {
+    setCommentPost(null);
+    setInfoSheet({ postId: post.post.id, cardIndex });
   }
 
   useEffect(() => {
@@ -347,7 +386,11 @@ export function SaegimShell() {
           onPreviousPost={() => movePost(-1)}
           onSelectCard={selectCard}
           onToggleCarve={handleToggleCarve}
-          onOpenComments={setCommentPost}
+          onOpenComments={(post) => {
+            setInfoSheet(null);
+            setCommentPost(post);
+          }}
+          onOpenInfo={openInfoSheet}
           onOpenProfile={openProfile}
           onToggleFollow={handleToggleFollow}
           onToggleLike={handleToggleLike}
@@ -422,6 +465,7 @@ export function SaegimShell() {
                 aria-label="검색"
                 onClick={() => {
                   setCommentPost(null);
+                  setInfoSheet(null);
                   setIsSearching(true);
                 }}
               >
@@ -433,6 +477,14 @@ export function SaegimShell() {
 
             {commentPost ? (
               <CommentSheet post={commentPost} onClose={() => setCommentPost(null)} onPostChange={replacePost} />
+            ) : null}
+
+            {infoSheet && infoSheetPost ? (
+              <PostInfoSheet
+                cardIndex={infoSheetCardIndex}
+                onClose={() => setInfoSheet(null)}
+                post={infoSheetPost}
+              />
             ) : null}
 
             <nav className="tabbar" aria-label="주요 메뉴">
@@ -714,6 +766,7 @@ function DiscoverView({
   onSelectCard,
   onToggleCarve,
   onOpenComments,
+  onOpenInfo,
   onOpenProfile,
   onToggleFollow,
   onToggleLike
@@ -730,6 +783,7 @@ function DiscoverView({
   onSelectCard: (index: number) => void;
   onToggleCarve: (post: PostBundle) => void;
   onOpenComments: (post: PostBundle) => void;
+  onOpenInfo: (post: PostBundle, cardIndex: number) => void;
   onOpenProfile: (account: AccountProfile) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
   onToggleLike: (post: PostBundle) => void;
@@ -862,11 +916,81 @@ function DiscoverView({
           <span>◌</span>
           <small>{formatCount(viewerState?.commentCount ?? 0)}</small>
         </button>
-        <button type="button" aria-label="더보기">
+        <button type="button" aria-label="더보기" onClick={() => onOpenInfo(post, activeCardIndex)}>
           <span>⋯</span>
         </button>
       </aside>
     </article>
+  );
+}
+
+function PostInfoSheet({
+  cardIndex,
+  onClose,
+  post
+}: {
+  cardIndex: number;
+  onClose: () => void;
+  post: PostBundle;
+}) {
+  const card = post.cards[cardIndex] ?? post.cards[0]!;
+  const tags = card.tags.filter(Boolean);
+  const actions = ["공유하기", "링크 복사", "책으로 보기", "신고"];
+
+  return (
+    <>
+      <button className="comment-backdrop" type="button" aria-label="글 정보 닫기" onClick={onClose} />
+      <section className="info-sheet" aria-label="글 정보">
+        <div className="info-sheet-head">
+          <div>
+            <strong>글 정보</strong>
+            <span>
+              {cardIndex + 1}/{post.cards.length}장
+            </span>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기">
+            ×
+          </button>
+        </div>
+
+        <div className="info-summary">
+          <div className="avatar mini">{post.author.displayName.slice(0, 1)}</div>
+          <div>
+            <strong>{post.post.title}</strong>
+            <span>{post.author.displayName}</span>
+          </div>
+        </div>
+
+        <div className="info-fields">
+          <div className="info-field">
+            <span>출처</span>
+            <strong>{formatSource(card.source)}</strong>
+            <small>{sourceKindLabel(card.source.kind)}</small>
+          </div>
+          <div className="info-field">
+            <span>태그</span>
+            {tags.length > 0 ? (
+              <div className="info-tags">
+                {tags.map((tag) => (
+                  <small key={tag}>{tag}</small>
+                ))}
+              </div>
+            ) : (
+              <strong>아직 태그가 없어요.</strong>
+            )}
+          </div>
+        </div>
+
+        <div className="info-actions" aria-label="준비 중인 글 기능">
+          {actions.map((action) => (
+            <button key={action} type="button" disabled>
+              <span>{action}</span>
+              <small>준비 중</small>
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 
