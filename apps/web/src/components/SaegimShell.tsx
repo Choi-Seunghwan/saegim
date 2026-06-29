@@ -486,6 +486,16 @@ function createLocalPostBundle(input: CreatePostInput, author: AccountProfile): 
   };
 }
 
+function accountWithProfileInput(account: AccountProfile, input: UpdateAccountInput): AccountProfile {
+  return {
+    ...account,
+    displayName: input.displayName?.trim() || account.displayName,
+    tagline: input.tagline?.trim() ?? account.tagline,
+    bio: input.bio === undefined ? (account.bio ?? "") : (input.bio ?? ""),
+    photoUrl: input.photoUrl === undefined ? (account.photoUrl ?? "") : (input.photoUrl ?? "")
+  };
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -905,8 +915,16 @@ export function SaegimShell() {
   }
 
   async function handleUpdateProfile(input: UpdateAccountInput) {
-    const updatedAccount = await updateCurrentAccount(input);
+    let updatedAccount: AccountProfile;
+
+    try {
+      updatedAccount = await updateCurrentAccount(input);
+    } catch {
+      updatedAccount = accountWithProfileInput(currentAccount, input);
+    }
+
     setCurrentAccount(updatedAccount);
+    replaceAccount(updatedAccount);
     setIsEditingProfile(false);
   }
 
@@ -1181,10 +1199,6 @@ export function SaegimShell() {
               setIsEditingProfile(true);
             }}
             onLogout={leaveApp}
-            onOpenDrawer={() => {
-              setIsViewingSettings(false);
-              setIsViewingDrawer(true);
-            }}
             onOpenFollowing={() => {
               setIsViewingSettings(false);
               setIsViewingFollowing(true);
@@ -1213,7 +1227,6 @@ export function SaegimShell() {
             fallbackPosts={drawerFallbackPosts}
             onBack={() => {
               setIsViewingDrawer(false);
-              setIsViewingSettings(true);
             }}
             onOpenPost={openPost}
           />
@@ -1233,6 +1246,7 @@ export function SaegimShell() {
           isOwnProfile={isOwnProfile}
           onOpenPost={openPost}
           onOpenProfile={() => setSelectedProfileId(currentAccount.id)}
+          onOpenDrawer={() => setIsViewingDrawer(true)}
           onOpenSettings={() => setIsViewingSettings(true)}
           onToggleFollow={handleToggleFollow}
           posts={selectedProfilePosts}
@@ -3250,14 +3264,12 @@ function SettingsView({
   onBack,
   onEditProfile,
   onLogout,
-  onOpenDrawer,
   onOpenFollowing,
   onOpenNotices
 }: {
   onBack: () => void;
   onEditProfile: () => void;
   onLogout: () => void;
-  onOpenDrawer: () => void;
   onOpenFollowing: () => void;
   onOpenNotices: () => void;
 }) {
@@ -3271,7 +3283,7 @@ function SettingsView({
     },
     {
       title: "활동",
-      rows: [{ label: "내 서랍", onClick: onOpenDrawer }, { label: "구독 목록", onClick: onOpenFollowing }]
+      rows: [{ label: "구독 목록", onClick: onOpenFollowing }]
     },
     {
       title: "알림",
@@ -3476,7 +3488,7 @@ function DrawerView({
   return (
     <section className="drawer-view">
       <div className="drawer-head">
-        <button className="back-icon" type="button" onClick={onBack} aria-label="설정으로 돌아가기">
+        <button className="back-icon" type="button" onClick={onBack} aria-label="프로필로 돌아가기">
           ←
         </button>
         <div>
@@ -3536,6 +3548,7 @@ function ProfileView({
   account,
   isOwnProfile,
   onEdit,
+  onOpenDrawer,
   onOpenPost,
   onOpenProfile,
   onOpenSettings,
@@ -3545,6 +3558,7 @@ function ProfileView({
   account: AccountProfile;
   isOwnProfile: boolean;
   onEdit: () => void;
+  onOpenDrawer: () => void;
   onOpenPost: (post: PostBundle) => void;
   onOpenProfile: () => void;
   onOpenSettings: () => void;
@@ -3584,9 +3598,14 @@ function ProfileView({
           </small>
         </div>
         {isOwnProfile ? (
-          <button className="profile-sub ghost" type="button" onClick={onEdit}>
-            프로필 편집
-          </button>
+          <div className="profile-actions" aria-label="내 프로필 행동">
+            <button className="profile-sub" type="button" onClick={onOpenDrawer}>
+              내 서랍
+            </button>
+            <button className="profile-sub ghost" type="button" onClick={onEdit}>
+              프로필 편집
+            </button>
+          </div>
         ) : (
           <button
             className={isSubscribed ? "profile-sub is-subscribed" : "profile-sub"}
