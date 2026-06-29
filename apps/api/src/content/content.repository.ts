@@ -139,8 +139,8 @@ export class ContentRepository {
     }
   }
 
-  async getFeed() {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async getFeed(accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const posts = await this.findPosts([{ createdAt: "desc" }, { id: "desc" }], currentAccountId);
 
     return {
@@ -148,8 +148,8 @@ export class ContentRepository {
     };
   }
 
-  async getShelf() {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async getShelf(accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const posts = await this.findPosts(
       [{ likeCountCache: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       currentAccountId
@@ -160,14 +160,14 @@ export class ContentRepository {
     };
   }
 
-  async getPost(postId: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async getPost(postId: string, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const post = await this.findPostById(postId, currentAccountId);
     return this.toPostBundle(post);
   }
 
-  async createPost(input: CreatePostInput) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async createPost(input: CreatePostInput, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const cardsInput = this.normalizeCards(input);
     const author = await this.getCurrentAuthor(currentAccountId);
     const firstCard = cardsInput[0]!;
@@ -200,11 +200,11 @@ export class ContentRepository {
       }
     });
 
-    return this.getPost(post.id);
+    return this.getPost(post.id, accountIdHint);
   }
 
-  async likePost(postId: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async likePost(postId: string, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     await this.assertPostExists(postId);
 
     await this.prisma.$transaction(async (tx) => {
@@ -238,11 +238,11 @@ export class ContentRepository {
       });
     });
 
-    return this.getPost(postId);
+    return this.getPost(postId, accountIdHint);
   }
 
-  async unlikePost(postId: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async unlikePost(postId: string, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     await this.assertPostExists(postId);
 
     await this.prisma.$transaction(async (tx) => {
@@ -280,11 +280,11 @@ export class ContentRepository {
       });
     });
 
-    return this.getPost(postId);
+    return this.getPost(postId, accountIdHint);
   }
 
-  async carvePost(postId: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async carvePost(postId: string, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const post = await this.findPostById(postId, currentAccountId);
 
     await this.prisma.carve.upsert({
@@ -302,11 +302,11 @@ export class ContentRepository {
       }
     });
 
-    return this.getPost(postId);
+    return this.getPost(postId, accountIdHint);
   }
 
-  async uncarvePost(postId: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async uncarvePost(postId: string, accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     await this.assertPostExists(postId);
     const existingCarve = await this.prisma.carve.findUnique({
       where: {
@@ -329,11 +329,11 @@ export class ContentRepository {
       });
     }
 
-    return this.getPost(postId);
+    return this.getPost(postId, accountIdHint);
   }
 
-  async getRecommendedAccounts() {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId();
+  async getRecommendedAccounts(accountIdHint?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
     const accounts = await this.prisma.account.findMany({
       where: {
         id: {

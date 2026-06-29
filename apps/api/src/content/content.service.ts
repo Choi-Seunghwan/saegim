@@ -10,39 +10,39 @@ export class ContentService implements OnModuleInit {
     await this.contentRepository.ensureSeedData();
   }
 
-  getFeed() {
-    return this.contentRepository.getFeed();
+  getFeed(accountIdHint?: string) {
+    return this.contentRepository.getFeed(accountIdHint);
   }
 
-  getShelf() {
-    return this.contentRepository.getShelf();
+  getShelf(accountIdHint?: string) {
+    return this.contentRepository.getShelf(accountIdHint);
   }
 
-  getPost(postId: string) {
-    return this.contentRepository.getPost(postId);
+  getPost(postId: string, accountIdHint?: string) {
+    return this.contentRepository.getPost(postId, accountIdHint);
   }
 
-  likePost(postId: string) {
-    return this.contentRepository.likePost(postId);
+  likePost(postId: string, accountIdHint?: string) {
+    return this.contentRepository.likePost(postId, accountIdHint);
   }
 
-  unlikePost(postId: string) {
-    return this.contentRepository.unlikePost(postId);
+  unlikePost(postId: string, accountIdHint?: string) {
+    return this.contentRepository.unlikePost(postId, accountIdHint);
   }
 
-  carvePost(postId: string) {
-    return this.contentRepository.carvePost(postId);
+  carvePost(postId: string, accountIdHint?: string) {
+    return this.contentRepository.carvePost(postId, accountIdHint);
   }
 
-  uncarvePost(postId: string) {
-    return this.contentRepository.uncarvePost(postId);
+  uncarvePost(postId: string, accountIdHint?: string) {
+    return this.contentRepository.uncarvePost(postId, accountIdHint);
   }
 
-  createPost(input: CreatePostInput) {
-    return this.contentRepository.createPost(input);
+  createPost(input: CreatePostInput, accountIdHint?: string) {
+    return this.contentRepository.createPost(input, accountIdHint);
   }
 
-  getRecommendedAccounts() {
-    return this.contentRepository.getRecommendedAccounts();
+  getRecommendedAccounts(accountIdHint?: string) {
+    return this.contentRepository.getRecommendedAccounts(accountIdHint);
   }
 }
