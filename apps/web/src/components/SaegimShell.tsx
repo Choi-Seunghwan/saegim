@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
-import type { AccountProfile, CreatePostInput, PostBundle, PostComment, UpdateAccountInput } from "@saegim/domain";
+import type {
+  AccountProfile,
+  CardComposition,
+  CreatePostInput,
+  PostBundle,
+  PostComment,
+  SentenceCard,
+  UpdateAccountInput
+} from "@saegim/domain";
 import {
   carvePost,
   createPost,
@@ -49,13 +57,20 @@ type EditorialPage = {
 
 const ENTRY_STATE_STORAGE_KEY = "saegim_web_entry_state";
 
-const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
-  { key: "home", label: "홈", icon: "⌂" },
-  { key: "discover", label: "발견", icon: "◇" },
-  { key: "capture", label: "포착", icon: "+" },
-  { key: "shelf", label: "둘러보기", icon: "□" },
-  { key: "me", label: "나", icon: "나" }
-];
+const tabLabels: Record<TabKey, string> = {
+  home: "홈",
+  discover: "발견",
+  capture: "포착",
+  shelf: "둘러보기",
+  me: "나"
+};
+
+const topbarCopy: Record<Exclude<TabKey, "discover">, { title: string; subtitle: string }> = {
+  home: { title: "새김", subtitle: "마음에 새길 한 줄" },
+  capture: { title: "포착", subtitle: "한 줄을 카드로 남기기" },
+  shelf: { title: "둘러보기", subtitle: "엮어 둔 글 모음" },
+  me: { title: "나", subtitle: "내가 남긴 글과 서랍" }
+};
 
 const editorialPages: EditorialPage[] = [
   {
@@ -136,6 +151,120 @@ function formatSource(source: PostBundle["cards"][number]["source"]) {
   }
 
   return work || "직접 새김";
+}
+
+function bgWithDim(background: string, dim: number) {
+  if (dim <= 0) return background;
+  return `linear-gradient(rgba(0,0,0,${dim}), rgba(0,0,0,${dim})), ${background}`;
+}
+
+const cardFontFamily: Record<CardComposition["font"], string> = {
+  gothic: "var(--font-ui)",
+  serif: "var(--font-card)",
+  round: "var(--font-round)",
+  pen: "var(--font-pen)",
+  black: "var(--font-black)"
+};
+
+function cardSurfaceStyle(card: SentenceCard): CSSProperties {
+  return {
+    "--cv-text": card.comp.textColor,
+    background: bgWithDim(card.comp.bg, card.comp.dim),
+    color: card.comp.textColor
+  } as CSSProperties;
+}
+
+function cardTextStyle(comp: CardComposition, scale = 1): CSSProperties {
+  return {
+    fontFamily: cardFontFamily[comp.font],
+    fontSize: `${Math.round(comp.size * scale)}px`,
+    fontWeight: comp.weight,
+    textAlign: comp.align
+  };
+}
+
+function cardSourceLabel(card: SentenceCard) {
+  if (card.source.kind === "direct") return "";
+  const formatted = formatSource(card.source);
+  return formatted === "직접 새김" ? "" : formatted;
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4-4" />
+    </svg>
+  );
+}
+
+function TabIcon({ tab }: { tab: Exclude<TabKey, "capture" | "me"> }) {
+  if (tab === "home") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 10.5 12 3l9 7.5" />
+        <path d="M5 9.5V21h14V9.5" />
+      </svg>
+    );
+  }
+
+  if (tab === "discover") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1 5.1-2.1z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function BookmarkIcon({ filled = false }: { filled?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill={filled ? "currentColor" : "none"}>
+      <path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-3.6L6 21V4z" />
+    </svg>
+  );
+}
+
+function HeartIcon({ filled = false }: { filled?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill={filled ? "currentColor" : "none"}>
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-6A8.4 8.4 0 1 1 21 11.5z" />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <circle cx="5" cy="12" r="1.9" />
+      <circle cx="12" cy="12" r="1.9" />
+      <circle cx="19" cy="12" r="1.9" />
+    </svg>
+  );
 }
 
 function Avatar({
@@ -226,6 +355,11 @@ export function SaegimShell() {
     isViewingSettings ||
     isViewingNoticeList ||
     Boolean(editorialPageState);
+  const isDiscoverMode = activeTab === "discover" && !isFullPage;
+  const frameClassName = ["mobile-frame", isDiscoverMode ? "is-discover" : "", isFullPage ? "is-full" : ""]
+    .filter(Boolean)
+    .join(" ");
+  const topbar = activeTab === "discover" ? topbarCopy.home : topbarCopy[activeTab];
   const activePostIndex = Math.max(
     0,
     posts.findIndex((post) => post.post.id === activePost.post.id)
@@ -670,13 +804,30 @@ export function SaegimShell() {
 
   return (
     <main className="app-shell" aria-label="새김 앱">
-      <section className="mobile-frame">
+      <section className={frameClassName}>
+        <div className="statusbar" aria-hidden="true">
+          <span>9:41</span>
+          <span className="statusbar-right">
+            <span className="signal-bars">
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>5G</span>
+            <span className="battery-mark" />
+          </span>
+        </div>
         {entryState === "gate" ? (
           <AuthGate onEnter={enterApp} onGoogleLogin={startGoogleOAuth} />
         ) : (
           <>
-            <header className="topbar">
-              <div className="wordmark">새김</div>
+            {isDiscoverMode || isFullPage ? null : (
+              <header className="topbar">
+                <div>
+                  <div className={activeTab === "home" ? "wordmark brand" : "wordmark"}>{topbar.title}</div>
+                  <p>{topbar.subtitle}</p>
+                </div>
               <button
                 className="icon-button"
                 type="button"
@@ -690,9 +841,10 @@ export function SaegimShell() {
                   setIsSearching(true);
                 }}
               >
-                ⌕
+                <SearchIcon />
               </button>
-            </header>
+              </header>
+            )}
 
             <div className="screen">{content}</div>
 
@@ -709,24 +861,52 @@ export function SaegimShell() {
             ) : null}
 
             {isFullPage ? null : (
-              <nav className="tabbar" aria-label="주요 메뉴">
-                {tabs.map((tab) => (
+              <>
+                <nav className="tabbar" aria-label="주요 메뉴">
+                {(["home", "discover"] as const).map((tabKey) => (
                   <button
-                    key={tab.key}
-                    className={tab.key === activeTab ? "tab is-active" : "tab"}
+                    key={tabKey}
+                    className={tabKey === activeTab ? "tab is-active" : "tab"}
                     type="button"
-                    onClick={() => selectTab(tab.key)}
-                    aria-label={tab.label}
-                    aria-current={tab.key === activeTab ? "page" : undefined}
+                    onClick={() => selectTab(tabKey)}
+                    aria-label={tabLabels[tabKey]}
+                    aria-current={tabKey === activeTab ? "page" : undefined}
                   >
-                    {tab.key === "me" ? (
-                      <Avatar displayName={currentAccount.displayName} photoUrl={currentAccount.photoUrl} size="tab" />
-                    ) : (
-                      <span className="tab-icon">{tab.icon}</span>
-                    )}
+                    <TabIcon tab={tabKey} />
                   </button>
                 ))}
-              </nav>
+                  <span className="tab tab-spacer" aria-hidden="true" />
+                  {(["shelf", "me"] as const).map((tabKey) => (
+                    <button
+                      key={tabKey}
+                      className={tabKey === activeTab ? "tab is-active" : "tab"}
+                      type="button"
+                      onClick={() => selectTab(tabKey)}
+                      aria-label={tabLabels[tabKey]}
+                      aria-current={tabKey === activeTab ? "page" : undefined}
+                    >
+                      {tabKey === "me" ? (
+                        <Avatar
+                          displayName={currentAccount.displayName}
+                          photoUrl={currentAccount.photoUrl}
+                          size="tab"
+                        />
+                      ) : (
+                        <TabIcon tab={tabKey} />
+                      )}
+                    </button>
+                  ))}
+                </nav>
+                <button
+                  className={activeTab === "capture" ? "fab is-active" : "fab"}
+                  type="button"
+                  aria-label={tabLabels.capture}
+                  aria-current={activeTab === "capture" ? "page" : undefined}
+                  onClick={() => selectTab("capture")}
+                >
+                  <PlusIcon />
+                </button>
+              </>
             )}
           </>
         )}
@@ -921,15 +1101,17 @@ function PostPreviewButton({
 
   return (
     <button
-      className="post-card post-card-button"
+      className="shelf-card post-card-button"
       type="button"
       onClick={() => onOpenPost(post)}
-      style={{ background: card.comp.bg, color: card.comp.textColor }}
+      style={cardSurfaceStyle(card)}
     >
       {post.post.cardCount > 1 ? <span className="page-badge">{post.post.cardCount}장</span> : null}
-      <p>{card.text}</p>
-      <footer>
-        <strong>{post.post.title}</strong>
+      <p className="sq" style={cardTextStyle(card.comp, 0.58)}>
+        {card.text}
+      </p>
+      <footer className="sfoot">
+        <strong className="st2">{post.post.title}</strong>
         {hideLikeCount ? null : <span>♡ {post.viewerState?.likeCount.toLocaleString("ko-KR") ?? 0}</span>}
       </footer>
     </button>
@@ -953,18 +1135,40 @@ function HomeView({
   onOpenProfile: (account: AccountProfile) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
 }) {
-  return (
-    <div className="view-stack">
-      <button className="banner-card" type="button" onClick={onOpenDiscover}>
-        <span className="quiet-label">오늘 닿은 글</span>
-        <CardPreview post={post} />
-      </button>
+  const heroCard = post.cards[0]!;
 
-      <section className="section">
-        <div className="section-head">
-          <h2>소식</h2>
+  return (
+    <div className="home-view">
+      <div className="hero-carousel">
+        <div className="hb-viewport">
+          <button className="hb-slide" type="button" onClick={onOpenDiscover} style={cardSurfaceStyle(heroCard)}>
+            <span className="hb-tag">오늘 닿은 글</span>
+            <p className="hb-q">{heroCard.text}</p>
+            <span className="hb-by">{post.post.title}</span>
+          </button>
         </div>
-        <div className="news-rail">
+        <div className="hb-dots" aria-hidden="true">
+          <span className="is-active" />
+          <span />
+          <span />
+        </div>
+      </div>
+
+      <section className="home-sec">
+        <div className="home-h">
+          오늘 닿은 글
+          <button type="button" onClick={onOpenDiscover}>
+            전체 ›
+          </button>
+        </div>
+        <div className="home-rail">
+          <CardPreview post={post} />
+        </div>
+      </section>
+
+      <section className="home-sec">
+        <div className="home-h">소식</div>
+        <div className="home-rail news-rail">
           {editorialPages.map((page) => (
             <button className="news-card" key={page.id} type="button" onClick={() => onOpenEditorialPage(page)}>
               <span>{page.label}</span>
@@ -975,16 +1179,14 @@ function HomeView({
         </div>
       </section>
 
-      <section className="section">
-        <div className="section-head">
-          <h2>추천 글벗</h2>
-        </div>
-        <div className="account-rail">
+      <section className="home-sec">
+        <div className="home-h">추천 글벗</div>
+        <div className="home-rail account-rail">
           {accounts.map((account) => {
             const isSubscribed = account.viewerState?.subscribed ?? false;
 
             return (
-              <article className="account-chip" key={account.id}>
+              <article className="home-acct account-chip" key={account.id}>
                 <button className="account-chip-main" type="button" onClick={() => onOpenProfile(account)}>
                   <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
                   <div>
@@ -1054,6 +1256,7 @@ function DiscoverView({
   const hasNextPost = postIndex < postCount - 1;
   const hasPreviousCard = activeCardIndex > 0;
   const hasNextCard = activeCardIndex < post.cards.length - 1;
+  const shouldShowTitle = post.post.title.trim() !== card.text.trim();
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1085,7 +1288,7 @@ function DiscoverView({
 
   return (
     <article className="discover-view">
-      <div className="detail-title">{post.post.title}</div>
+      {shouldShowTitle ? <div className="detail-title">{post.post.title}</div> : null}
       <div className="feed-controls" aria-label="글 이동">
         <button type="button" onClick={onPreviousPost} disabled={!hasPreviousPost} aria-label="이전 글">
           ↑
@@ -1097,7 +1300,8 @@ function DiscoverView({
           ↓
         </button>
       </div>
-      <div className="sentence-card" style={{ background: card.comp.bg, color: card.comp.textColor }}>
+      <div className="sentence-card discover-card" style={cardSurfaceStyle(card)}>
+        <div className="cv-grain" aria-hidden="true" />
         {post.cards.length > 1 ? (
           <button
             className="card-step card-step-prev"
@@ -1109,7 +1313,12 @@ function DiscoverView({
             ‹
           </button>
         ) : null}
-        <p>{card.text}</p>
+        <div className="cmp-layer">
+          <p className="cmp-text" style={cardTextStyle(card.comp)}>
+            {card.text}
+          </p>
+          {cardSourceLabel(card) ? <div className="cmp-src">{cardSourceLabel(card)}</div> : null}
+        </div>
         {post.cards.length > 1 ? (
           <button
             className="card-step card-step-next"
@@ -1161,7 +1370,9 @@ function DiscoverView({
           aria-label={viewerState?.carved ? "새김 취소" : "새김"}
           onClick={() => onToggleCarve(post)}
         >
-          <span>{viewerState?.carved ? "▰" : "▱"}</span>
+          <span className="ring">
+            <BookmarkIcon filled={Boolean(viewerState?.carved)} />
+          </span>
         </button>
         <button
           className={viewerState?.liked ? "is-on" : undefined}
@@ -1169,15 +1380,21 @@ function DiscoverView({
           aria-label={viewerState?.liked ? "좋아요 취소" : "좋아요"}
           onClick={() => onToggleLike(post)}
         >
-          <span>{viewerState?.liked ? "♥" : "♡"}</span>
+          <span className="ring">
+            <HeartIcon filled={Boolean(viewerState?.liked)} />
+          </span>
           <small>{formatCount(viewerState?.likeCount ?? 0)}</small>
         </button>
         <button type="button" aria-label="댓글" onClick={() => onOpenComments(post)}>
-          <span>◌</span>
+          <span className="ring">
+            <CommentIcon />
+          </span>
           <small>{formatCount(viewerState?.commentCount ?? 0)}</small>
         </button>
         <button type="button" aria-label="더보기" onClick={() => onOpenInfo(post, activeCardIndex)}>
-          <span>⋯</span>
+          <span className="ring">
+            <MoreIcon />
+          </span>
         </button>
       </aside>
     </article>
@@ -1961,11 +2178,13 @@ function CardPreview({ post }: { post: PostBundle }) {
   const card = post.cards[0]!;
 
   return (
-    <article className="post-card" style={{ background: card.comp.bg, color: card.comp.textColor }}>
+    <article className="shelf-card" style={cardSurfaceStyle(card)}>
       {post.post.cardCount > 1 ? <span className="page-badge">{post.post.cardCount}장</span> : null}
-      <p>{card.text}</p>
-      <footer>
-        <strong>{post.post.title}</strong>
+      <p className="sq" style={cardTextStyle(card.comp, 0.58)}>
+        {card.text}
+      </p>
+      <footer className="sfoot">
+        <strong className="st2">{post.post.title}</strong>
         <span>♡ {post.viewerState?.likeCount.toLocaleString("ko-KR") ?? 0}</span>
       </footer>
     </article>
