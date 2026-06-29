@@ -161,7 +161,7 @@
 > **개발 세션 인수인계는 `HANDOFF.md`**(빌드 요구사항·계약만, 기획 히스토리 제외 — 편향 방지).
 
 - **기술 스택(확정, 2026-06-29)**: 프론트 **Next.js(App Router)** · 백엔드 **NestJS** · DB **PostgreSQL** · 인증 **Google OAuth 우선**(심사 불필요, provider 추상화한 범용 OAuth 모듈로 설계 → 카카오·네이버 이후 추가). 프로토타입(바닐라 단일 HTML)은 **동작·디자인 레퍼런스**일 뿐, 그대로 포팅하지 말고 Next.js/NestJS 구조로 새로 구현.
-- **현재 코드 골격**: `apps/web` · `apps/api` · `packages/domain`으로 시작. `packages/domain`의 카드/글/계정 타입을 프론트 공통 계약으로 사용하고, `apps/api/prisma/schema.prisma`를 PostgreSQL 모델 계약으로 둔다. 웹은 `NEXT_PUBLIC_API_BASE_URL`로 API를 읽고, 실패 시 샘플 데이터로 유지한다.
+- **현재 코드 골격**: `apps/web` · `apps/api` · `packages/domain`으로 시작. `packages/domain`의 카드/글/계정 타입을 프론트 공통 계약으로 사용하고, `apps/api/prisma/schema.prisma`를 PostgreSQL 모델 계약으로 둔다. 웹은 `NEXT_PUBLIC_API_BASE_URL`로 API를 읽고, 실패 시 샘플 데이터로 유지한다. 포착 탭은 한 장짜리 글을 `POST /posts`로 발행해 발견 피드에 즉시 반영한다(현재 저장소는 서버 런타임 메모리).
 
 ### 14.1 화면 라우팅 (app.html · 해시 딥링크)
 
@@ -177,7 +177,8 @@
 
 ### 14.3 발행 흐름
 
-- 에디터 `enqueuePublication()` → `saegim_pub_queue` 적재 → 앱 `ingestPublications()`/`drainPubQueue()` → `state.published` + `rebuildData()`(DATA=SEED+published) → 발견·둘러보기·프로필·서랍 반영.
+- 프로토타입: 에디터 `enqueuePublication()` → `saegim_pub_queue` 적재 → 앱 `ingestPublications()`/`drainPubQueue()` → `state.published` + `rebuildData()`(DATA=SEED+published) → 발견·둘러보기·프로필·서랍 반영.
+- 실서비스 골격: 웹 포착 탭 → `POST /posts` → API가 글/장 bundle 생성 → 웹 피드 상태에 prepend → 발견 탭 반영. 현재는 DB 저장 전 단계라 서버 재시작 시 발행 글이 초기화된다.
 
 ### 14.4 WYSIWYG comp 계약 (필수 유지)
 
@@ -192,7 +193,7 @@
 - **의미 임베딩**(취향 피드·유사 추천·자동 묶음) — 프로토타입의 클라 `similar()`는 폐기, '결' 사용자 선택 없음.
 - **인증/OAuth**(Google 우선, 카카오·네이버 후순위) — 현재 프로토타입은 `loggedIn` 플래그.
 - **발행 저장·관계 그래프·검색 인덱스** — 현재 클라 필터/큐.
-- 현재 API 조회 계약: `GET /feed` · `GET /shelf` · `GET /posts/:postId` · `GET /accounts/recommended`(시드 응답, DB repository 전환 예정).
+- 현재 API 계약: `GET /feed` · `GET /shelf` · `GET /posts/:postId` · `GET /accounts/recommended` · `POST /posts`(시드+런타임 메모리 응답, DB repository 전환 예정).
 
 ### 14.7 재사용 컴포넌트
 
@@ -210,6 +211,7 @@
 
 ## 진행 로그
 
+- 2026-06-29 — **포착 발행 API 1차 연결**: `packages/domain`에 `CreatePostInput` 계약 추가. Nest API에 `POST /posts` 추가(입력 검증, 제목 자동 생성, 태그 0~3 정규화, 기본 `comp` 보강, 현재 계정 `acct-me` 작성자로 런타임 메모리 저장). 웹 포착 탭을 한 장짜리 글 작성 폼으로 바꾸고 `createPost()` 성공 시 피드 상태 prepend + 발견 탭 이동. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 포착→발행→발견 반영 및 `/feed` 응답 prepend 확인.
 - 2026-06-29 — **웹 초기 화면 API 연동**: `apps/web/src/lib/api.ts` 추가. `NEXT_PUBLIC_API_BASE_URL`(기본 `http://127.0.0.1:4000`) 기준으로 `/feed`, `/accounts/recommended`를 읽고, `SaegimShell`이 홈/발견/둘러보기/추천 글벗 데이터를 API 응답으로 갱신하도록 연결. API가 꺼져 있거나 요청 실패 시 기존 샘플 데이터로 첫 화면 유지. API CORS 기본 허용 origin을 `127.0.0.1:3000`/`localhost:3000`로 맞춤. `pnpm typecheck`/`pnpm lint`/`pnpm build` 통과, 브라우저에서 API 응답(`무월`, `천천히 남는 말`) 반영 확인.
 - 2026-06-29 — **PostgreSQL 모델 계약 + 읽기 API 1차**: `apps/api/prisma/schema.prisma` 추가 — Account/OAuthAccount/Post/Card/Follow/Like/Carve/Comment 및 Verification/PostVisibility/PostCreationType/SourceKind/EmbeddingStatus/OAuthProvider enum 정의. 좋아요(공개 공감)와 새김(비공개 보관)을 별도 관계로 분리하고, 카드 comp는 Json으로 저장하는 방향으로 고정. Prisma 7 CLI가 현재 Node/pnpm 조합에서 ESM 오류를 내 Prisma 6.19.3으로 고정, `db:validate`/`db:generate` 스크립트 추가. Nest API에 시드 기반 `GET /feed`, `/shelf`, `/posts/:postId`, `/accounts/recommended` 추가. DB 연결 모듈은 준비만 하고 아직 AppModule에는 연결하지 않아 PostgreSQL 없이도 읽기 계약 검증 가능. `pnpm typecheck`/`pnpm build`/`pnpm lint`, Prisma validate/generate, API curl 응답 확인.
 - 2026-06-29 — **실서비스 개발 골격 착수**: 기존 단일 HTML 프로토타입(`saegim/app.html`·`editor.html`)은 보존하고, 새 코드 영역을 `apps/web`(Next.js App Router) · `apps/api`(NestJS) · `packages/domain`(공유 도메인 타입)으로 분리해 추가. `package.json`/`pnpm-workspace.yaml`/`tsconfig.base.json`/`.env.example`/`docker-compose.yml` 생성. `packages/domain`에 카드 comp 계약(`bg/dim/textColor/size/weight/align/font`), 글/장 1:N, 계정·새김·좋아요·댓글 관계 타입과 기본 카드 프리셋을 고정. 웹은 모바일 앱 쉘(홈·발견·포착·둘러보기·나) 첫 화면, API는 `/health` 기본 계약 응답으로 시작. README/HANDOFF 갱신.

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { AccountProfile, PostBundle } from "@saegim/domain";
-import { fetchFeed, fetchRecommendedAccounts } from "../lib/api";
+import type { FormEvent } from "react";
+import { DEFAULT_CARD_COMP } from "@saegim/domain";
+import type { AccountProfile, CreatePostInput, PostBundle } from "@saegim/domain";
+import { createPost, fetchFeed, fetchRecommendedAccounts } from "../lib/api";
 import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
@@ -20,6 +22,11 @@ export function SaegimShell() {
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
   const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
   const featuredPost = posts[0] ?? samplePosts[0]!;
+
+  function handlePostPublished(post: PostBundle) {
+    setPosts((currentPosts) => [post, ...currentPosts.filter((item) => item.post.id !== post.post.id)]);
+    setActiveTab("discover");
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -49,7 +56,7 @@ export function SaegimShell() {
 
   const content = useMemo(() => {
     if (activeTab === "discover") return <DiscoverView post={featuredPost} />;
-    if (activeTab === "capture") return <CaptureView />;
+    if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
     if (activeTab === "shelf") return <ShelfView posts={posts} />;
     if (activeTab === "me") return <ProfileView />;
     return <HomeView post={featuredPost} accounts={accounts} onOpenDiscover={() => setActiveTab("discover")} />;
@@ -155,22 +162,110 @@ function DiscoverView({ post }: { post: PostBundle }) {
   );
 }
 
-function CaptureView() {
+function CaptureView({ onPublished }: { onPublished: (post: PostBundle) => void }) {
+  const [sentence, setSentence] = useState("");
+  const [title, setTitle] = useState("");
+  const [sourceAuthor, setSourceAuthor] = useState("");
+  const [sourceWork, setSourceWork] = useState("");
+  const [tags, setTags] = useState("");
+  const [status, setStatus] = useState<"idle" | "submitting">("idle");
+  const [error, setError] = useState("");
+  const canPublish = sentence.trim().length > 0 && status !== "submitting";
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const cleanText = sentence.trim();
+    if (!cleanText) {
+      setError("문장을 먼저 적어 주세요.");
+      return;
+    }
+
+    const cleanTitle = title.trim();
+    const cleanAuthor = sourceAuthor.trim();
+    const cleanWork = sourceWork.trim();
+    const tagList = tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    const input: CreatePostInput = {
+      visibility: "public",
+      creationType: "original",
+      cards: [
+        {
+          text: cleanText,
+          comp: DEFAULT_CARD_COMP,
+          source: {
+            kind: "direct",
+            ...(cleanAuthor ? { author: cleanAuthor } : {}),
+            ...(cleanWork ? { work: cleanWork } : {})
+          },
+          tags: tagList
+        }
+      ]
+    };
+
+    if (cleanTitle) {
+      input.title = cleanTitle;
+    }
+
+    try {
+      setStatus("submitting");
+      setError("");
+      const publishedPost = await createPost(input);
+      setSentence("");
+      setTitle("");
+      setSourceAuthor("");
+      setSourceWork("");
+      setTags("");
+      onPublished(publishedPost);
+    } catch {
+      setError("지금은 발행할 수 없어요. API 서버를 확인해 주세요.");
+      setStatus("idle");
+    }
+  }
+
   return (
-    <div className="capture-view">
-      <div className="sentence-card editable">
-        <p>탭하여 문장 쓰기</p>
+    <form className="capture-view" onSubmit={handleSubmit}>
+      <div className="sentence-card editable capture-card">
+        <textarea
+          aria-label="문장"
+          value={sentence}
+          onChange={(event) => setSentence(event.target.value)}
+          placeholder="탭하여 문장 쓰기"
+          maxLength={240}
+        />
       </div>
+      <label className="capture-field">
+        <span>제목</span>
+        <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="비우면 첫 문장이 제목" />
+      </label>
+      <div className="capture-field-grid">
+        <label className="capture-field">
+          <span>저자</span>
+          <input value={sourceAuthor} onChange={(event) => setSourceAuthor(event.target.value)} placeholder="선택" />
+        </label>
+        <label className="capture-field">
+          <span>책</span>
+          <input value={sourceWork} onChange={(event) => setSourceWork(event.target.value)} placeholder="선택" />
+        </label>
+      </div>
+      <label className="capture-field">
+        <span>태그</span>
+        <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="쉼표로 3개까지" />
+      </label>
       <div className="tool-row" aria-label="카드 작성 도구">
         <button type="button">제목</button>
         <button type="button">배경</button>
         <button type="button">출처</button>
         <button type="button">태그</button>
       </div>
-      <button className="primary-button" type="button">
-        발행
+      {error ? <p className="capture-error">{error}</p> : null}
+      <button className="primary-button" type="submit" disabled={!canPublish}>
+        {status === "submitting" ? "발행 중" : "발행"}
       </button>
-    </div>
+    </form>
   );
 }
 

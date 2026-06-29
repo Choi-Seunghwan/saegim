@@ -75,6 +75,20 @@ export interface PostBundle {
   viewerState?: ViewerPostState;
 }
 
+export interface CreateSentenceCardInput {
+  text: string;
+  comp?: Partial<CardComposition>;
+  source?: Partial<ContentSource>;
+  tags?: string[];
+}
+
+export interface CreatePostInput {
+  title?: string;
+  visibility?: PostVisibility;
+  creationType?: PostCreationType;
+  cards: CreateSentenceCardInput[];
+}
+
 export interface ViewerPostState {
   liked: boolean;
   carved: boolean;

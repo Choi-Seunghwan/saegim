@@ -42,8 +42,9 @@
 ## 현재 개발 골격
 
 - `apps/web`: Next.js(App Router) 프론트. 모바일 앱 쉘부터 구현한다.
-- `apps/web/src/lib/api.ts`: `NEXT_PUBLIC_API_BASE_URL` 기준으로 `/feed`, `/accounts/recommended`를 읽는다. API 실패 시 화면은 샘플 데이터로 유지한다.
-- `apps/api`: NestJS API. 현재 `/health`, `/feed`, `/shelf`, `/posts/:postId`, `/accounts/recommended`로 기본 조회 계약을 확인한다.
+- `apps/web/src/lib/api.ts`: `NEXT_PUBLIC_API_BASE_URL` 기준으로 `/feed`, `/accounts/recommended`, `POST /posts`를 호출한다. API 실패 시 첫 화면은 샘플 데이터로 유지한다.
+- `apps/web/src/components/SaegimShell.tsx`: 포착 탭에서 한 장짜리 글을 발행하면 API 응답을 피드 상태에 prepend하고 발견 탭으로 이동한다.
+- `apps/api`: NestJS API. 현재 `/health`, `/feed`, `/shelf`, `/posts/:postId`, `/accounts/recommended`, `POST /posts`로 기본 계약을 확인한다. 발행 저장은 아직 DB가 아니라 서버 런타임 메모리다.
 - `apps/api/prisma/schema.prisma`: PostgreSQL 모델 계약. 계정, OAuth 계정, 글, 장, 구독, 좋아요, 새김, 댓글을 정의한다.
 - `packages/domain`: 카드/글/계정/관계 공유 타입. WYSIWYG `comp` 계약은 여기서 먼저 바꾼다.
 - `docker-compose.yml`: 로컬 PostgreSQL 개발용.

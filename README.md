@@ -50,8 +50,9 @@ API 기본 조회 계약:
 - `GET /shelf`
 - `GET /posts/:postId`
 - `GET /accounts/recommended`
+- `POST /posts` — 현재는 런타임 메모리 저장(서버 재시작 시 초기화)
 
-웹은 `NEXT_PUBLIC_API_BASE_URL`을 기준으로 위 API를 읽고, API가 꺼져 있으면 로컬 샘플 데이터로 첫 화면을 유지한다.
+웹은 `NEXT_PUBLIC_API_BASE_URL`을 기준으로 위 API를 읽고, API가 꺼져 있으면 로컬 샘플 데이터로 첫 화면을 유지한다. 포착 탭은 한 장짜리 글을 `POST /posts`로 발행하고 성공 시 발견 피드로 이동한다.
 
 Prisma 스키마 확인:
 
