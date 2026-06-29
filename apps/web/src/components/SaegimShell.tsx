@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties, FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
 import type {
   AccountProfile,
@@ -40,6 +40,12 @@ type EntryState = "gate" | "guest" | "signed-in";
 type InfoSheetState = { postId: string; cardIndex: number };
 type EditorialPageKind = "notice" | "event" | "ad";
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
+type MainReturnTab = Exclude<TabKey, "capture">;
+type CaptureToolKey = "title" | "background" | "source" | "tag";
+type DetailReturnTarget =
+  | { surface: "tab"; tab: MainReturnTab }
+  | { surface: "search"; tab: MainReturnTab }
+  | { surface: "drawer" };
 type EditorialPageState = { pageId: string; origin: EditorialPageOrigin };
 type EditorialPage = {
   id: string;
@@ -125,6 +131,58 @@ const editorialHeroBackgrounds: Record<EditorialPageKind, string> = {
   event: "linear-gradient(150deg,#5A5466,#3C3652)",
   ad: "linear-gradient(150deg,#6E6A74,#4A4651)"
 };
+
+const captureToolLabels: Record<CaptureToolKey, string> = {
+  title: "제목",
+  background: "배경",
+  source: "출처",
+  tag: "태그"
+};
+
+const captureBackgroundOptions = [
+  {
+    id: "fog",
+    label: "안개",
+    bg: "linear-gradient(150deg,#EEF0F3,#E6E9F0 55%,#ECE8F1)",
+    dim: 0,
+    textColor: "#38323F"
+  },
+  {
+    id: "dawn",
+    label: "새벽",
+    bg: "linear-gradient(150deg,#EAF0F7,#DDE6F0 60%,#EFEAF4)",
+    dim: 0,
+    textColor: "#38323F"
+  },
+  {
+    id: "sunset",
+    label: "노을",
+    bg: "linear-gradient(150deg,#F7D9C7,#F1BFA7 56%,#DBA3B1)",
+    dim: 0,
+    textColor: "#38323F"
+  },
+  {
+    id: "apricot",
+    label: "살구",
+    bg: "linear-gradient(150deg,#F9E1D0,#F4C7AF 58%,#E7B7A9)",
+    dim: 0,
+    textColor: "#38323F"
+  },
+  {
+    id: "lavender",
+    label: "라벤더",
+    bg: "linear-gradient(150deg,#EDE7F5,#D8D0EA 58%,#C8C7E1)",
+    dim: 0,
+    textColor: "#38323F"
+  },
+  {
+    id: "night",
+    label: "밤",
+    bg: "linear-gradient(150deg,#3C3652,#241F38)",
+    dim: 0.16,
+    textColor: "#FBF8FC"
+  }
+] as const;
 
 function readStoredEntryState() {
   try {
@@ -308,6 +366,41 @@ function MoreIcon() {
   );
 }
 
+function CaptureToolIcon({ tool }: { tool: CaptureToolKey }) {
+  if (tool === "title") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 6h14M12 6v13" />
+      </svg>
+    );
+  }
+
+  if (tool === "background") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+        <path d="M4 16l4.2-4.1 4.2 4.1M13.5 12.5 16 10l4 4" />
+        <circle cx="8.5" cy="8.5" r="1.4" />
+      </svg>
+    );
+  }
+
+  if (tool === "source") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4.5 5.2v14.2a1 1 0 0 0 1.4.9L12 17.5l6.1 2.8a1 1 0 0 0 1.4-.9V5.2A2.2 2.2 0 0 0 17.3 3H6.7a2.2 2.2 0 0 0-2.2 2.2z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20.6 13.4 11 3.8a2 2 0 0 0-1.4-.6H4.5A1.5 1.5 0 0 0 3 4.7v5.1a2 2 0 0 0 .6 1.4l9.6 9.6a2 2 0 0 0 2.8 0l4.6-4.6a2 2 0 0 0 0-2.8z" />
+      <circle cx="7.5" cy="7.5" r="1.2" />
+    </svg>
+  );
+}
+
 function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -372,6 +465,7 @@ export function SaegimShell() {
   const [editorialPageState, setEditorialPageState] = useState<EditorialPageState | null>(null);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [infoSheet, setInfoSheet] = useState<InfoSheetState | null>(null);
+  const [detailReturnTarget, setDetailReturnTarget] = useState<DetailReturnTarget | null>(null);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -501,6 +595,7 @@ export function SaegimShell() {
     setEditorialPageState(null);
     setCommentPost(null);
     setInfoSheet(null);
+    setDetailReturnTarget(null);
     setSelectedProfileId(currentAccount.id);
     setEntryState("gate");
     clearStoredEntryState();
@@ -516,6 +611,7 @@ export function SaegimShell() {
     setEditorialPageState(null);
     setCommentPost(null);
     setInfoSheet(null);
+    setDetailReturnTarget(null);
 
     if (tab === "discover") {
       setActivePostId((currentPostId) => currentPostId ?? featuredPost.post.id);
@@ -604,6 +700,14 @@ export function SaegimShell() {
   }
 
   function openPost(post: PostBundle) {
+    const returnTarget: DetailReturnTarget | null = isViewingDrawer
+      ? { surface: "drawer" }
+      : isSearching
+        ? { surface: "search", tab: activeTab === "capture" ? "home" : activeTab }
+        : activeTab !== "discover" && activeTab !== "capture"
+          ? { surface: "tab", tab: activeTab }
+          : null;
+
     setPosts((currentPosts) => {
       const exists = currentPosts.some((item) => item.post.id === post.post.id);
 
@@ -623,7 +727,34 @@ export function SaegimShell() {
     setEditorialPageState(null);
     setCommentPost(null);
     setInfoSheet(null);
+    setDetailReturnTarget(returnTarget);
     setActiveTab("discover");
+  }
+
+  function closePostDetail() {
+    if (!detailReturnTarget) {
+      return;
+    }
+
+    const target = detailReturnTarget;
+    setDetailReturnTarget(null);
+    setCommentPost(null);
+    setInfoSheet(null);
+    setEditorialPageState(null);
+    setIsEditingProfile(false);
+    setIsViewingNoticeList(false);
+    setIsViewingSettings(false);
+
+    if (target.surface === "drawer") {
+      setActiveTab("me");
+      setIsSearching(false);
+      setIsViewingDrawer(true);
+      return;
+    }
+
+    setActiveTab(target.tab);
+    setIsViewingDrawer(false);
+    setIsSearching(target.surface === "search");
   }
 
   async function openProfile(account: AccountProfile) {
@@ -770,6 +901,7 @@ export function SaegimShell() {
           post={activePost}
           postCount={posts.length}
           postIndex={activePostIndex}
+          {...(detailReturnTarget ? { onBack: closePostDetail } : {})}
           onNextCard={() => selectCard(activeCardIndex + 1)}
           onNextPost={() => movePost(1)}
           onPreviousCard={() => selectCard(activeCardIndex - 1)}
@@ -854,6 +986,7 @@ export function SaegimShell() {
     activeTab,
     captureReturnTab,
     currentAccount,
+    detailReturnTarget,
     featuredPost,
     isEditingProfile,
     isSearching,
@@ -1254,7 +1387,7 @@ function PostPreviewButton({
 
   return (
     <button
-      className="shelf-card post-card-button"
+      className={post.post.cardCount > 1 ? "shelf-card post-card-button has-page-badge" : "shelf-card post-card-button"}
       type="button"
       onClick={() => onOpenPost(post)}
       style={cardSurfaceStyle(card)}
@@ -1435,6 +1568,7 @@ function DiscoverView({
   post,
   postCount,
   postIndex,
+  onBack,
   onNextCard,
   onNextPost,
   onPreviousCard,
@@ -1452,6 +1586,7 @@ function DiscoverView({
   post: PostBundle;
   postCount: number;
   postIndex: number;
+  onBack?: () => void;
   onNextCard: () => void;
   onNextPost: () => void;
   onPreviousCard: () => void;
@@ -1473,6 +1608,41 @@ function DiscoverView({
   const hasPreviousCard = activeCardIndex > 0;
   const hasNextCard = activeCardIndex < post.cards.length - 1;
   const shouldShowTitle = post.post.title.trim() !== card.text.trim();
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
+    if ((event.target as HTMLElement).closest("button")) {
+      return;
+    }
+
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerUp(event: ReactPointerEvent<HTMLElement>) {
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
+
+    if (!start || (event.target as HTMLElement).closest("button")) {
+      return;
+    }
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    const threshold = 42;
+
+    if (absY > absX && absY > threshold) {
+      if (dy < 0 && hasNextPost) onNextPost();
+      if (dy > 0 && hasPreviousPost) onPreviousPost();
+      return;
+    }
+
+    if (absX > absY && absX > threshold) {
+      if (dx < 0 && hasNextCard) onNextCard();
+      if (dx > 0 && hasPreviousCard) onPreviousCard();
+    }
+  }
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1503,7 +1673,19 @@ function DiscoverView({
   }, [hasNextCard, hasNextPost, hasPreviousCard, hasPreviousPost, onNextCard, onNextPost, onPreviousCard, onPreviousPost]);
 
   return (
-    <article className="discover-view">
+    <article
+      className="discover-view"
+      onPointerCancel={() => {
+        pointerStartRef.current = null;
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+    >
+      {onBack ? (
+        <button className="detail-back" type="button" onClick={onBack} aria-label="이전 화면으로 돌아가기">
+          ←
+        </button>
+      ) : null}
       {shouldShowTitle ? <div className="detail-title">{post.post.title}</div> : null}
       <div className="feed-controls" aria-label="글 이동">
         <button type="button" onClick={onPreviousPost} disabled={!hasPreviousPost} aria-label="이전 글">
@@ -1634,6 +1816,9 @@ function PostInfoSheet({
     <>
       <button className="comment-backdrop" type="button" aria-label="글 정보 닫기" onClick={onClose} />
       <section className="info-sheet" aria-label="글 정보">
+        <div className="sheet-grip" aria-hidden="true">
+          <span />
+        </div>
         <div className="info-sheet-head">
           <div>
             <strong>글 정보</strong>
@@ -1753,6 +1938,9 @@ function CommentSheet({
     <>
       <button className="comment-backdrop" type="button" aria-label="댓글 닫기" onClick={onClose} />
       <section className="comment-sheet" aria-label="댓글">
+        <div className="sheet-grip" aria-hidden="true">
+          <span />
+        </div>
         <div className="comment-sheet-head">
           <div>
             <strong>댓글</strong>
@@ -1805,6 +1993,8 @@ function CommentSheet({
 function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublished: (post: PostBundle) => void }) {
   const [cards, setCards] = useState([""]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
+  const [selectedTool, setSelectedTool] = useState<CaptureToolKey | null>(null);
+  const [selectedBackgroundId, setSelectedBackgroundId] = useState<(typeof captureBackgroundOptions)[number]["id"]>("fog");
   const [title, setTitle] = useState("");
   const [sourceAuthor, setSourceAuthor] = useState("");
   const [sourceWork, setSourceWork] = useState("");
@@ -1812,6 +2002,24 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState("");
   const activeSentence = cards[activeDraftIndex] ?? "";
+  const selectedBackground =
+    captureBackgroundOptions.find((background) => background.id === selectedBackgroundId) ?? captureBackgroundOptions[0];
+  const draftComp: CardComposition = {
+    ...DEFAULT_CARD_COMP,
+    bg: selectedBackground.bg,
+    dim: selectedBackground.dim,
+    textColor: selectedBackground.textColor
+  };
+  const captureStageStyle = {
+    "--capture-text": selectedBackground.textColor,
+    background: bgWithDim(selectedBackground.bg, selectedBackground.dim),
+    color: selectedBackground.textColor
+  } as CSSProperties;
+  const tagList = tags
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 3);
   const canPublish = cards.some((card) => card.trim().length > 0) && status !== "submitting";
 
   function updateActiveSentence(value: string) {
@@ -1851,17 +2059,12 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
     const cleanTitle = title.trim();
     const cleanAuthor = sourceAuthor.trim();
     const cleanWork = sourceWork.trim();
-    const tagList = tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-      .slice(0, 3);
     const input: CreatePostInput = {
       visibility: "public",
       creationType: "original",
       cards: cleanCards.map((text) => ({
         text,
-        comp: DEFAULT_CARD_COMP,
+        comp: draftComp,
         source: {
           kind: "direct",
           ...(cleanAuthor ? { author: cleanAuthor } : {}),
@@ -1885,6 +2088,7 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
       setSourceAuthor("");
       setSourceWork("");
       setTags("");
+      setSelectedTool(null);
       onPublished(publishedPost);
     } catch {
       setError("지금은 발행할 수 없어요. API 서버를 확인해 주세요.");
@@ -1894,97 +2098,157 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
 
   return (
     <form className="capture-view" onSubmit={handleSubmit}>
-      <div className="capture-head">
-        <div>
-          <button className="back-icon" type="button" onClick={onClose} aria-label="이전 화면으로 돌아가기">
-            ←
+      <div className="capture-stage" style={captureStageStyle}>
+        <div className="capture-head">
+          <button className="capture-close" type="button" onClick={onClose} aria-label="닫기">
+            ×
           </button>
-          <div>
-            <h2>포착</h2>
-            <p>한 줄을 카드로 남기기</p>
+          <button className="capture-submit" type="submit" disabled={!canPublish}>
+            {status === "submitting" ? "발행 중" : "발행"}
+          </button>
+        </div>
+
+        <div className="capture-tools" aria-label="카드 도구">
+          {(["title", "background", "source", "tag"] as const).map((tool) => (
+            <div className="capture-tool" key={tool}>
+              <button
+                className={selectedTool === tool ? "is-active" : undefined}
+                type="button"
+                onClick={() => setSelectedTool((currentTool) => (currentTool === tool ? null : tool))}
+                aria-label={captureToolLabels[tool]}
+              >
+                <CaptureToolIcon tool={tool} />
+              </button>
+              <span>{captureToolLabels[tool]}</span>
+            </div>
+          ))}
+        </div>
+
+        {title.trim() ? <div className="capture-title-chip">{title.trim()}</div> : null}
+        <div className="sentence-card editable capture-card">
+          <textarea
+            aria-label={`${activeDraftIndex + 1}장 문장`}
+            value={activeSentence}
+            onChange={(event) => updateActiveSentence(event.target.value)}
+            placeholder="문장을 적어 보세요"
+            maxLength={240}
+          />
+        </div>
+        {sourceAuthor.trim() || sourceWork.trim() ? (
+          <div className="capture-source-chip">
+            {sourceWork.trim() ? <strong>『{sourceWork.trim()}』</strong> : null}
+            {sourceAuthor.trim() ? <span>{sourceAuthor.trim()}</span> : null}
+          </div>
+        ) : null}
+
+        <div className="capture-bottom">
+          <div className="capture-pagebar" aria-label="장 관리">
+            <span>{activeDraftIndex + 1}장</span>
+            <div className="capture-page-tabs" aria-label="장 목록">
+              {cards.map((card, index) => (
+                <button
+                  className={index === activeDraftIndex ? "is-active" : undefined}
+                  key={index}
+                  type="button"
+                  onClick={() => setActiveDraftIndex(index)}
+                  aria-label={`${index + 1}장으로 이동`}
+                  style={captureStageStyle}
+                >
+                  <small>{index + 1}</small>
+                  <span>{card.trim() || "새 문장"}</span>
+                </button>
+              ))}
+            </div>
+            <button className="capture-page-add" type="button" onClick={addDraftCard} aria-label="장 추가">
+              +
+            </button>
+            <button className="capture-page-delete" type="button" onClick={removeDraftCard} disabled={cards.length <= 1} aria-label="현재 장 삭제">
+              ×
+            </button>
           </div>
         </div>
-        <button className="capture-submit" type="submit" disabled={!canPublish}>
-          {status === "submitting" ? "발행 중" : "발행"}
-        </button>
+        {error ? <p className="capture-floating-error">{error}</p> : null}
       </div>
 
-      <div className="capture-pagebar" aria-label="장 관리">
-        <button
-          type="button"
-          onClick={() => setActiveDraftIndex(Math.max(activeDraftIndex - 1, 0))}
-          disabled={activeDraftIndex === 0}
-          aria-label="이전 장"
-        >
-          ←
-        </button>
-        <span>
-          {activeDraftIndex + 1}/{cards.length}장
-        </span>
-        <button
-          type="button"
-          onClick={() => setActiveDraftIndex(Math.min(activeDraftIndex + 1, cards.length - 1))}
-          disabled={activeDraftIndex === cards.length - 1}
-          aria-label="다음 장"
-        >
-          →
-        </button>
-        <button type="button" onClick={addDraftCard}>
-          + 장
-        </button>
-        <button type="button" onClick={removeDraftCard} disabled={cards.length <= 1}>
-          삭제
-        </button>
-      </div>
+      {selectedTool ? (
+        <>
+          <button className="capture-sheet-backdrop" type="button" aria-label="카드 설정 닫기" onClick={() => setSelectedTool(null)} />
+          <section className="capture-tool-sheet" aria-label={`${captureToolLabels[selectedTool]} 설정`}>
+            <div className="sheet-grip" aria-hidden="true">
+              <span />
+            </div>
+            <div className="capture-sheet-head">
+              <h3>{captureToolLabels[selectedTool]}</h3>
+              <button type="button" onClick={() => setSelectedTool(null)} aria-label="닫기">
+                ×
+              </button>
+            </div>
+            <div className="capture-sheet-body">
+              {selectedTool === "title" ? (
+                <label className="capture-field">
+                  <span>제목</span>
+                  <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="첫 문장이 제목이 돼요" />
+                </label>
+              ) : null}
 
-      <div className="capture-page-tabs" aria-label="장 목록">
-        {cards.map((card, index) => (
-          <button
-            className={index === activeDraftIndex ? "is-active" : undefined}
-            key={index}
-            type="button"
-            onClick={() => setActiveDraftIndex(index)}
-          >
-            <span>{index + 1}장</span>
-            <small>{card.trim() ? "작성됨" : "비어 있음"}</small>
-          </button>
-        ))}
-      </div>
+              {selectedTool === "background" ? (
+                <div className="capture-bg-grid">
+                  {captureBackgroundOptions.map((background) => (
+                    <button
+                      className={background.id === selectedBackgroundId ? "is-active" : undefined}
+                      key={background.id}
+                      type="button"
+                      onClick={() => setSelectedBackgroundId(background.id)}
+                      style={{
+                        background: bgWithDim(background.bg, background.dim),
+                        color: background.textColor
+                      }}
+                    >
+                      <span>{background.label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
-      <div className="sentence-card editable capture-card">
-        <textarea
-          aria-label={`${activeDraftIndex + 1}장 문장`}
-          value={activeSentence}
-          onChange={(event) => updateActiveSentence(event.target.value)}
-          placeholder={`${activeDraftIndex + 1}장 문장 쓰기`}
-          maxLength={240}
-        />
-      </div>
-      <label className="capture-field">
-        <span>제목</span>
-        <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="비우면 첫 문장이 제목" />
-      </label>
-      <div className="capture-field-grid">
-        <label className="capture-field">
-          <span>저자</span>
-          <input value={sourceAuthor} onChange={(event) => setSourceAuthor(event.target.value)} placeholder="선택" />
-        </label>
-        <label className="capture-field">
-          <span>책</span>
-          <input value={sourceWork} onChange={(event) => setSourceWork(event.target.value)} placeholder="선택" />
-        </label>
-      </div>
-      <label className="capture-field">
-        <span>태그</span>
-        <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="쉼표로 3개까지" />
-      </label>
-      <div className="tool-row" aria-label="카드 작성 도구">
-        <button type="button">제목</button>
-        <button type="button">배경</button>
-        <button type="button">출처</button>
-        <button type="button">태그</button>
-      </div>
-      {error ? <p className="capture-error">{error}</p> : null}
+              {selectedTool === "source" ? (
+                <>
+                  <div className="capture-field-grid">
+                    <label className="capture-field">
+                      <span>저자</span>
+                      <input value={sourceAuthor} onChange={(event) => setSourceAuthor(event.target.value)} placeholder="윤동주" />
+                    </label>
+                    <label className="capture-field">
+                      <span>책</span>
+                      <input value={sourceWork} onChange={(event) => setSourceWork(event.target.value)} placeholder="하늘과 바람과 별과 시" />
+                    </label>
+                  </div>
+                  <button className="capture-book-link" type="button" disabled>
+                    <span>책 연결</span>
+                    <em>준비 중</em>
+                  </button>
+                </>
+              ) : null}
+
+              {selectedTool === "tag" ? (
+                <>
+                  {tagList.length > 0 ? (
+                    <div className="capture-tag-list">
+                      {tagList.map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <label className="capture-field">
+                    <span>태그</span>
+                    <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="쉼표로 3개까지" />
+                  </label>
+                </>
+              ) : null}
+              {error ? <p className="capture-error">{error}</p> : null}
+            </div>
+          </section>
+        </>
+      ) : null}
     </form>
   );
 }
