@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from "react";
+import type {
+  CSSProperties,
+  FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent
+} from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
 import type {
   AccountProfile,
@@ -38,7 +44,7 @@ import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
 type EntryState = "gate" | "guest" | "signed-in";
-type InfoSheetState = { postId: string; cardIndex: number };
+type InfoSheetState = { postId: string };
 type EditorialPageKind = "notice" | "event" | "ad";
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
 type MainReturnTab = Exclude<TabKey, "capture">;
@@ -149,7 +155,7 @@ const editorialPages: EditorialPage[] = [
     summary: "책, 연설, 글, 명언처럼 출처가 있는 문장이 새김 안에서 자연스럽게 발견되는 방식을 준비 중이에요.",
     body: [
       "새김의 출처 연결은 문장을 먼저 만나고, 관심이 생기면 원문이나 출처 페이지로 이어지는 조용한 흐름을 목표로 합니다.",
-      "현재는 글 정보 패널의 출처 보기와 포착의 출처 연결 자리를 준비 상태로 열어 두고 있어요."
+      "현재는 정보 패널에 출처와 태그를 먼저 정돈해 보여주고, 원문이나 출처 페이지로 이어지는 연결은 후속 기능으로 준비하고 있어요."
     ],
     cta: {
       label: "제휴 문의",
@@ -712,9 +718,6 @@ export function SaegimShell() {
   const selectedProfilePosts = displayPostsForUi.filter((post) => post.author.id === selectedProfile.id);
   const isOwnProfile = selectedProfile.id === currentAccount.id;
   const infoSheetPost = infoSheet ? posts.find((post) => post.post.id === infoSheet.postId) : null;
-  const infoSheetCardIndex = infoSheetPost
-    ? Math.min(infoSheet?.cardIndex ?? 0, Math.max(infoSheetPost.cards.length - 1, 0))
-    : 0;
   const selectedEditorialPage = editorialPageState
     ? editorialPages.find((page) => page.id === editorialPageState.pageId) ?? null
     : null;
@@ -1060,9 +1063,9 @@ export function SaegimShell() {
     setActiveCardIndex(Math.min(Math.max(index, 0), activePost.cards.length - 1));
   }
 
-  function openInfoSheet(post: PostBundle, cardIndex: number) {
+  function openInfoSheet(post: PostBundle) {
     setCommentPost(null);
-    setInfoSheet({ postId: post.post.id, cardIndex });
+    setInfoSheet({ postId: post.post.id });
   }
 
   useEffect(() => {
@@ -1350,7 +1353,6 @@ export function SaegimShell() {
 
             {infoSheet && infoSheetPost ? (
               <PostInfoSheet
-                cardIndex={infoSheetCardIndex}
                 onClose={() => setInfoSheet(null)}
                 post={infoSheetPost}
               />
@@ -2263,36 +2265,116 @@ function DetailCardSurface({ cardIndex, className, post }: { cardIndex: number; 
   );
 }
 
-function PostInfoSheet({
-  cardIndex,
-  onClose,
-  post
-}: {
-  cardIndex: number;
-  onClose: () => void;
-  post: PostBundle;
-}) {
-  const card = post.cards[cardIndex] ?? post.cards[0]!;
+function PostInfoSheet({ onClose, post }: { onClose: () => void; post: PostBundle }) {
+  const card = post.cards[0]!;
+  const dragRef = useRef<{ pointerId: number; startY: number } | null>(null);
+  const mouseDragRef = useRef<{ startY: number } | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const tags = card.tags.filter(Boolean);
-  const actions = ["공유하기", "링크 복사", "출처 보기", "신고"];
+  const sheetStyle = { "--info-sheet-drag-y": `${dragY}px` } as CSSProperties;
+
+  function finishSheetDrag(nextY: number) {
+    dragRef.current = null;
+    mouseDragRef.current = null;
+    setIsDragging(false);
+
+    if (nextY > 76) {
+      onClose();
+      return;
+    }
+
+    setDragY(0);
+  }
+
+  useEffect(() => {
+    function handleMouseMove(event: MouseEvent) {
+      const drag = mouseDragRef.current;
+      if (!drag) return;
+
+      setDragY(Math.max(0, event.clientY - drag.startY));
+    }
+
+    function handleMouseUp(event: MouseEvent) {
+      const drag = mouseDragRef.current;
+      if (!drag) return;
+
+      finishSheetDrag(Math.max(0, event.clientY - drag.startY));
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  });
+
+  function handleGripMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+
+    mouseDragRef.current = { startY: event.clientY };
+    setIsDragging(true);
+    event.preventDefault();
+  }
+
+  function handleGripPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    dragRef.current = { pointerId: event.pointerId, startY: event.clientY };
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleGripPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const nextY = Math.max(0, event.clientY - drag.startY);
+    setDragY(nextY);
+  }
+
+  function handleGripPointerEnd(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const nextY = Math.max(0, event.clientY - drag.startY);
+    finishSheetDrag(nextY);
+  }
+
+  function handleGripPointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    finishSheetDrag(0);
+  }
+
+  function handleGripKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    event.preventDefault();
+    onClose();
+  }
 
   return (
     <>
-      <button className="comment-backdrop" type="button" aria-label="글 정보 닫기" onClick={onClose} />
-      <section className="info-sheet" aria-label="글 정보">
-        <div className="sheet-grip" aria-hidden="true">
+      <button className="comment-backdrop" type="button" aria-label="정보 닫기" onClick={onClose} />
+      <section className={isDragging ? "info-sheet is-dragging" : "info-sheet"} aria-label="정보" style={sheetStyle}>
+        <div
+          className="sheet-grip"
+          aria-label="정보 패널 닫기"
+          onKeyDown={handleGripKeyDown}
+          onMouseDown={handleGripMouseDown}
+          onPointerCancel={handleGripPointerCancel}
+          onPointerDown={handleGripPointerDown}
+          onPointerMove={handleGripPointerMove}
+          onPointerUp={handleGripPointerEnd}
+          role="button"
+          tabIndex={0}
+        >
           <span />
         </div>
         <div className="info-sheet-head">
-          <div>
-            <strong>글 정보</strong>
-            <span>
-              {cardIndex + 1}/{post.cards.length}장
-            </span>
-          </div>
-          <button type="button" onClick={onClose} aria-label="닫기">
-            ×
-          </button>
+          <strong>정보</strong>
         </div>
 
         <div className="info-summary">
@@ -2323,15 +2405,6 @@ function PostInfoSheet({
               <strong>아직 태그가 없어요.</strong>
             )}
           </div>
-        </div>
-
-        <div className="info-actions" aria-label="준비 중인 글 기능">
-          {actions.map((action) => (
-            <button key={action} type="button" disabled>
-              <span>{action}</span>
-              <small>준비 중</small>
-            </button>
-          ))}
         </div>
       </section>
     </>
