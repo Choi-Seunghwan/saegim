@@ -1,4 +1,4 @@
-import type { AccountProfile, CreatePostInput, PostBundle } from "@saegim/domain";
+import type { AccountProfile, CreatePostInput, PostBundle, UpdateAccountInput } from "@saegim/domain";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 const DEV_ACCOUNT_ID = process.env.NEXT_PUBLIC_DEV_ACCOUNT_ID?.trim();
@@ -43,6 +43,15 @@ export async function fetchRecommendedAccounts(signal?: AbortSignal): Promise<Ac
 
 export async function fetchCurrentAccount(signal?: AbortSignal): Promise<AccountProfile> {
   const data = await fetchJson<ItemResponse<AccountProfile>>("/accounts/me", signal ? { signal } : {});
+  return data.item;
+}
+
+export async function updateCurrentAccount(input: UpdateAccountInput): Promise<AccountProfile> {
+  const data = await fetchJson<ItemResponse<AccountProfile>>("/accounts/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
   return data.item;
 }
 

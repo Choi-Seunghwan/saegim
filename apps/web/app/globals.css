@@ -92,6 +92,7 @@ button {
 .section,
 .capture-view,
 .profile-view,
+.profile-edit-view,
 .auth-gate,
 .auth-form {
   display: grid;
@@ -409,7 +410,21 @@ button {
   font: inherit;
 }
 
-.capture-field input:focus {
+.capture-field textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: 0;
+  border-radius: 8px;
+  outline: 0;
+  background: rgba(56, 50, 63, 0.06);
+  color: var(--ink);
+  padding: 12px 13px;
+  font: inherit;
+}
+
+.capture-field input:focus,
+.capture-field textarea:focus {
   box-shadow: 0 0 0 3px rgba(56, 50, 63, 0.1);
 }
 
@@ -471,11 +486,28 @@ button {
   font-size: 20px;
 }
 
-.profile-head {
+.profile-head,
+.profile-edit-head {
   display: flex;
   align-items: center;
   gap: 14px;
   padding-top: 12px;
+}
+
+.profile-edit-head h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.profile-edit-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.profile-edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .profile-head p,

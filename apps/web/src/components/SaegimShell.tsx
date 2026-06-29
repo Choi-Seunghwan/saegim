@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
-import type { AccountProfile, CreatePostInput, PostBundle } from "@saegim/domain";
+import type { AccountProfile, CreatePostInput, PostBundle, UpdateAccountInput } from "@saegim/domain";
 import {
   carvePost,
   createPost,
@@ -13,7 +13,8 @@ import {
   getGoogleOAuthStartUrl,
   likePost,
   uncarvePost,
-  unlikePost
+  unlikePost,
+  updateCurrentAccount
 } from "../lib/api";
 import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
@@ -37,6 +38,7 @@ function formatCount(value: number) {
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [entryState, setEntryState] = useState<EntryState>("gate");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
   const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
   const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
@@ -60,6 +62,7 @@ export function SaegimShell() {
 
   function leaveApp() {
     setActiveTab("home");
+    setIsEditingProfile(false);
     setEntryState("gate");
     window.localStorage.removeItem(ENTRY_STATE_STORAGE_KEY);
   }
@@ -84,6 +87,12 @@ export function SaegimShell() {
     } catch {
       // 새김은 비공개 간직 액션이라 실패 시 조용히 유지한다.
     }
+  }
+
+  async function handleUpdateProfile(input: UpdateAccountInput) {
+    const updatedAccount = await updateCurrentAccount(input);
+    setCurrentAccount(updatedAccount);
+    setIsEditingProfile(false);
   }
 
   useEffect(() => {
@@ -132,9 +141,19 @@ export function SaegimShell() {
     }
     if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
     if (activeTab === "shelf") return <ShelfView posts={posts} />;
-    if (activeTab === "me") return <ProfileView account={currentAccount} onLogout={leaveApp} />;
+    if (activeTab === "me") {
+      return isEditingProfile ? (
+        <ProfileEditView
+          account={currentAccount}
+          onCancel={() => setIsEditingProfile(false)}
+          onSubmit={handleUpdateProfile}
+        />
+      ) : (
+        <ProfileView account={currentAccount} onEdit={() => setIsEditingProfile(true)} onLogout={leaveApp} />
+      );
+    }
     return <HomeView post={featuredPost} accounts={accounts} onOpenDiscover={() => setActiveTab("discover")} />;
-  }, [accounts, activeTab, currentAccount, featuredPost, posts]);
+  }, [accounts, activeTab, currentAccount, featuredPost, isEditingProfile, posts]);
 
   return (
     <main className="app-shell" aria-label="새김 앱">
@@ -457,7 +476,15 @@ function ShelfView({ posts }: { posts: PostBundle[] }) {
   );
 }
 
-function ProfileView({ account, onLogout }: { account: AccountProfile; onLogout: () => void }) {
+function ProfileView({
+  account,
+  onEdit,
+  onLogout
+}: {
+  account: AccountProfile;
+  onEdit: () => void;
+  onLogout: () => void;
+}) {
   return (
     <section className="profile-view">
       <div className="profile-head">
@@ -470,13 +497,111 @@ function ProfileView({ account, onLogout }: { account: AccountProfile; onLogout:
           </small>
         </div>
       </div>
-      <button className="primary-button ghost" type="button">
+      <button className="primary-button ghost" type="button" onClick={onEdit}>
         프로필 편집
       </button>
       <button className="profile-logout" type="button" onClick={onLogout}>
         로그아웃
       </button>
     </section>
+  );
+}
+
+function ProfileEditView({
+  account,
+  onCancel,
+  onSubmit
+}: {
+  account: AccountProfile;
+  onCancel: () => void;
+  onSubmit: (input: UpdateAccountInput) => Promise<void>;
+}) {
+  const [displayName, setDisplayName] = useState(account.displayName);
+  const [tagline, setTagline] = useState(account.tagline);
+  const [bio, setBio] = useState(account.bio ?? "");
+  const [photoUrl, setPhotoUrl] = useState(account.photoUrl ?? "");
+  const [status, setStatus] = useState<"idle" | "saving">("idle");
+  const [error, setError] = useState("");
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!displayName.trim()) {
+      setError("닉네임을 입력해 주세요.");
+      return;
+    }
+
+    try {
+      setStatus("saving");
+      setError("");
+      await onSubmit({
+        displayName: displayName.trim(),
+        tagline: tagline.trim(),
+        bio: bio.trim() || null,
+        photoUrl: photoUrl.trim() || null
+      });
+    } catch {
+      setStatus("idle");
+      setError("프로필을 저장할 수 없어요. API 서버를 확인해 주세요.");
+    }
+  }
+
+  return (
+    <form className="profile-edit-view" onSubmit={handleSubmit}>
+      <div className="profile-edit-head">
+        <div className="avatar large">{displayName.trim().slice(0, 1) || account.displayName.slice(0, 1)}</div>
+        <div>
+          <h2>프로필 편집</h2>
+          <p>{tagline || "한 줄을 곁에 두는 사람"}</p>
+        </div>
+      </div>
+
+      <label className="capture-field">
+        <span>닉네임</span>
+        <input
+          maxLength={24}
+          onChange={(event) => setDisplayName(event.target.value)}
+          placeholder="나의 서재"
+          value={displayName}
+        />
+      </label>
+      <label className="capture-field">
+        <span>한줄 소개글</span>
+        <input
+          maxLength={48}
+          onChange={(event) => setTagline(event.target.value)}
+          placeholder="한 줄을 곁에 두는 사람"
+          value={tagline}
+        />
+      </label>
+      <label className="capture-field">
+        <span>소개글</span>
+        <textarea
+          maxLength={240}
+          onChange={(event) => setBio(event.target.value)}
+          placeholder="조용히 남겨 둘 소개글"
+          value={bio}
+        />
+      </label>
+      <label className="capture-field">
+        <span>프로필 사진</span>
+        <input
+          onChange={(event) => setPhotoUrl(event.target.value)}
+          placeholder="이미지 주소"
+          value={photoUrl}
+        />
+      </label>
+
+      {error ? <p className="capture-error">{error}</p> : null}
+      <div className="profile-edit-actions">
+        <button className="primary-button ghost" type="button" onClick={onCancel}>
+          취소
+        </button>
+        <button className="primary-button" type="submit" disabled={status === "saving"}>
+          {status === "saving" ? "저장 중" : "저장"}
+        </button>
+      </div>
+    </form>
   );
 }
 

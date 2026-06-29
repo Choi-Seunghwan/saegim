@@ -46,6 +46,7 @@
 - `apps/web/src/components/SaegimShell.tsx`: 포착 탭에서 한 장짜리 글을 발행하면 API 응답을 피드 상태에 prepend하고 발견 탭으로 이동한다.
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면의 좋아요(공개 수치)와 새김(비공개 상태) 버튼은 API 응답으로 viewerState를 갱신한다.
 - `apps/web/src/components/SaegimShell.tsx`: 로그인 게이트(로그인/회원가입/Google/게스트)를 먼저 보여주고, Google 버튼은 `/auth/google`로 이동한다. 이메일/게스트 입장 상태는 임시로 `saegim_web_entry_state` localStorage에 저장한다. 나 탭 로그아웃은 이 값을 지우고 게이트로 돌아간다. 실제 OAuth 세션 도입 시 교체한다.
+- `apps/web/src/components/SaegimShell.tsx`: 나 탭 프로필 편집은 `PATCH /accounts/me`로 닉네임·한줄 소개글·소개글·프로필 사진 URL을 저장하고 현재 계정 상태를 갱신한다.
 - `apps/api`: NestJS API. 현재 `/health`, `/auth/google`, `/auth/google/callback`, `/feed`, `/shelf`, `/posts/:postId`, `GET/PATCH /accounts/me`, `/accounts/recommended`, `POST /posts`, 좋아요/새김 토글로 기본 계약을 확인한다. 발행·좋아요·새김은 PostgreSQL에 저장한다.
 - `apps/api/src/auth`: 현재 사용자 컨텍스트 경계. 인증 연결 전에는 `DEV_ACCOUNT_ID`(기본 `acct-me`)를 현재 계정으로 사용한다. 개발 환경에서는 `x-saegim-account-id` 요청 헤더로 계정 컨텍스트를 임시 전환할 수 있고, 웹은 `NEXT_PUBLIC_DEV_ACCOUNT_ID`가 있으면 이 헤더를 자동으로 보낸다. Google OAuth 세션 도입 시 이 서비스에서 실제 계정을 해석한다.
 - `apps/api/src/content/content.repository.ts`: Prisma 기반 콘텐츠 저장소. 서버 시작 시 시드 계정/글을 idempotent하게 보강하고, 응답을 `PostBundle` 형태로 매핑한다.
