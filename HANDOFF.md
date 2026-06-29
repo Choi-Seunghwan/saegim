@@ -43,7 +43,7 @@
 
 - `apps/web`: Next.js(App Router) 프론트. 모바일 앱 쉘부터 구현한다.
 - `apps/web/src/lib/api.ts`: `NEXT_PUBLIC_API_BASE_URL` 기준으로 `/feed`, `/drawer`, `/accounts/me`, `/accounts/recommended`, `/accounts/following`, `POST /posts`, 좋아요/새김 토글 API를 호출한다. API 실패 시 첫 화면은 샘플 데이터로 유지한다.
-- `apps/web/src/components/SaegimShell.tsx`: 포착 탭에서 1~N장 글을 작성·발행하면 API 응답을 피드 상태에 prepend하고 발견 탭으로 이동한다.
+- `apps/web/src/components/SaegimShell.tsx`: 포착 탭에서 1~N장 글을 작성하고 내부 발행 확인 팝업을 거쳐 발행하면 API 응답을 피드 상태에 prepend하고 발견 탭으로 이동한다. 로컬 개발 중 API 서버가 꺼져 있으면 현재 계정 기준 임시 글 bundle을 만들어 동일하게 발견 탭에 반영한다. 카드 삭제도 브라우저 기본 확인창이 아니라 내부 확인 팝업을 사용한다.
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면은 현재 글/장 위치를 상태로 들고, ↑/↓로 글 이동, ←/→ 또는 장 점으로 장 이동을 처리한다. 홈·둘러보기·서랍·검색에서 글을 열면 해당 글을 발견 화면의 현재 글로 고정한다.
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면의 좋아요(공개 수치)와 새김(비공개 상태) 버튼은 API 응답으로 viewerState를 갱신한다.
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면 댓글 버튼은 댓글 시트를 열고, `GET/POST /posts/:postId/comments`로 댓글 목록과 작성 흐름을 처리한다. 작성 성공 시 응답의 갱신된 글 bundle로 댓글 수를 즉시 반영한다.

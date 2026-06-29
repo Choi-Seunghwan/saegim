@@ -1873,6 +1873,83 @@ textarea:focus-visible {
   stroke-linejoin: round;
 }
 
+.capture-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.capture-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 24, 32, 0.42);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+
+.capture-confirm-box {
+  position: relative;
+  z-index: 1;
+  width: min(304px, 86%);
+  display: grid;
+  gap: 0;
+  padding: 22px 20px 16px;
+  border-radius: 20px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 30px 60px -22px rgba(22, 18, 26, 0.62);
+}
+
+.capture-confirm-box h3,
+.capture-confirm-box p {
+  margin: 0;
+  text-align: center;
+}
+
+.capture-confirm-box h3 {
+  font-size: 16.5px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.capture-confirm-box p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.capture-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.capture-confirm-actions button {
+  min-height: 42px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.07);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.capture-confirm-actions button.is-primary {
+  background: var(--ink-strong);
+  color: #fff;
+}
+
+.capture-confirm-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
 .capture-bottom {
   position: absolute;
   left: 0;

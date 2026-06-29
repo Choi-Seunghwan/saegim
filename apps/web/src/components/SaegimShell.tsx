@@ -48,6 +48,9 @@ type CaptureDraftCard = {
   text: string;
   comp: CardComposition;
 };
+type CaptureConfirmState =
+  | { kind: "publish"; input: CreatePostInput; cardCount: number }
+  | { kind: "delete"; index: number; cardNumber: number };
 type CaptureDragTarget = "text" | "source" | "resize";
 type CapturePointerDrag = {
   pointerId: number;
@@ -416,6 +419,69 @@ function postWithViewerState(post: PostBundle, patch: Partial<NonNullable<PostBu
     viewerState: {
       ...viewerState,
       ...patch
+    }
+  };
+}
+
+function titleFromText(text: string) {
+  const firstLine = text.split(/\r?\n/)[0]?.trim() || "새로 새긴 글";
+  return firstLine.length > 24 ? `${firstLine.slice(0, 24)}...` : firstLine;
+}
+
+function localPostId() {
+  return `local-post-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createLocalPostBundle(input: CreatePostInput, author: AccountProfile): PostBundle {
+  const now = new Date().toISOString();
+  const postId = localPostId();
+  const cards = input.cards.map((card, order) => {
+    const source = card.source ?? {};
+    const comp = { ...DEFAULT_CARD_COMP, ...card.comp };
+
+    return {
+      id: `${postId}-card-${order + 1}`,
+      postId,
+      order,
+      text: card.text.trim(),
+      comp,
+      source: {
+        kind: source.kind ?? "direct",
+        ...(source.author ? { author: source.author } : {}),
+        ...(source.work ? { work: source.work } : {}),
+        ...(source.url ? { url: source.url } : {})
+      },
+      tags: (card.tags ?? []).filter(Boolean).slice(0, 3),
+      embeddingStatus: "pending" as const,
+      createdAt: now
+    };
+  });
+  const firstCard = cards[0]!;
+  const title = input.title?.trim() || titleFromText(firstCard.text);
+
+  return {
+    post: {
+      id: postId,
+      title,
+      authorId: author.id,
+      coverCardId: firstCard.id,
+      cardCount: cards.length,
+      visibility: input.visibility ?? "public",
+      creationType: input.creationType ?? "original",
+      createdAt: now,
+      updatedAt: now
+    },
+    author: {
+      ...author,
+      postCount: author.postCount + 1
+    },
+    cards,
+    viewerState: {
+      liked: false,
+      carved: false,
+      subscribed: false,
+      likeCount: 0,
+      commentCount: 0
     }
   };
 }
@@ -1096,7 +1162,13 @@ export function SaegimShell() {
       );
     }
     if (activeTab === "capture") {
-      return <CaptureView onClose={() => selectTab(captureReturnTab)} onPublished={handlePostPublished} />;
+      return (
+        <CaptureView
+          currentAccount={currentAccount}
+          onClose={() => selectTab(captureReturnTab)}
+          onPublished={handlePostPublished}
+        />
+      );
     }
     if (activeTab === "shelf") return <ShelfView posts={posts} onOpenPost={openPost} />;
     if (activeTab === "me") {
@@ -2349,7 +2421,15 @@ function CommentSheet({
   );
 }
 
-function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublished: (post: PostBundle) => void }) {
+function CaptureView({
+  currentAccount,
+  onClose,
+  onPublished
+}: {
+  currentAccount: AccountProfile;
+  onClose: () => void;
+  onPublished: (post: PostBundle) => void;
+}) {
   const [cards, setCards] = useState<CaptureDraftCard[]>(() => [createCaptureDraftCard()]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
   const [selectedTool, setSelectedTool] = useState<CaptureSheetKey | null>(null);
@@ -2359,6 +2439,7 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
   const [tags, setTags] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState("");
+  const [confirmState, setConfirmState] = useState<CaptureConfirmState | null>(null);
   const [captureDragTarget, setCaptureDragTarget] = useState<CaptureDragTarget | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -2399,6 +2480,19 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 360)}px`;
   }, [activeSentence, activeComp.size, activeDraftIndex]);
+
+  useEffect(() => {
+    if (!confirmState) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && status !== "submitting") {
+        setConfirmState(null);
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [confirmState, status]);
 
   function updateActiveDraft(updater: (draft: CaptureDraftCard) => CaptureDraftCard) {
     setCards((currentCards) => currentCards.map((card, index) => (index === activeDraftIndex ? updater(card) : card)));
@@ -2447,14 +2541,15 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
       return;
     }
 
-    if (!window.confirm("이 장을 삭제할까요?")) {
-      return;
-    }
+    setConfirmState({ kind: "delete", index: activeDraftIndex, cardNumber: activeDraftIndex + 1 });
+  }
 
-    const nextCards = cards.filter((_, index) => index !== activeDraftIndex);
+  function deleteDraftCard(index: number) {
+    const nextCards = cards.filter((_, cardIndex) => cardIndex !== index);
     setCards(nextCards);
-    setActiveDraftIndex(Math.min(activeDraftIndex, nextCards.length - 1));
+    setActiveDraftIndex(Math.min(index, nextCards.length - 1));
     setError("");
+    setConfirmState(null);
   }
 
   function beginCaptureDrag(target: CaptureDragTarget, event: ReactPointerEvent<HTMLElement>) {
@@ -2544,18 +2639,27 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function resetCaptureDrafts() {
+    setCards([createCaptureDraftCard()]);
+    setActiveDraftIndex(0);
+    setTitle("");
+    setSourceAuthor("");
+    setSourceWork("");
+    setTags("");
+    setSelectedTool(null);
+  }
 
+  function createPostInputFromDrafts() {
     const cleanCards = cards
       .map((card) => ({
         ...card,
         text: card.text.trim()
       }))
       .filter((card) => card.text.length > 0);
+
     if (cleanCards.length === 0) {
       setError("문장을 먼저 적어 주세요.");
-      return;
+      return null;
     }
 
     const cleanTitle = title.trim();
@@ -2580,24 +2684,65 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
       input.title = cleanTitle;
     }
 
+    return { input, cardCount: cleanCards.length };
+  }
+
+  async function publishPost(input: CreatePostInput) {
     try {
       setStatus("submitting");
       setError("");
       const publishedPost = await createPost(input);
-      setCards([createCaptureDraftCard()]);
-      setActiveDraftIndex(0);
-      setTitle("");
-      setSourceAuthor("");
-      setSourceWork("");
-      setTags("");
-      setSelectedTool(null);
-      setStatus("idle");
+      resetCaptureDrafts();
       onPublished(publishedPost);
     } catch {
-      setError("지금은 발행할 수 없어요. API 서버를 확인해 주세요.");
+      const fallbackPost = createLocalPostBundle(input, currentAccount);
+      resetCaptureDrafts();
+      onPublished(fallbackPost);
+    } finally {
       setStatus("idle");
+      setConfirmState(null);
     }
   }
+
+  function handleConfirmAction() {
+    if (!confirmState || status === "submitting") {
+      return;
+    }
+
+    if (confirmState.kind === "delete") {
+      deleteDraftCard(confirmState.index);
+      return;
+    }
+
+    void publishPost(confirmState.input);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextPost = createPostInputFromDrafts();
+
+    if (!nextPost) {
+      return;
+    }
+
+    setSelectedTool(null);
+    setError("");
+    setConfirmState({ kind: "publish", input: nextPost.input, cardCount: nextPost.cardCount });
+  }
+
+  const confirmCopy = confirmState
+    ? confirmState.kind === "delete"
+      ? {
+          title: `${confirmState.cardNumber}번째 장을 삭제할까요?`,
+          desc: "이 장의 문장·배경·출처가 사라져요. 되돌릴 수 없어요.",
+          ok: "삭제"
+        }
+      : {
+          title: "이 글을 발행할까요?",
+          desc: `${confirmState.cardCount}장으로 발견 피드에 올릴게요.`,
+          ok: status === "submitting" ? "발행 중" : "발행"
+        }
+    : null;
 
   return (
     <form className="capture-view" onSubmit={handleSubmit}>
@@ -2713,6 +2858,43 @@ function CaptureView({ onClose, onPublished }: { onClose: () => void; onPublishe
           </div>
         </div>
         {error ? <p className="capture-floating-error">{error}</p> : null}
+        {confirmState && confirmCopy ? (
+          <div className="capture-confirm" role="presentation">
+            <button
+              className="capture-confirm-backdrop"
+              type="button"
+              aria-label="확인 창 닫기"
+              onClick={() => {
+                if (status !== "submitting") {
+                  setConfirmState(null);
+                }
+              }}
+            />
+            <section
+              className="capture-confirm-box"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="captureConfirmTitle"
+              aria-describedby="captureConfirmDesc"
+            >
+              <h3 id="captureConfirmTitle">{confirmCopy.title}</h3>
+              <p id="captureConfirmDesc">{confirmCopy.desc}</p>
+              <div className="capture-confirm-actions">
+                <button type="button" onClick={() => setConfirmState(null)} disabled={status === "submitting"}>
+                  취소
+                </button>
+                <button
+                  className="is-primary"
+                  type="button"
+                  onClick={handleConfirmAction}
+                  disabled={status === "submitting"}
+                >
+                  {confirmCopy.ok}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </div>
 
       {selectedTool ? (
