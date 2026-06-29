@@ -51,6 +51,7 @@
 - `apps/web/src/components/SaegimShell.tsx`: 홈 소식 레일은 정적 공지·이벤트·AD 상세 페이지를 열고, 설정 > 공지사항은 공지 목록을 거쳐 공지 상세를 연다. 이벤트 CTA는 발견 피드로 이동하고 제휴 문의는 `준비 중`으로 둔다.
 - `apps/web/src/components/SaegimShell.tsx`: 홈 추천 글벗과 발견 작성자 바의 구독 버튼은 `POST/DELETE /accounts/:accountId/follow` 응답으로 계정 `viewerState.subscribed`와 같은 작성자의 글 `viewerState.subscribed`를 함께 갱신한다.
 - `apps/web/src/components/SaegimShell.tsx`: 홈 추천 글벗·발견 작성자·검색 계정 결과를 동일 프로필 화면으로 열고, 타인 프로필 진입 시 `GET /accounts/:accountId` 상세로 계정 정보와 해당 계정 글 그리드를 보강한다.
+- `apps/web/src/components/SaegimShell.tsx`: 프로필 글 그리드는 공통 글 미리보기 카드를 쓰되, 내 프로필에서는 공개 좋아요 수를 숨긴다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭의 `내 서랍`은 `GET /drawer`로 현재 계정이 새김한 글 목록을 읽어 둘러보기 카드 그리드로 보여준다.
 - `apps/web/src/components/SaegimShell.tsx`: 상단 검색 버튼은 검색 화면을 열고, `GET /search?q=`로 계정·글 통합 결과를 표시한다. 글 결과를 누르면 해당 글을 발견 화면으로 올린다.
 - `apps/web/src/components/SaegimShell.tsx`: 로그인 게이트(로그인/회원가입/Google/게스트)를 먼저 보여주고, Google 버튼은 `/auth/google`로 이동한다. OAuth 콜백 후에는 `/auth/session`으로 세션 쿠키를 감지해 자동 입장한다. 이메일/게스트 입장 상태는 임시로 `saegim_web_entry_state` localStorage에 저장한다. 나 탭 로그아웃은 `/auth/logout`을 호출하고 게이트로 돌아간다.

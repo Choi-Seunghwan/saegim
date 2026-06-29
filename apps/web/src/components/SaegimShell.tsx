@@ -883,7 +883,15 @@ function SearchView({
   );
 }
 
-function PostPreviewButton({ post, onOpenPost }: { post: PostBundle; onOpenPost: (post: PostBundle) => void }) {
+function PostPreviewButton({
+  hideLikeCount = false,
+  post,
+  onOpenPost
+}: {
+  hideLikeCount?: boolean;
+  post: PostBundle;
+  onOpenPost: (post: PostBundle) => void;
+}) {
   const card = post.cards[0]!;
 
   return (
@@ -897,7 +905,7 @@ function PostPreviewButton({ post, onOpenPost }: { post: PostBundle; onOpenPost:
       <p>{card.text}</p>
       <footer>
         <strong>{post.post.title}</strong>
-        <span>♡ {post.viewerState?.likeCount.toLocaleString("ko-KR") ?? 0}</span>
+        {hideLikeCount ? null : <span>♡ {post.viewerState?.likeCount.toLocaleString("ko-KR") ?? 0}</span>}
       </footer>
     </button>
   );
@@ -1800,7 +1808,12 @@ function ProfileView({
         {posts.length > 0 ? (
           <div className="masonry">
             {posts.map((post) => (
-              <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+              <PostPreviewButton
+                hideLikeCount={isOwnProfile}
+                key={post.post.id}
+                post={post}
+                onOpenPost={onOpenPost}
+              />
             ))}
           </div>
         ) : (
