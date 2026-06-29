@@ -10,6 +10,7 @@ import {
   fetchCurrentAccount,
   fetchFeed,
   fetchRecommendedAccounts,
+  getGoogleOAuthStartUrl,
   likePost,
   uncarvePost,
   unlikePost
@@ -55,6 +56,10 @@ export function SaegimShell() {
   function enterApp(nextEntryState: Exclude<EntryState, "gate">) {
     setEntryState(nextEntryState);
     window.localStorage.setItem(ENTRY_STATE_STORAGE_KEY, nextEntryState);
+  }
+
+  function startGoogleOAuth() {
+    window.location.assign(getGoogleOAuthStartUrl());
   }
 
   async function handleToggleLike(post: PostBundle) {
@@ -129,7 +134,7 @@ export function SaegimShell() {
     <main className="app-shell" aria-label="새김 앱">
       <section className="mobile-frame">
         {entryState === "gate" ? (
-          <AuthGate onEnter={enterApp} />
+          <AuthGate onEnter={enterApp} onGoogleLogin={startGoogleOAuth} />
         ) : (
           <>
             <header className="topbar">
@@ -162,7 +167,13 @@ export function SaegimShell() {
   );
 }
 
-function AuthGate({ onEnter }: { onEnter: (entryState: Exclude<EntryState, "gate">) => void }) {
+function AuthGate({
+  onEnter,
+  onGoogleLogin
+}: {
+  onEnter: (entryState: Exclude<EntryState, "gate">) => void;
+  onGoogleLogin: () => void;
+}) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -189,7 +200,7 @@ function AuthGate({ onEnter }: { onEnter: (entryState: Exclude<EntryState, "gate
         </button>
       </div>
 
-      <button className="google-button" type="button" onClick={() => onEnter("signed-in")}>
+      <button className="google-button" type="button" onClick={onGoogleLogin}>
         Google 계정으로 계속
       </button>
 

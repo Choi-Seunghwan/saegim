@@ -46,6 +46,10 @@ export async function fetchCurrentAccount(signal?: AbortSignal): Promise<Account
   return data.item;
 }
 
+export function getGoogleOAuthStartUrl() {
+  return `${API_BASE_URL}/auth/google`;
+}
+
 export async function createPost(input: CreatePostInput): Promise<PostBundle> {
   return fetchJson<PostBundle>("/posts", {
     method: "POST",
