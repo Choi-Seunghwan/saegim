@@ -4,7 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
 import type { AccountProfile, CreatePostInput, PostBundle } from "@saegim/domain";
-import { createPost, fetchFeed, fetchRecommendedAccounts } from "../lib/api";
+import {
+  carvePost,
+  createPost,
+  fetchFeed,
+  fetchRecommendedAccounts,
+  likePost,
+  uncarvePost,
+  unlikePost
+} from "../lib/api";
 import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
@@ -17,6 +25,10 @@ const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
   { key: "me", label: "나", icon: "나" }
 ];
 
+function formatCount(value: number) {
+  return value.toLocaleString("ko-KR");
+}
+
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
@@ -26,6 +38,28 @@ export function SaegimShell() {
   function handlePostPublished(post: PostBundle) {
     setPosts((currentPosts) => [post, ...currentPosts.filter((item) => item.post.id !== post.post.id)]);
     setActiveTab("discover");
+  }
+
+  function replacePost(post: PostBundle) {
+    setPosts((currentPosts) => currentPosts.map((item) => (item.post.id === post.post.id ? post : item)));
+  }
+
+  async function handleToggleLike(post: PostBundle) {
+    try {
+      const updatedPost = post.viewerState?.liked ? await unlikePost(post.post.id) : await likePost(post.post.id);
+      replacePost(updatedPost);
+    } catch {
+      // 네트워크 실패 시 현재 화면 상태를 유지한다.
+    }
+  }
+
+  async function handleToggleCarve(post: PostBundle) {
+    try {
+      const updatedPost = post.viewerState?.carved ? await uncarvePost(post.post.id) : await carvePost(post.post.id);
+      replacePost(updatedPost);
+    } catch {
+      // 새김은 비공개 간직 액션이라 실패 시 조용히 유지한다.
+    }
   }
 
   useEffect(() => {
@@ -55,7 +89,9 @@ export function SaegimShell() {
   }, []);
 
   const content = useMemo(() => {
-    if (activeTab === "discover") return <DiscoverView post={featuredPost} />;
+    if (activeTab === "discover") {
+      return <DiscoverView post={featuredPost} onToggleCarve={handleToggleCarve} onToggleLike={handleToggleLike} />;
+    }
     if (activeTab === "capture") return <CaptureView onPublished={handlePostPublished} />;
     if (activeTab === "shelf") return <ShelfView posts={posts} />;
     if (activeTab === "me") return <ProfileView />;
@@ -130,8 +166,17 @@ function HomeView({
   );
 }
 
-function DiscoverView({ post }: { post: PostBundle }) {
+function DiscoverView({
+  post,
+  onToggleCarve,
+  onToggleLike
+}: {
+  post: PostBundle;
+  onToggleCarve: (post: PostBundle) => void;
+  onToggleLike: (post: PostBundle) => void;
+}) {
   const card = post.cards[0]!;
+  const viewerState = post.viewerState;
 
   return (
     <article className="discover-view">
@@ -145,17 +190,29 @@ function DiscoverView({ post }: { post: PostBundle }) {
         <button type="button">구독</button>
       </div>
       <aside className="action-rail" aria-label="글 행동">
-        <button type="button" aria-label="새김">
-          ▱
+        <button
+          className={viewerState?.carved ? "is-on" : undefined}
+          type="button"
+          aria-label={viewerState?.carved ? "새김 취소" : "새김"}
+          onClick={() => onToggleCarve(post)}
+        >
+          <span>{viewerState?.carved ? "▰" : "▱"}</span>
         </button>
-        <button type="button" aria-label="좋아요">
-          ♡
+        <button
+          className={viewerState?.liked ? "is-on" : undefined}
+          type="button"
+          aria-label={viewerState?.liked ? "좋아요 취소" : "좋아요"}
+          onClick={() => onToggleLike(post)}
+        >
+          <span>{viewerState?.liked ? "♥" : "♡"}</span>
+          <small>{formatCount(viewerState?.likeCount ?? 0)}</small>
         </button>
         <button type="button" aria-label="댓글">
-          ◌
+          <span>◌</span>
+          <small>{formatCount(viewerState?.commentCount ?? 0)}</small>
         </button>
         <button type="button" aria-label="더보기">
-          ⋯
+          <span>⋯</span>
         </button>
       </aside>
     </article>

@@ -39,3 +39,19 @@ export async function createPost(input: CreatePostInput): Promise<PostBundle> {
     body: JSON.stringify(input)
   });
 }
+
+export async function likePost(postId: string): Promise<PostBundle> {
+  return fetchJson<PostBundle>(`/posts/${postId}/like`, { method: "POST" });
+}
+
+export async function unlikePost(postId: string): Promise<PostBundle> {
+  return fetchJson<PostBundle>(`/posts/${postId}/like`, { method: "DELETE" });
+}
+
+export async function carvePost(postId: string): Promise<PostBundle> {
+  return fetchJson<PostBundle>(`/posts/${postId}/carve`, { method: "POST" });
+}
+
+export async function uncarvePost(postId: string): Promise<PostBundle> {
+  return fetchJson<PostBundle>(`/posts/${postId}/carve`, { method: "DELETE" });
+}

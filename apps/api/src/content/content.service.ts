@@ -63,6 +63,38 @@ export class ContentService {
     return post;
   }
 
+  likePost(postId: string) {
+    const bundle = this.getPost(postId);
+    if (!bundle.viewerState.liked) {
+      bundle.viewerState.liked = true;
+      bundle.viewerState.likeCount += 1;
+    }
+
+    return bundle;
+  }
+
+  unlikePost(postId: string) {
+    const bundle = this.getPost(postId);
+    if (bundle.viewerState.liked) {
+      bundle.viewerState.liked = false;
+      bundle.viewerState.likeCount = Math.max(0, bundle.viewerState.likeCount - 1);
+    }
+
+    return bundle;
+  }
+
+  carvePost(postId: string) {
+    const bundle = this.getPost(postId);
+    bundle.viewerState.carved = true;
+    return bundle;
+  }
+
+  uncarvePost(postId: string) {
+    const bundle = this.getPost(postId);
+    bundle.viewerState.carved = false;
+    return bundle;
+  }
+
   createPost(input: CreatePostInput) {
     const cardsInput = this.normalizeCards(input);
     const now = new Date().toISOString();
