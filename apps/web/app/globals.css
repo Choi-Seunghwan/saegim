@@ -2501,36 +2501,53 @@ textarea:focus-visible {
 
 .settings-view,
 .notice-list-view,
-.editorial-page {
+.editorial-page,
+.drawer-view {
   min-height: 100%;
   padding: 8px 0 34px;
   background: var(--mist);
 }
 
-.settings-head {
-  display: flex;
+.settings-head,
+.drawer-head {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
-  gap: 11px;
-  padding: 8px 16px 12px;
+  column-gap: 11px;
+  padding: 8px 22px 12px;
+}
+
+.settings-head > div,
+.drawer-head > div {
+  min-width: 0;
+  display: grid;
+  align-content: center;
 }
 
 .settings-head h2,
-.settings-head p {
+.settings-head p,
+.drawer-head h2,
+.drawer-head p {
   margin: 0;
 }
 
-.settings-head h2 {
+.settings-head h2,
+.drawer-head h2 {
   color: var(--ink);
   font-size: 25px;
   font-weight: 800;
+  line-height: 1.1;
   letter-spacing: 0;
 }
 
-.settings-head p {
-  margin-top: 4px;
+.settings-head p,
+.drawer-head p {
+  margin-top: 5px;
   color: var(--muted);
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .settings-groups {
@@ -2633,7 +2650,7 @@ textarea:focus-visible {
   display: flex;
   align-items: flex-start;
   gap: 11px;
-  padding: 6px 16px 0;
+  padding: 8px 22px 12px;
 }
 
 .page-head div {
@@ -2731,17 +2748,17 @@ textarea:focus-visible {
   line-height: 1.45;
 }
 
-.drawer-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .drawer-tools {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
+  padding: 0 22px 8px;
+}
+
+.drawer-view {
+  display: block;
+  gap: 0;
 }
 
 .drawer-search {
@@ -2816,24 +2833,24 @@ textarea:focus-visible {
   background: rgba(56, 50, 63, 0.06);
 }
 
-.drawer-head h2,
-.drawer-head p,
 .drawer-empty {
   margin: 0;
 }
 
-.drawer-head h2 {
-  font-size: 19px;
-}
-
-.drawer-head p,
 .drawer-empty {
   color: var(--muted);
 }
 
 .drawer-empty {
-  padding: 18px 2px;
+  padding: 38px 22px;
   font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.drawer-view > .masonry,
+.drawer-view > .search-account-list {
+  padding: 2px 22px 24px;
 }
 
 .search-head {
@@ -3074,19 +3091,20 @@ textarea:focus-visible {
 }
 
 .edit-page-head {
-  min-height: 50px;
-  display: flex;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 14px;
-  margin: 0 -6px;
+  margin: 0 0 8px;
 }
 
 .edit-page-head > div {
   min-width: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
-  gap: 11px;
+  column-gap: 11px;
 }
 
 .edit-page-head h2 {

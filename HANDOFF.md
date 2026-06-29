@@ -57,6 +57,7 @@
 - `apps/web/src/components/SaegimShell.tsx`: 로그인 게이트(로그인/회원가입/Google/게스트)를 먼저 보여주고, Google 버튼은 `/auth/google`로 이동한다. OAuth 콜백 후에는 `/auth/session`으로 세션 쿠키를 감지해 자동 입장한다. 이메일/게스트 입장 상태는 임시로 `saegim_web_entry_state` localStorage에 저장한다. 나 탭 로그아웃은 `/auth/logout`을 호출하고 게이트로 돌아간다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭 프로필 편집은 `PATCH /accounts/me`로 닉네임·한줄 소개글·소개글·프로필 사진 URL을 저장하고 현재 계정 상태를 갱신한다. 로컬 개발 중 API 서버가 꺼져 있으면 현재 계정 상태에 로컬 fallback을 적용한다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭 설정 전체 페이지는 프로필 편집·내 서랍·구독 목록·공지사항·로그아웃을 연결하고, 알림·약관·문의 같은 미구현 항목은 `준비 중`으로 표시한다. 검색·설정·서랍·구독 목록·프로필 편집 같은 전체 페이지 상태에서는 하단 탭을 숨긴다.
+- `apps/web/app/globals.css`: 설정에서 진입하는 전체 페이지(설정·내 서랍·구독 목록·공지 목록/상세·프로필 편집)는 같은 헤더 기준선(뒤로가기/제목 시작점)과 좌우 본문 여백을 공유한다. 서랍 계열도 설정 하위 페이지로 취급해 검색/정렬 도구와 목록을 동일한 레일 안에서 보여준다.
 - `apps/web/src/components/SaegimShell.tsx`: 공통 `Avatar`는 `photoUrl`이 있으면 이미지 아바타를 보여주고, 실패하면 첫 글자 아바타로 돌아간다. 검색·추천 글벗·발견 작가 바·댓글·프로필·프로필 편집 미리보기에서 공유한다.
 - `apps/web/src/components/SaegimShell.tsx`: `verification: "official"` 계정은 공통 이름 표시에서 닉네임 옆 공식 마크를 보여준다. 하단 `나` 탭은 현재 계정 아바타를 사용한다.
 - `apps/web/src/components/SaegimShell.tsx` + `apps/web/app/globals.css`: Next 웹 공통 모바일 뷰는 `app.html`의 실제 앱 UI를 따르되, 데모용 폰 프레임·상태바는 제외한다. 워드마크 밑줄·원형 검색·하단 아이콘 탭/FAB, 홈 배너/레일, 발견 풀블리드 카드/제목 라벨/작가 칩/액션 레일은 프로토타입 위치감을 기준으로 맞추고, 글 미리보기는 공통 `shelf-card`와 카드 `comp` 배경 계약을 공유한다.
