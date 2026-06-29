@@ -30,6 +30,22 @@ import { sampleAccounts, samplePosts } from "../lib/sample-data";
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
 type EntryState = "gate" | "guest" | "signed-in";
 type InfoSheetState = { postId: string; cardIndex: number };
+type EditorialPageKind = "notice" | "event" | "ad";
+type EditorialPageOrigin = "home" | "settings" | "notice-list";
+type EditorialPageState = { pageId: string; origin: EditorialPageOrigin };
+type EditorialPage = {
+  id: string;
+  kind: EditorialPageKind;
+  label: string;
+  title: string;
+  date: string;
+  summary: string;
+  body: string[];
+  cta?: {
+    label: string;
+    action: "discover" | "contact";
+  };
+};
 
 const ENTRY_STATE_STORAGE_KEY = "saegim_web_entry_state";
 
@@ -39,6 +55,54 @@ const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
   { key: "capture", label: "포착", icon: "+" },
   { key: "shelf", label: "둘러보기", icon: "□" },
   { key: "me", label: "나", icon: "나" }
+];
+
+const editorialPages: EditorialPage[] = [
+  {
+    id: "notice-mvp-progress",
+    kind: "notice",
+    label: "공지",
+    title: "새김 MVP를 다듬고 있어요",
+    date: "2026.06.29",
+    summary: "발견, 새김, 프로필, 서랍의 기본 흐름을 먼저 단단하게 만들고 있어요.",
+    body: [
+      "새김은 좋은 문장을 카드로 만들고, 발견하고, 마음에 담아 다시 보는 경험을 먼저 완성하고 있어요.",
+      "지금은 발견 피드, 좋아요와 새김, 댓글, 프로필, 서랍, Google 계정 연결을 차례대로 붙이는 단계예요.",
+      "소식 페이지는 운영자 CMS가 붙기 전까지 정적 페이지로 운영하면서 공지와 이벤트 흐름을 먼저 확인합니다."
+    ]
+  },
+  {
+    id: "event-first-sentence",
+    kind: "event",
+    label: "이벤트",
+    title: "첫 번째로 남기고 싶은 문장",
+    date: "2026.06.29",
+    summary: "나중에 첫 사용자 이벤트로 확장할 문장 수집 흐름을 준비하고 있어요.",
+    body: [
+      "처음 새기고 싶은 문장은 대개 아주 크지 않아요. 오래 남은 한 줄, 자주 떠오르는 한 문장이면 충분해요.",
+      "이 이벤트 자리는 포착과 발견의 연결을 검증하기 위한 자리로 먼저 열어 둡니다."
+    ],
+    cta: {
+      label: "발견으로 이동",
+      action: "discover"
+    }
+  },
+  {
+    id: "ad-book-connection",
+    kind: "ad",
+    label: "AD",
+    title: "책 속 문장을 카드로 만나는 자리",
+    date: "2026.06.29",
+    summary: "작가와 출판사의 문장이 새김 안에서 자연스럽게 발견되는 방식을 준비 중이에요.",
+    body: [
+      "새김의 책 연결은 문장을 먼저 만나고, 관심이 생기면 책으로 이어지는 조용한 흐름을 목표로 합니다.",
+      "현재는 글 정보 패널의 책으로 보기와 포착의 책 연결 자리를 준비 상태로 열어 두고 있어요."
+    ],
+    cta: {
+      label: "제휴 문의",
+      action: "contact"
+    }
+  }
 ];
 
 function formatCount(value: number) {
@@ -106,6 +170,8 @@ export function SaegimShell() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
   const [isViewingSettings, setIsViewingSettings] = useState(false);
+  const [isViewingNoticeList, setIsViewingNoticeList] = useState(false);
+  const [editorialPageState, setEditorialPageState] = useState<EditorialPageState | null>(null);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [infoSheet, setInfoSheet] = useState<InfoSheetState | null>(null);
   const [activePostId, setActivePostId] = useState<string | null>(null);
@@ -130,7 +196,17 @@ export function SaegimShell() {
   const infoSheetCardIndex = infoSheetPost
     ? Math.min(infoSheet?.cardIndex ?? 0, Math.max(infoSheetPost.cards.length - 1, 0))
     : 0;
-  const isFullPage = isSearching || isEditingProfile || isViewingDrawer || isViewingSettings;
+  const selectedEditorialPage = editorialPageState
+    ? editorialPages.find((page) => page.id === editorialPageState.pageId) ?? null
+    : null;
+  const noticePages = editorialPages.filter((page) => page.kind === "notice");
+  const isFullPage =
+    isSearching ||
+    isEditingProfile ||
+    isViewingDrawer ||
+    isViewingSettings ||
+    isViewingNoticeList ||
+    Boolean(editorialPageState);
   const activePostIndex = Math.max(
     0,
     posts.findIndex((post) => post.post.id === activePost.post.id)
@@ -141,6 +217,8 @@ export function SaegimShell() {
     setActivePostId(post.post.id);
     setActiveCardIndex(0);
     setIsSearching(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
     setInfoSheet(null);
     setActiveTab("discover");
   }
@@ -208,6 +286,8 @@ export function SaegimShell() {
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setIsViewingSettings(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
     setCommentPost(null);
     setInfoSheet(null);
     setSelectedProfileId(currentAccount.id);
@@ -218,6 +298,8 @@ export function SaegimShell() {
   function selectTab(tab: TabKey) {
     setActiveTab(tab);
     setIsSearching(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
     setCommentPost(null);
     setInfoSheet(null);
 
@@ -237,6 +319,41 @@ export function SaegimShell() {
 
   function startGoogleOAuth() {
     window.location.assign(getGoogleOAuthStartUrl());
+  }
+
+  function openEditorialPage(page: EditorialPage, origin: EditorialPageOrigin) {
+    setCommentPost(null);
+    setInfoSheet(null);
+    setIsSearching(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState({ pageId: page.id, origin });
+  }
+
+  function closeEditorialPage() {
+    const origin = editorialPageState?.origin;
+    setEditorialPageState(null);
+
+    if (origin === "notice-list") {
+      setIsViewingNoticeList(true);
+      setIsViewingSettings(false);
+      setActiveTab("me");
+      return;
+    }
+
+    if (origin === "settings") {
+      setIsViewingSettings(true);
+      setActiveTab("me");
+      return;
+    }
+
+    setActiveTab("home");
+  }
+
+  function openNoticeList() {
+    setIsViewingSettings(false);
+    setIsViewingNoticeList(true);
+    setEditorialPageState(null);
+    setActiveTab("me");
   }
 
   async function handleToggleLike(post: PostBundle) {
@@ -288,6 +405,8 @@ export function SaegimShell() {
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setIsViewingSettings(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
     setCommentPost(null);
     setInfoSheet(null);
     setActiveTab("discover");
@@ -300,6 +419,8 @@ export function SaegimShell() {
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
     setIsViewingSettings(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
     setCommentPost(null);
     setInfoSheet(null);
     setActiveTab("me");
@@ -399,6 +520,30 @@ export function SaegimShell() {
   }, [activePost.cards.length, activePost.post.id]);
 
   const content = useMemo(() => {
+    if (selectedEditorialPage) {
+      return (
+        <EditorialPageView
+          page={selectedEditorialPage}
+          onBack={closeEditorialPage}
+          onOpenDiscover={() => openPost(featuredPost)}
+        />
+      );
+    }
+
+    if (isViewingNoticeList) {
+      return (
+        <NoticeListView
+          onBack={() => {
+            setIsViewingNoticeList(false);
+            setIsViewingSettings(true);
+            setActiveTab("me");
+          }}
+          onOpenPage={(page) => openEditorialPage(page, "notice-list")}
+          pages={noticePages}
+        />
+      );
+    }
+
     if (isSearching) {
       return <SearchView onClose={() => setIsSearching(false)} onOpenPost={openPost} onOpenProfile={openProfile} />;
     }
@@ -444,6 +589,7 @@ export function SaegimShell() {
               setIsViewingSettings(false);
               setIsViewingDrawer(true);
             }}
+            onOpenNotices={openNoticeList}
           />
         );
       }
@@ -475,7 +621,9 @@ export function SaegimShell() {
       <HomeView
         post={featuredPost}
         accounts={accounts}
+        editorialPages={editorialPages}
         onOpenDiscover={() => openPost(featuredPost)}
+        onOpenEditorialPage={(page) => openEditorialPage(page, "home")}
         onOpenProfile={openProfile}
         onToggleFollow={handleToggleFollow}
       />
@@ -491,9 +639,12 @@ export function SaegimShell() {
     isEditingProfile,
     isSearching,
     isViewingDrawer,
+    isViewingNoticeList,
     isViewingSettings,
     isOwnProfile,
+    noticePages,
     posts,
+    selectedEditorialPage,
     selectedProfile,
     selectedProfilePosts
   ]);
@@ -514,6 +665,9 @@ export function SaegimShell() {
                 onClick={() => {
                   setCommentPost(null);
                   setInfoSheet(null);
+                  setEditorialPageState(null);
+                  setIsViewingNoticeList(false);
+                  setIsViewingSettings(false);
                   setIsSearching(true);
                 }}
               >
@@ -752,13 +906,17 @@ function PostPreviewButton({ post, onOpenPost }: { post: PostBundle; onOpenPost:
 function HomeView({
   post,
   accounts,
+  editorialPages,
   onOpenDiscover,
+  onOpenEditorialPage,
   onOpenProfile,
   onToggleFollow
 }: {
   post: PostBundle;
   accounts: AccountProfile[];
+  editorialPages: EditorialPage[];
   onOpenDiscover: () => void;
+  onOpenEditorialPage: (page: EditorialPage) => void;
   onOpenProfile: (account: AccountProfile) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
 }) {
@@ -768,6 +926,21 @@ function HomeView({
         <span className="quiet-label">오늘 닿은 글</span>
         <CardPreview post={post} />
       </button>
+
+      <section className="section">
+        <div className="section-head">
+          <h2>소식</h2>
+        </div>
+        <div className="news-rail">
+          {editorialPages.map((page) => (
+            <button className="news-card" key={page.id} type="button" onClick={() => onOpenEditorialPage(page)}>
+              <span>{page.label}</span>
+              <strong>{page.title}</strong>
+              <p>{page.summary}</p>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="section">
         <div className="section-head">
@@ -1276,18 +1449,103 @@ function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (po
   );
 }
 
+function EditorialPageView({
+  page,
+  onBack,
+  onOpenDiscover
+}: {
+  page: EditorialPage;
+  onBack: () => void;
+  onOpenDiscover: () => void;
+}) {
+  const isContactCta = page.cta?.action === "contact";
+
+  return (
+    <article className="editorial-page">
+      <div className="page-head">
+        <button className="back-icon" type="button" onClick={onBack} aria-label="이전으로 돌아가기">
+          ←
+        </button>
+        <div>
+          <span>{page.label}</span>
+          <h2>{page.title}</h2>
+          <time dateTime={page.date.replaceAll(".", "-")}>{page.date}</time>
+        </div>
+      </div>
+
+      <div className="page-body">
+        <p className="page-summary">{page.summary}</p>
+        {page.body.map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
+      </div>
+
+      {page.cta ? (
+        <button
+          className={isContactCta ? "primary-button ghost" : "primary-button"}
+          disabled={isContactCta}
+          type="button"
+          onClick={page.cta.action === "discover" ? onOpenDiscover : undefined}
+        >
+          {isContactCta ? `${page.cta.label} 준비 중` : page.cta.label}
+        </button>
+      ) : null}
+    </article>
+  );
+}
+
+function NoticeListView({
+  onBack,
+  onOpenPage,
+  pages
+}: {
+  onBack: () => void;
+  onOpenPage: (page: EditorialPage) => void;
+  pages: EditorialPage[];
+}) {
+  return (
+    <section className="notice-list-view">
+      <div className="settings-head">
+        <button className="back-icon" type="button" onClick={onBack} aria-label="설정으로 돌아가기">
+          ←
+        </button>
+        <div>
+          <h2>공지사항</h2>
+          <p>새김에서 전하는 소식</p>
+        </div>
+      </div>
+
+      <div className="notice-list">
+        {pages.map((page) => (
+          <button className="notice-row" key={page.id} type="button" onClick={() => onOpenPage(page)}>
+            <span>{page.label}</span>
+            <strong>{page.title}</strong>
+            <p>{page.summary}</p>
+            <small>{page.date}</small>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function SettingsView({
   onBack,
   onEditProfile,
   onLogout,
-  onOpenDrawer
+  onOpenDrawer,
+  onOpenNotices
 }: {
   onBack: () => void;
   onEditProfile: () => void;
   onLogout: () => void;
   onOpenDrawer: () => void;
+  onOpenNotices: () => void;
 }) {
-  const sections = [
+  const sections: Array<{
+    title: string;
+    rows: Array<{ label: string; onClick?: () => void; state?: string }>;
+  }> = [
     {
       title: "계정",
       rows: [{ label: "프로필 편집", onClick: onEditProfile }]
@@ -1303,7 +1561,7 @@ function SettingsView({
     {
       title: "정보",
       rows: [
-        { label: "공지사항", state: "준비 중" },
+        { label: "공지사항", onClick: onOpenNotices },
         { label: "이용약관", state: "준비 중" },
         { label: "개인정보 처리방침", state: "준비 중" },
         { label: "문의하기", state: "준비 중" }
@@ -1330,8 +1588,8 @@ function SettingsView({
             <div className="settings-list">
               {section.rows.map((row) => (
                 <button
-                  className={row.state ? "settings-row is-disabled" : "settings-row"}
-                  disabled={Boolean(row.state)}
+                  className={!row.onClick ? "settings-row is-disabled" : "settings-row"}
+                  disabled={!row.onClick}
                   key={row.label}
                   onClick={row.onClick}
                   type="button"

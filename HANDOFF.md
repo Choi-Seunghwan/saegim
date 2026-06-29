@@ -48,6 +48,7 @@
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면의 좋아요(공개 수치)와 새김(비공개 상태) 버튼은 API 응답으로 viewerState를 갱신한다.
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면 댓글 버튼은 댓글 시트를 열고, `GET/POST /posts/:postId/comments`로 댓글 목록과 작성 흐름을 처리한다. 작성 성공 시 응답의 갱신된 글 bundle로 댓글 수를 즉시 반영한다.
 - `apps/web/src/components/SaegimShell.tsx`: 발견 화면 `⋯` 버튼은 현재 글/장의 출처·태그와 공유/링크 복사/책으로 보기/신고 준비 상태를 보여주는 하단 정보 패널을 연다.
+- `apps/web/src/components/SaegimShell.tsx`: 홈 소식 레일은 정적 공지·이벤트·AD 상세 페이지를 열고, 설정 > 공지사항은 공지 목록을 거쳐 공지 상세를 연다. 이벤트 CTA는 발견 피드로 이동하고 제휴 문의는 `준비 중`으로 둔다.
 - `apps/web/src/components/SaegimShell.tsx`: 홈 추천 글벗과 발견 작성자 바의 구독 버튼은 `POST/DELETE /accounts/:accountId/follow` 응답으로 계정 `viewerState.subscribed`와 같은 작성자의 글 `viewerState.subscribed`를 함께 갱신한다.
 - `apps/web/src/components/SaegimShell.tsx`: 홈 추천 글벗·발견 작성자·검색 계정 결과를 동일 프로필 화면으로 열고, 타인 프로필 진입 시 `GET /accounts/:accountId` 상세로 계정 정보와 해당 계정 글 그리드를 보강한다.
 - `apps/web/src/components/SaegimShell.tsx`: 나 탭의 `내 서랍`은 `GET /drawer`로 현재 계정이 새김한 글 목록을 읽어 둘러보기 카드 그리드로 보여준다.

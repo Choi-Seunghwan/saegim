@@ -306,6 +306,58 @@ button.post-card {
   color: var(--ink);
 }
 
+.news-rail {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.news-card {
+  flex: 0 0 220px;
+  min-height: 132px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 13px;
+  border-radius: 8px;
+  background: rgba(56, 50, 63, 0.045);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.news-card span,
+.notice-row span,
+.page-head span {
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.08);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.news-card strong,
+.news-card p,
+.notice-row strong,
+.notice-row p,
+.notice-row small {
+  margin: 0;
+}
+
+.news-card strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.news-card p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .avatar {
   width: 38px;
   height: 38px;
@@ -948,6 +1000,85 @@ button.post-card {
 .settings-row.is-disabled {
   cursor: not-allowed;
   opacity: 0.68;
+}
+
+.editorial-page,
+.notice-list-view {
+  display: grid;
+  gap: 18px;
+}
+
+.page-head {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.page-head div {
+  display: grid;
+  gap: 8px;
+}
+
+.page-head h2 {
+  margin: 0;
+  font-size: 23px;
+  line-height: 1.28;
+  letter-spacing: 0;
+}
+
+.page-head time {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.page-body {
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+  border-radius: 12px;
+  background: rgba(56, 50, 63, 0.045);
+}
+
+.page-body p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.page-body .page-summary {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.notice-list {
+  display: grid;
+  gap: 10px;
+}
+
+.notice-row {
+  display: grid;
+  gap: 7px;
+  padding: 13px;
+  border-radius: 12px;
+  background: rgba(56, 50, 63, 0.045);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.notice-row strong {
+  font-size: 15px;
+}
+
+.notice-row p,
+.notice-row small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .drawer-head {
