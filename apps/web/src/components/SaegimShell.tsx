@@ -45,7 +45,8 @@ import { sampleAccounts, samplePosts } from "../lib/sample-data";
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
 type EntryState = "guest" | "signed-in";
 type InfoSheetState = { postId: string };
-type AuthSheetReason = "default" | "like" | "carve" | "comment" | "follow" | "capture" | "profile";
+type AuthSheetIntent = "default" | "capture" | "profile";
+type AuthMode = "login" | "signup";
 type EditorialPageKind = "notice" | "event" | "ad";
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
 type MainReturnTab = Exclude<TabKey, "capture">;
@@ -113,37 +114,6 @@ const topbarCopy: Record<Exclude<TabKey, "discover">, { title: string; subtitle:
   capture: { title: "포착", subtitle: "한 줄을 카드로 남기기" },
   shelf: { title: "둘러보기", subtitle: "엮어 둔 글 모음" },
   me: { title: "나", subtitle: "내가 남긴 글과 서랍" }
-};
-
-const authSheetCopy: Record<AuthSheetReason, { title: string; description: string }> = {
-  default: {
-    title: "로그인이 필요해요",
-    description: "새김은 바로 둘러볼 수 있고, 내 기록이 남는 순간에만 로그인해요."
-  },
-  like: {
-    title: "좋아요는 로그인 후 남겨요",
-    description: "공개 공감 수에 반영되는 행동이라 계정이 필요해요."
-  },
-  carve: {
-    title: "서랍에 담으려면 로그인해요",
-    description: "새긴 글은 내 서랍에 조용히 보관돼요."
-  },
-  comment: {
-    title: "댓글은 로그인 후 남겨요",
-    description: "글벗에게 닿는 말이라 내 계정으로 남겨요."
-  },
-  follow: {
-    title: "구독하려면 로그인해요",
-    description: "좋아하는 글벗을 내 계정에 담아둘게요."
-  },
-  capture: {
-    title: "문장을 남기려면 로그인해요",
-    description: "내가 만든 카드를 프로필과 발견 피드에 이어 두기 위해 계정이 필요해요."
-  },
-  profile: {
-    title: "내 공간은 로그인 후 열려요",
-    description: "내 프로필, 서랍, 구독 목록은 계정과 연결된 개인 공간이에요."
-  }
 };
 
 const editorialPages: EditorialPage[] = [
@@ -688,7 +658,8 @@ export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("home");
   const [entryState, setEntryState] = useState<EntryState>("guest");
-  const [authSheetReason, setAuthSheetReason] = useState<AuthSheetReason | null>(null);
+  const [authSheetIntent, setAuthSheetIntent] = useState<AuthSheetIntent | null>(null);
+  const [authSheetInitialMode, setAuthSheetInitialMode] = useState<AuthMode>("login");
   const [isSearching, setIsSearching] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
@@ -819,28 +790,29 @@ export function SaegimShell() {
     return entryState === "signed-in";
   }
 
-  function openAuthSheet(reason: AuthSheetReason = "default") {
+  function openAuthSheet(intent: AuthSheetIntent = "default", mode: AuthMode = "login") {
     setCommentPost(null);
     setInfoSheet(null);
-    setAuthSheetReason(reason);
+    setAuthSheetInitialMode(mode);
+    setAuthSheetIntent(intent);
   }
 
-  function requireSignedIn(reason: AuthSheetReason = "default") {
+  function requireSignedIn(intent: AuthSheetIntent = "default") {
     if (isSignedIn()) {
       return true;
     }
 
-    openAuthSheet(reason);
+    openAuthSheet(intent);
     return false;
   }
 
   function enterApp() {
-    const reason = authSheetReason;
+    const intent = authSheetIntent;
     setEntryState("signed-in");
     setSelectedProfileId(currentAccount.id);
-    setAuthSheetReason(null);
+    setAuthSheetIntent(null);
 
-    if (reason === "capture") {
+    if (intent === "capture") {
       setCaptureReturnTab(activeTab === "capture" ? "home" : activeTab);
       setIsSearching(false);
       setIsEditingProfile(false);
@@ -857,7 +829,7 @@ export function SaegimShell() {
       return;
     }
 
-    if (reason === "profile") {
+    if (intent === "profile") {
       setIsSearching(false);
       setIsEditingProfile(false);
       setIsViewingDrawer(false);
@@ -889,15 +861,11 @@ export function SaegimShell() {
     setDetailReturnTarget(null);
     setSelectedProfileId(currentAccount.id);
     setEntryState("guest");
-    setAuthSheetReason(null);
+    setAuthSheetIntent(null);
   }
 
   function selectTab(tab: TabKey) {
     if (tab === "capture" && !requireSignedIn("capture")) {
-      return;
-    }
-
-    if (tab === "me" && !requireSignedIn("profile")) {
       return;
     }
 
@@ -970,7 +938,7 @@ export function SaegimShell() {
   }
 
   async function handleToggleLike(post: PostBundle) {
-    if (!requireSignedIn("like")) {
+    if (!requireSignedIn()) {
       return;
     }
 
@@ -983,7 +951,7 @@ export function SaegimShell() {
   }
 
   async function handleToggleCarve(post: PostBundle) {
-    if (!requireSignedIn("carve")) {
+    if (!requireSignedIn()) {
       return;
     }
 
@@ -1014,7 +982,7 @@ export function SaegimShell() {
   }
 
   async function handleToggleFollow(accountId: string, subscribed: boolean) {
-    if (!requireSignedIn("follow")) {
+    if (!requireSignedIn()) {
       return null;
     }
 
@@ -1105,7 +1073,19 @@ export function SaegimShell() {
   }
 
   async function openProfile(account: AccountProfile) {
-    if (account.id === currentAccount.id && !requireSignedIn("profile")) {
+    if (account.id === currentAccount.id && !isSignedIn()) {
+      setSelectedProfileId(currentAccount.id);
+      setIsSearching(false);
+      setIsEditingProfile(false);
+      setIsViewingDrawer(false);
+      setDrawerReturnSurface("profile");
+      setIsViewingFollowing(false);
+      setIsViewingSettings(false);
+      setIsViewingNoticeList(false);
+      setEditorialPageState(null);
+      setCommentPost(null);
+      setInfoSheet(null);
+      setActiveTab("me");
       return;
     }
 
@@ -1255,7 +1235,7 @@ export function SaegimShell() {
           onSelectCard={selectCard}
           onToggleCarve={handleToggleCarve}
           onOpenComments={(post) => {
-            if (!requireSignedIn("comment")) {
+            if (!requireSignedIn()) {
               return;
             }
 
@@ -1280,6 +1260,15 @@ export function SaegimShell() {
     }
     if (activeTab === "shelf") return <ShelfView posts={posts} onOpenPost={openPost} />;
     if (activeTab === "me") {
+      if (isOwnProfile && !isSignedIn()) {
+        return (
+          <GuestProfileView
+            onLogin={() => openAuthSheet("profile")}
+            onSignup={() => openAuthSheet("profile", "signup")}
+          />
+        );
+      }
+
       if (isViewingSettings) {
         return (
           <SettingsView
@@ -1500,12 +1489,12 @@ export function SaegimShell() {
             </button>
           </>
         )}
-        {authSheetReason ? (
+        {authSheetIntent ? (
           <AuthSheet
-            onClose={() => setAuthSheetReason(null)}
+            initialMode={authSheetInitialMode}
+            onClose={() => setAuthSheetIntent(null)}
             onEnter={enterApp}
             onGoogleLogin={startGoogleOAuth}
-            reason={authSheetReason}
           />
         ) : null}
       </section>
@@ -1514,24 +1503,23 @@ export function SaegimShell() {
 }
 
 function AuthSheet({
+  initialMode,
   onClose,
   onEnter,
-  onGoogleLogin,
-  reason
+  onGoogleLogin
 }: {
+  initialMode: AuthMode;
   onClose: () => void;
   onEnter: () => void;
   onGoogleLogin: () => void;
-  reason: AuthSheetReason;
 }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
   const isSignup = mode === "signup";
   const submitLabel = isSignup ? "가입하기" : "로그인";
-  const copy = authSheetCopy[reason] ?? authSheetCopy.default;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1547,8 +1535,6 @@ function AuthSheet({
         </div>
         <div className="auth-sheet-intro">
           <div className="auth-brand">새김</div>
-          <h2>{copy.title}</h2>
-          <p>{copy.description}</p>
         </div>
 
         <form className="auth-panel" onSubmit={handleSubmit}>
@@ -3747,6 +3733,55 @@ function DrawerView({
           ))}
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function GuestProfileView({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
+  const guestRows = [
+    { title: "내 서랍", detail: "새긴 글" },
+    { title: "구독 목록", detail: "글벗" },
+    { title: "내 글", detail: "포착한 카드" }
+  ];
+
+  return (
+    <section className="guest-profile-view">
+      <div className="guest-profile-head">
+        <div className="guest-avatar" aria-hidden="true">
+          나
+        </div>
+        <div>
+          <span className="guest-kicker">게스트</span>
+          <h2>내 공간 만들기</h2>
+          <p>새긴 글과 구독한 글벗을 한 계정에 이어둘 수 있어요.</p>
+        </div>
+      </div>
+
+      <div className="guest-profile-actions" aria-label="계정 행동">
+        <button type="button" onClick={onLogin}>
+          로그인
+        </button>
+        <button type="button" onClick={onSignup}>
+          계정 만들기
+        </button>
+      </div>
+
+      <div className="guest-profile-list" aria-label="로그인 후 개인 영역">
+        {guestRows.map((row) => (
+          <button key={row.title} type="button" onClick={onLogin}>
+            <span>{row.title}</span>
+            <small>{row.detail}</small>
+          </button>
+        ))}
+      </div>
+
+      <section className="guest-profile-empty">
+        <div className="profile-shelf-head">
+          <h2>내 글</h2>
+          <span>글 0</span>
+        </div>
+        <p>로그인하면 포착한 글이 이곳에 모여요.</p>
+      </section>
     </section>
   );
 }
