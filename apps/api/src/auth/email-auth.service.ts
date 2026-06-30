@@ -115,8 +115,8 @@ export class EmailAuthService {
     }
 
     const password = value.trim();
-    if (password.length < 8 || password.length > 120) {
-      throw new BadRequestException("비밀번호는 8자 이상으로 입력해 주세요.");
+    if (password.length < 8 || password.length > 120 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      throw new BadRequestException("비밀번호는 8자 이상, 영문과 숫자를 함께 입력해 주세요.");
     }
 
     return password;

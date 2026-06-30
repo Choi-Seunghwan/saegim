@@ -150,23 +150,12 @@ const marginAccount: AccountProfile = {
   writingFriendCount: 1240
 };
 
-const meAccount: AccountProfile = {
-  id: "acct-me",
-  handle: "me",
-  displayName: "나의 서재",
-  tagline: "한 줄을 곁에 두는 사람",
-  verification: "none",
-  postCount: 0,
-  writingFriendCount: 0
-};
-
 export const seedAccounts: AccountProfile[] = [
   editorAccount,
   moowolAccount,
   collectorAccount,
   bookshopAccount,
-  marginAccount,
-  meAccount
+  marginAccount
 ];
 
 export const seedPostBundles: PostBundle[] = [

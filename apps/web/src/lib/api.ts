@@ -11,8 +11,7 @@ import type {
   UpdateAccountInput
 } from "@saegim/domain";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
-const DEV_ACCOUNT_ID = process.env.NEXT_PUBLIC_DEV_ACCOUNT_ID?.trim();
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
 
 interface ListResponse<T> {
   items: T[];
@@ -37,11 +36,7 @@ async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
 
-  if (process.env.NODE_ENV !== "production" && DEV_ACCOUNT_ID) {
-    headers.set("x-saegim-account-id", DEV_ACCOUNT_ID);
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     credentials: "include",
     ...init,
     headers
@@ -65,6 +60,18 @@ async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+function getApiBaseUrl() {
+  if (API_BASE_URL) {
+    return API_BASE_URL;
+  }
+
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:4000`;
+  }
+
+  return "http://127.0.0.1:4000";
 }
 
 export async function signupWithEmail(input: EmailAuthInput): Promise<AccountProfile> {
@@ -157,7 +164,7 @@ export async function unfollowAccount(accountId: string): Promise<AccountProfile
 }
 
 export function getGoogleOAuthStartUrl() {
-  return `${API_BASE_URL}/auth/google`;
+  return `${getApiBaseUrl()}/auth/google`;
 }
 
 export async function createPost(input: CreatePostInput): Promise<PostBundle> {

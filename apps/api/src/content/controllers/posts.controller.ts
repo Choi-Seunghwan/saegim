@@ -2,81 +2,53 @@ import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Post as Ht
 import { ContentService } from "../content.service.js";
 import type { CreateCommentInput, CreatePostInput } from "../content.types.js";
 
-function accountContext(accountIdHint?: string, cookieHeader?: string) {
-  return cookieHeader?.includes("saegim_session=") ? cookieHeader : accountIdHint?.trim() || cookieHeader;
-}
-
 @Controller()
 export class PostsController {
   constructor(private readonly contentService: ContentService) {}
 
   @Get("feed")
-  getFeed(@Headers("x-saegim-account-id") accountIdHint?: string, @Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getFeed(accountContext(accountIdHint, cookieHeader));
+  getFeed(@Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getFeed(cookieHeader);
   }
 
   @Get("shelf")
-  getShelf(@Headers("x-saegim-account-id") accountIdHint?: string, @Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getShelf(accountContext(accountIdHint, cookieHeader));
+  getShelf(@Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getShelf(cookieHeader);
   }
 
   @Get("drawer")
-  getDrawer(@Headers("x-saegim-account-id") accountIdHint?: string, @Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getDrawer(accountContext(accountIdHint, cookieHeader));
+  getDrawer(@Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getDrawer(cookieHeader);
   }
 
   @Get("search")
-  search(
-    @Query("q") query?: string,
-    @Headers("x-saegim-account-id") accountIdHint?: string,
-    @Headers("cookie") cookieHeader?: string
-  ) {
-    return this.contentService.search(query, accountContext(accountIdHint, cookieHeader));
+  search(@Query("q") query?: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.search(query, cookieHeader);
   }
 
   @Get("posts/:postId")
-  getPost(
-    @Param("postId") postId: string,
-    @Headers("x-saegim-account-id") accountIdHint?: string,
-    @Headers("cookie") cookieHeader?: string
-  ) {
-    return this.contentService.getPost(postId, accountContext(accountIdHint, cookieHeader));
+  getPost(@Param("postId") postId: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getPost(postId, cookieHeader);
   }
 
   @HttpPost("posts/:postId/like")
-  likePost(
-    @Param("postId") postId: string,
-    @Headers("x-saegim-account-id") accountIdHint?: string,
-    @Headers("cookie") cookieHeader?: string
-  ) {
-    return this.contentService.likePost(postId, accountContext(accountIdHint, cookieHeader));
+  likePost(@Param("postId") postId: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.likePost(postId, cookieHeader);
   }
 
   @HttpDelete("posts/:postId/like")
-  unlikePost(
-    @Param("postId") postId: string,
-    @Headers("x-saegim-account-id") accountIdHint?: string,
-    @Headers("cookie") cookieHeader?: string
-  ) {
-    return this.contentService.unlikePost(postId, accountContext(accountIdHint, cookieHeader));
+  unlikePost(@Param("postId") postId: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.unlikePost(postId, cookieHeader);
   }
 
   @HttpPost("posts/:postId/carve")
-  carvePost(
-    @Param("postId") postId: string,
-    @Headers("x-saegim-account-id") accountIdHint?: string,
-    @Headers("cookie") cookieHeader?: string
-  ) {
-    return this.contentService.carvePost(postId, accountContext(accountIdHint, cookieHeader));
+  carvePost(@Param("postId") postId: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.carvePost(postId, cookieHeader);
   }
 
   @HttpDelete("posts/:postId/carve")
-  uncarvePost(
-    @Param("postId") postId: string,
-    @Headers("x-saegim-account-id") accountIdHint?: string,
-    @Headers("cookie") cookieHeader?: string
-  ) {
-    return this.contentService.uncarvePost(postId, accountContext(accountIdHint, cookieHeader));
+  uncarvePost(@Param("postId") postId: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.uncarvePost(postId, cookieHeader);
   }
 
   @Get("posts/:postId/comments")
@@ -88,18 +60,13 @@ export class PostsController {
   createComment(
     @Param("postId") postId: string,
     @Body() input: CreateCommentInput,
-    @Headers("x-saegim-account-id") accountIdHint?: string,
     @Headers("cookie") cookieHeader?: string
   ) {
-    return this.contentService.createComment(postId, input, accountContext(accountIdHint, cookieHeader));
+    return this.contentService.createComment(postId, input, cookieHeader);
   }
 
   @HttpPost("posts")
-  createPost(
-    @Body() input: CreatePostInput,
-    @Headers("x-saegim-account-id") accountIdHint?: string,
-    @Headers("cookie") cookieHeader?: string
-  ) {
-    return this.contentService.createPost(input, accountContext(accountIdHint, cookieHeader));
+  createPost(@Body() input: CreatePostInput, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.createPost(input, cookieHeader);
   }
 }

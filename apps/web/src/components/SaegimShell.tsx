@@ -595,7 +595,6 @@ export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("home");
   const [entryState, setEntryState] = useState<EntryState>("guest");
-  const [usesLocalAuth, setUsesLocalAuth] = useState(false);
   const [authSheetIntent, setAuthSheetIntent] = useState<AuthSheetIntent | null>(null);
   const [authSheetInitialMode, setAuthSheetInitialMode] = useState<AuthMode>("login");
   const [isSearching, setIsSearching] = useState(false);
@@ -753,7 +752,6 @@ export function SaegimShell() {
     setCurrentAccount(nextAccount);
     replaceAccount(nextAccount);
     setEntryState("signed-in");
-    setUsesLocalAuth(false);
     setSelectedProfileId(nextAccount.id);
     setAuthSheetIntent(null);
 
@@ -807,9 +805,9 @@ export function SaegimShell() {
     setInfoSheet(null);
     setDetailReturnTarget(null);
     setProfileReturnTarget(null);
-    setSelectedProfileId(currentAccount.id);
+    setCurrentAccount(guestAccount);
+    setSelectedProfileId(null);
     setEntryState("guest");
-    setUsesLocalAuth(false);
     setAuthSheetIntent(null);
   }
 
@@ -1165,7 +1163,6 @@ export function SaegimShell() {
         const session = await fetchAuthSession(controller.signal);
         if (session.authenticated) {
           setEntryState("signed-in");
-          setUsesLocalAuth(false);
         }
       } catch {
         // 세션이 없거나 API가 꺼져 있어도 게스트 탐색은 유지한다.
@@ -1191,7 +1188,7 @@ export function SaegimShell() {
         setAccounts(nextAccounts);
         setEditorialPages(nextEditorialPages);
 
-        if (entryState === "signed-in" && !usesLocalAuth) {
+        if (entryState === "signed-in") {
           const nextCurrentAccount = await fetchCurrentAccount(controller.signal);
           setCurrentAccount(nextCurrentAccount);
           setSelectedProfileId(nextCurrentAccount.id);
@@ -1207,7 +1204,7 @@ export function SaegimShell() {
 
     void loadInitialData();
     return () => controller.abort();
-  }, [entryState, usesLocalAuth]);
+  }, [entryState]);
 
   useEffect(() => {
     if (!activePost) {
@@ -1555,10 +1552,35 @@ function AuthSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSignup = mode === "signup";
   const submitLabel = isSubmitting ? "확인 중" : isSignup ? "가입하기" : "로그인";
+  const passwordRuleText = "8자 이상, 영문과 숫자를 함께 입력해 주세요.";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError("");
+
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+    const cleanDisplayName = displayName.trim();
+
+    if (!cleanEmail) {
+      setSubmitError("이메일을 입력해 주세요.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setSubmitError("이메일 형식을 확인해 주세요.");
+      return;
+    }
+
+    if (!cleanPassword) {
+      setSubmitError("비밀번호를 입력해 주세요.");
+      return;
+    }
+
+    if (isSignup && !isValidSignupPassword(cleanPassword)) {
+      setSubmitError(`비밀번호는 ${passwordRuleText}`);
+      return;
+    }
 
     if (isSignup && !agreed) {
       setSubmitError("약관 동의가 필요해요.");
@@ -1570,9 +1592,9 @@ function AuthSheet({
     try {
       await onEnter({
         mode,
-        displayName,
-        email,
-        password
+        displayName: cleanDisplayName,
+        email: cleanEmail,
+        password: cleanPassword
       });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "로그인을 다시 시도해 주세요.");
@@ -1592,7 +1614,7 @@ function AuthSheet({
           <div className="auth-brand">새김</div>
         </div>
 
-        <form className="auth-panel" onSubmit={handleSubmit}>
+        <form className="auth-panel" noValidate onSubmit={handleSubmit}>
           <h3>{isSignup ? "계정 만들기" : "로그인"}</h3>
 
           {isSignup ? (
@@ -1620,10 +1642,11 @@ function AuthSheet({
             autoComplete={isSignup ? "new-password" : "current-password"}
             className="auth-in"
             onChange={(event) => setPassword(event.target.value)}
-            placeholder={isSignup ? "비밀번호 (8자 이상)" : "비밀번호"}
+            placeholder={isSignup ? "비밀번호" : "비밀번호"}
             type="password"
             value={password}
           />
+          {isSignup ? <p className="auth-help">{passwordRuleText}</p> : null}
 
           {isSignup ? (
             <label className="auth-agree">
@@ -1632,7 +1655,11 @@ function AuthSheet({
             </label>
           ) : null}
 
-          {submitError ? <p className="auth-error">{submitError}</p> : null}
+          {submitError ? (
+            <p className="auth-error" role="alert" aria-live="polite">
+              {submitError}
+            </p>
+          ) : null}
 
           <button className="auth-btn" disabled={isSubmitting} type="submit">
             {submitLabel}
@@ -1669,6 +1696,10 @@ function AuthSheet({
       </section>
     </>
   );
+}
+
+function isValidSignupPassword(password: string) {
+  return password.length >= 8 && password.length <= 120 && /[A-Za-z]/.test(password) && /\d/.test(password);
 }
 
 function SearchView({
@@ -4077,7 +4108,7 @@ function ProfileEditView({
         <input
           maxLength={24}
           onChange={(event) => setDisplayName(event.target.value)}
-          placeholder="나의 서재"
+          placeholder="닉네임"
           value={displayName}
         />
       </label>

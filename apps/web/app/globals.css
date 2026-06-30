@@ -275,6 +275,14 @@ textarea:focus-visible {
   border-color: rgba(56, 50, 63, 0.34);
 }
 
+.auth-help {
+  margin: -4px 2px 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
 .auth-btn {
   width: 100%;
   min-height: 51px;

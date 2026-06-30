@@ -26,7 +26,13 @@ const accountInclude = Prisma.validator<Prisma.AccountInclude>()({
     }
   }
 });
-function accountIncludeForViewer(accountId: string) {
+const unauthenticatedViewerId = "__saegim_guest__";
+
+function viewerAccountId(accountId?: string | null) {
+  return accountId ?? unauthenticatedViewerId;
+}
+
+function accountIncludeForViewer(accountId?: string | null) {
   return Prisma.validator<Prisma.AccountInclude>()({
     _count: {
       select: {
@@ -36,7 +42,7 @@ function accountIncludeForViewer(accountId: string) {
     },
     followerRelations: {
       where: {
-        followerId: accountId
+        followerId: viewerAccountId(accountId)
       },
       select: {
         id: true
@@ -44,7 +50,7 @@ function accountIncludeForViewer(accountId: string) {
     }
   });
 }
-function postIncludeForAccount(accountId: string) {
+function postIncludeForAccount(accountId?: string | null) {
   return Prisma.validator<Prisma.PostInclude>()({
     author: {
       include: accountIncludeForViewer(accountId)
@@ -56,7 +62,7 @@ function postIncludeForAccount(accountId: string) {
     },
     likes: {
       where: {
-        accountId
+        accountId: viewerAccountId(accountId)
       },
       select: {
         id: true
@@ -64,7 +70,7 @@ function postIncludeForAccount(accountId: string) {
     },
     carves: {
       where: {
-        accountId
+        accountId: viewerAccountId(accountId)
       },
       select: {
         id: true
@@ -120,6 +126,8 @@ export class ContentRepository {
   ) {}
 
   async ensureSeedData() {
+    await this.removeLegacyDevelopmentAccount();
+
     for (const account of seedAccounts) {
       await this.prisma.account.upsert({
         where: { id: account.id },
@@ -212,8 +220,17 @@ export class ContentRepository {
     }
   }
 
-  async getFeed(accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  private async removeLegacyDevelopmentAccount() {
+    await this.prisma.account.deleteMany({
+      where: {
+        id: "acct-me",
+        email: null
+      }
+    });
+  }
+
+  async getFeed(cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const posts = await this.findPosts([{ createdAt: "desc" }, { id: "desc" }], currentAccountId);
 
     return {
@@ -221,8 +238,8 @@ export class ContentRepository {
     };
   }
 
-  async getShelf(accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async getShelf(cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const posts = await this.findPosts(
       [{ likeCountCache: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       currentAccountId
@@ -233,8 +250,8 @@ export class ContentRepository {
     };
   }
 
-  async getDrawer(accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async getDrawer(cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     const carves = await this.prisma.carve.findMany({
       where: {
         accountId: currentAccountId,
@@ -287,20 +304,17 @@ export class ContentRepository {
     };
   }
 
-  async search(query: string | undefined, accountIdHint?: string): Promise<SearchResult> {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async search(query: string | undefined, cookieHeader?: string): Promise<SearchResult> {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const normalizedQuery = typeof query === "string" ? query.trim() : "";
     const accountIncludeWithViewer = accountIncludeForViewer(currentAccountId);
     const postInclude = postIncludeForAccount(currentAccountId);
+    const accountExclusion = currentAccountId ? { id: { not: currentAccountId } } : {};
 
     if (!normalizedQuery) {
       const [accounts, posts] = await Promise.all([
         this.prisma.account.findMany({
-          where: {
-            id: {
-              not: currentAccountId
-            }
-          },
+          where: accountExclusion,
           include: accountIncludeWithViewer,
           orderBy: [{ verification: "desc" }, { createdAt: "asc" }],
           take: 6
@@ -324,9 +338,7 @@ export class ContentRepository {
     const [accounts, posts] = await Promise.all([
       this.prisma.account.findMany({
         where: {
-          id: {
-            not: currentAccountId
-          },
+          ...accountExclusion,
           OR: [
             { handle: { contains: normalizedQuery, mode: "insensitive" } },
             { displayName: { contains: normalizedQuery, mode: "insensitive" } },
@@ -364,14 +376,14 @@ export class ContentRepository {
     };
   }
 
-  async getPost(postId: string, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async getPost(postId: string, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const post = await this.findPostById(postId, currentAccountId);
     return this.toPostBundle(post);
   }
 
-  async createPost(input: CreatePostInput, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async createPost(input: CreatePostInput, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     const cardsInput = this.normalizeCards(input);
     const author = await this.getCurrentAuthor(currentAccountId);
     const firstCard = cardsInput[0]!;
@@ -404,11 +416,11 @@ export class ContentRepository {
       }
     });
 
-    return this.getPost(post.id, accountIdHint);
+    return this.getPost(post.id, cookieHeader);
   }
 
-  async likePost(postId: string, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async likePost(postId: string, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     await this.assertPostExists(postId);
 
     await this.prisma.$transaction(async (tx) => {
@@ -442,11 +454,11 @@ export class ContentRepository {
       });
     });
 
-    return this.getPost(postId, accountIdHint);
+    return this.getPost(postId, cookieHeader);
   }
 
-  async unlikePost(postId: string, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async unlikePost(postId: string, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     await this.assertPostExists(postId);
 
     await this.prisma.$transaction(async (tx) => {
@@ -484,11 +496,11 @@ export class ContentRepository {
       });
     });
 
-    return this.getPost(postId, accountIdHint);
+    return this.getPost(postId, cookieHeader);
   }
 
-  async carvePost(postId: string, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async carvePost(postId: string, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     const post = await this.findPostById(postId, currentAccountId);
 
     await this.prisma.carve.upsert({
@@ -506,11 +518,11 @@ export class ContentRepository {
       }
     });
 
-    return this.getPost(postId, accountIdHint);
+    return this.getPost(postId, cookieHeader);
   }
 
-  async uncarvePost(postId: string, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async uncarvePost(postId: string, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     await this.assertPostExists(postId);
     const existingCarve = await this.prisma.carve.findUnique({
       where: {
@@ -533,7 +545,7 @@ export class ContentRepository {
       });
     }
 
-    return this.getPost(postId, accountIdHint);
+    return this.getPost(postId, cookieHeader);
   }
 
   async getComments(postId: string) {
@@ -549,8 +561,8 @@ export class ContentRepository {
     };
   }
 
-  async createComment(postId: string, input: CreateCommentInput, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async createComment(postId: string, input: CreateCommentInput, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     await this.assertPostExists(postId);
     await this.getCurrentAuthor(currentAccountId);
     const body = this.normalizeCommentBody(input);
@@ -579,12 +591,12 @@ export class ContentRepository {
 
     return {
       item: this.toPostComment(comment),
-      post: await this.getPost(postId, accountIdHint)
+      post: await this.getPost(postId, cookieHeader)
     };
   }
 
-  async getCurrentAccount(accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async getCurrentAccount(cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     const account = await this.getCurrentAuthor(currentAccountId);
 
     return {
@@ -592,8 +604,8 @@ export class ContentRepository {
     };
   }
 
-  async getAccountDetail(accountId: string, accountIdHint?: string): Promise<AccountDetail> {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async getAccountDetail(accountId: string, cookieHeader?: string): Promise<AccountDetail> {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const [account, posts] = await Promise.all([
       this.prisma.account.findUnique({
         where: { id: accountId },
@@ -619,8 +631,8 @@ export class ContentRepository {
     };
   }
 
-  async updateCurrentAccount(input: UpdateAccountInput, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async updateCurrentAccount(input: UpdateAccountInput, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     await this.getCurrentAuthor(currentAccountId);
 
     const account = await this.prisma.account.update({
@@ -634,8 +646,8 @@ export class ContentRepository {
     };
   }
 
-  async followAccount(accountId: string, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async followAccount(accountId: string, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     await this.assertFollowableAccount(accountId, currentAccountId);
 
     await this.prisma.follow.upsert({
@@ -655,8 +667,8 @@ export class ContentRepository {
     return this.getAccountProfile(accountId, currentAccountId);
   }
 
-  async unfollowAccount(accountId: string, accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async unfollowAccount(accountId: string, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     await this.assertFollowableAccount(accountId, currentAccountId);
 
     const existingFollow = await this.prisma.follow.findUnique({
@@ -683,14 +695,10 @@ export class ContentRepository {
     return this.getAccountProfile(accountId, currentAccountId);
   }
 
-  async getRecommendedAccounts(accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async getRecommendedAccounts(cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const accounts = await this.prisma.account.findMany({
-      where: {
-        id: {
-          not: currentAccountId
-        }
-      },
+      where: currentAccountId ? { id: { not: currentAccountId } } : {},
       include: accountIncludeForViewer(currentAccountId),
       orderBy: [{ verification: "desc" }, { createdAt: "asc" }]
     });
@@ -700,8 +708,8 @@ export class ContentRepository {
     };
   }
 
-  async getFollowingAccounts(accountIdHint?: string) {
-    const currentAccountId = this.currentAccountService.getCurrentAccountId(accountIdHint);
+  async getFollowingAccounts(cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
     const follows = await this.prisma.follow.findMany({
       where: {
         followerId: currentAccountId
@@ -719,7 +727,7 @@ export class ContentRepository {
     };
   }
 
-  private async findPosts(orderBy: Prisma.PostOrderByWithRelationInput[], currentAccountId: string) {
+  private async findPosts(orderBy: Prisma.PostOrderByWithRelationInput[], currentAccountId?: string | null) {
     return this.prisma.post.findMany({
       where: {
         visibility: "PUBLIC"
@@ -729,7 +737,7 @@ export class ContentRepository {
     });
   }
 
-  private async findPostById(postId: string, currentAccountId: string) {
+  private async findPostById(postId: string, currentAccountId?: string | null) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       include: postIncludeForAccount(currentAccountId)
