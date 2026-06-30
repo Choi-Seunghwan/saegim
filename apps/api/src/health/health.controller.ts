@@ -9,7 +9,8 @@ const defaultCardComposition = {
   align: "center",
   font: "gothic",
   textPos: null,
-  sourcePos: null
+  sourcePos: null,
+  bgImage: null
 };
 
 @Controller("health")

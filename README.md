@@ -69,6 +69,8 @@ API 기본 조회 계약:
 
 API의 현재 계정은 이메일 로그인 또는 Google OAuth가 발급한 세션 쿠키(`saegim_session`)로만 해석한다. 세션이 없으면 홈·발견·둘러보기·검색·타인 프로필 같은 공개 조회는 게스트 상태로 동작하고, 내 프로필·내 서랍·구독 목록·발행·좋아요·새김·댓글·구독·프로필 수정 같은 계정 필요 API는 인증 오류를 반환한다.
 
+이미지 업로드를 S3로 연결할 때는 `.env.example`의 업로드 섹션을 채운다. 기본 AWS S3는 `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `SAEGIM_S3_BUCKET`, `SAEGIM_S3_PUBLIC_BASE_URL`이 필요하다. NCP Object Storage 같은 S3 호환 저장소는 여기에 `SAEGIM_S3_ENDPOINT`와 필요 시 `SAEGIM_S3_FORCE_PATH_STYLE=true`를 추가한다.
+
 Prisma 스키마 확인:
 
 ```bash

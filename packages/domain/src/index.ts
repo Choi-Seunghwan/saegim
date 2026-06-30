@@ -15,6 +15,17 @@ export interface CardPosition {
   yp: number;
 }
 
+export interface CardBackgroundImage {
+  url: string;
+  objectKey?: string;
+  alt?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  focalX: number;
+  focalY: number;
+  zoom: number;
+}
+
 export interface CardComposition {
   bg: string;
   dim: number;
@@ -25,6 +36,7 @@ export interface CardComposition {
   font: CardFont;
   textPos?: CardPosition | null;
   sourcePos?: CardPosition | null;
+  bgImage?: CardBackgroundImage | null;
 }
 
 export interface ContentSource {
@@ -211,5 +223,6 @@ export const DEFAULT_CARD_COMP: CardComposition = {
   align: "center",
   font: "gothic",
   textPos: null,
-  sourcePos: null
+  sourcePos: null,
+  bgImage: null
 };

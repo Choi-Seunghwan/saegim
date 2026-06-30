@@ -1456,10 +1456,35 @@ textarea:focus-visible {
   border-radius: 0;
 }
 
+.card-bg-photo,
+.card-bg-dim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.card-bg-photo {
+  z-index: 0;
+  overflow: hidden;
+}
+
+.card-bg-photo img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  user-select: none;
+  will-change: transform;
+}
+
+.card-bg-dim {
+  z-index: 1;
+}
+
 .cv-grain {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 2;
   pointer-events: none;
   opacity: 0.5;
   mix-blend-mode: multiply;
@@ -1469,7 +1494,7 @@ textarea:focus-visible {
 .cmp-layer {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 3;
 }
 
 .cmp-text {
@@ -1779,6 +1804,7 @@ textarea:focus-visible {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
   opacity: 0.5;
   mix-blend-mode: multiply;
@@ -1884,6 +1910,7 @@ textarea:focus-visible {
 .capture-card {
   position: absolute;
   inset: 0;
+  z-index: 4;
   margin: 0;
   padding: 0;
   border-radius: 0;
@@ -2023,7 +2050,7 @@ textarea:focus-visible {
 
 .capture-pagebar span {
   flex: 0 0 auto;
-  min-width: 32px;
+  min-width: 48px;
   color: var(--muted);
   font-size: 10.5px;
   font-weight: 900;
@@ -2446,6 +2473,141 @@ textarea:focus-visible {
   height: 100%;
   opacity: 0;
   cursor: pointer;
+}
+
+.capture-image-input {
+  display: none;
+}
+
+.capture-image-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.capture-image-actions button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--ink-strong);
+  color: #fbf8fc;
+  font-size: 12.5px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.capture-image-actions button.is-muted {
+  background: rgba(56, 50, 63, 0.08);
+  color: var(--ink);
+}
+
+.capture-image-hint {
+  margin: -3px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.capture-image-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.capture-image-frame,
+.capture-image-empty {
+  width: min(148px, 42vw);
+  aspect-ratio: 9 / 16;
+  justify-self: center;
+  border-radius: 16px;
+}
+
+.capture-image-frame {
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(56, 50, 63, 0.12),
+    0 16px 30px -20px rgba(53, 48, 57, 0.66);
+  cursor: grab;
+  touch-action: none;
+}
+
+.capture-image-frame:active {
+  cursor: grabbing;
+}
+
+.capture-image-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.capture-image-guide {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  box-shadow: inset 0 0 0 1px rgba(28, 24, 32, 0.16);
+  pointer-events: none;
+}
+
+.capture-image-guide span {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.capture-image-guide span:nth-child(1),
+.capture-image-guide span:nth-child(2) {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.capture-image-guide span:nth-child(1) {
+  left: 33.333%;
+}
+
+.capture-image-guide span:nth-child(2) {
+  left: 66.666%;
+}
+
+.capture-image-guide span:nth-child(3),
+.capture-image-guide span:nth-child(4) {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.capture-image-guide span:nth-child(3) {
+  top: 33.333%;
+}
+
+.capture-image-guide span:nth-child(4) {
+  top: 66.666%;
+}
+
+.capture-image-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.capture-image-empty {
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(56, 50, 63, 0.24);
+  background: var(--mist-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.capture-image-editor .capture-range-field {
+  margin-bottom: 4px;
 }
 
 .capture-bg-grid {
@@ -3400,9 +3562,13 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   padding: 10px 0 20px;
   text-align: center;
+}
+
+.edit-photo-input {
+  display: none;
 }
 
 .edit-photo p {
@@ -3420,21 +3586,46 @@ textarea:focus-visible {
   position: relative;
 }
 
-.edit-avatar-wrap > span {
+.edit-avatar-button {
   position: absolute;
   right: -5px;
   bottom: -4px;
-  min-width: 34px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  padding: 0 8px;
   border: 3px solid var(--paper);
   border-radius: 999px;
   background: var(--ink-strong);
   color: #fbf8fc;
-  font-size: 11px;
+  box-shadow: 0 12px 22px -14px rgba(53, 48, 57, 0.72);
+  cursor: pointer;
+}
+
+.edit-avatar-button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.edit-avatar-button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.edit-photo-remove {
+  margin-top: 2px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.07);
+  color: var(--muted);
+  font-size: 11.5px;
   font-weight: 800;
+  cursor: pointer;
 }
 
 .edit-field {

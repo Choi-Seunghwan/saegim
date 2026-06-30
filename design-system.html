@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>새김 · 기획 · 디자인 시스템</title>
+<link rel="icon" href="apps/web/public/icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="apps/web/public/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apps/web/public/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,6 +92,13 @@
   .sw .meta{padding:9px 11px}
   .sw .nm{font-size:.8rem;font-weight:700}
   .sw .hex{font-size:.7rem;color:var(--ink-3);font-family:var(--serif)}
+  .icon-system{display:flex;flex-wrap:wrap;gap:20px;align-items:center}
+  .icon-preview{display:grid;place-items:center;border:1px solid var(--line);background:var(--bg);border-radius:18px;padding:18px;min-width:170px}
+  .icon-preview.app img{width:118px;height:118px;border-radius:26px;box-shadow:0 16px 38px -22px rgba(56,50,63,.45)}
+  .icon-preview.fav{min-width:100px}
+  .icon-preview.fav img{width:32px;height:32px;image-rendering:auto}
+  .icon-label{margin-top:12px;font-size:.74rem;font-weight:700;color:var(--ink-2);text-align:center}
+  .icon-spec{flex:1;min-width:260px}
   /* 카드 배경 프리셋(그라데이션) */
   .grads{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:6px}
   .grad{border-radius:14px;height:96px;border:1px solid var(--line);position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:10px 12px}
@@ -277,6 +287,26 @@
         <div class="sw"><div class="chip" style="background:rgba(56,50,63,.12)"></div><div class="meta"><div class="nm">경계</div><div class="hex">ink 12%</div></div></div>
       </div>
       <p style="margin-top:14px;font-size:.88rem">포인트색이 분홍이던 첫 적용을 <b>모노톤(잉크 차콜)으로 정정</b>했다(2026-06-27). 분홍·살구·라벤더 같은 색은 '글 카드' 그라데이션 프리셋으로만 남는다.</p>
+
+      <h3>favicon · 앱 아이콘</h3>
+      <div class="panel icon-system">
+        <div class="icon-preview app">
+          <img src="apps/web/public/icons/saegim-icon.svg" alt="새김 앱 아이콘">
+          <div class="icon-label">앱 아이콘 · 512</div>
+        </div>
+        <div class="icon-preview fav">
+          <img src="apps/web/public/icons/favicon.svg" alt="새김 favicon">
+          <div class="icon-label">favicon · 32</div>
+        </div>
+        <div class="icon-spec">
+          <h4 style="margin-top:0">아이콘 원칙</h4>
+          <ul class="clean" style="margin:0">
+            <li><b>겹친 글 카드</b>로 발행 단위인 글과 장의 구조를 암시한다.</li>
+            <li><b>문장선 + 잉크 밑줄</b>로 워드마크의 밑줄 모티프를 가져오되, 작은 크기에서 한글 글자 의존도를 낮춘다.</li>
+            <li><b>앱 아이콘은 안개빛 종이</b>, <b>favicon은 잉크 배경</b>으로 분리해 홈 화면과 브라우저 탭의 식별성을 각각 맞춘다.</li>
+          </ul>
+        </div>
+      </div>
 
       <h3>카드 배경 프리셋 (색은 여기에만)</h3>
       <p>에디터에서 카드마다 고른다. <b>기본 = 안개(중성)</b>. 그라데이션 6종 외 단색(밝은/어두운)·패턴 3·이미지가 있고, 이미지 배경은 <b>딤(어둡게) 레이어</b>로 가독을 확보한다.</p>

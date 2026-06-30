@@ -2,8 +2,23 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  applicationName: "새김",
   title: "새김",
-  description: "한 줄을 카드로 만들어, 발견하고, 마음에 새겨 간직하는 곳"
+  description: "한 줄을 카드로 만들어, 발견하고, 마음에 새겨 간직하는 곳",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" }
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
+  },
+  appleWebApp: {
+    capable: true,
+    title: "새김",
+    statusBarStyle: "default"
+  }
 };
 
 export const viewport: Viewport = {

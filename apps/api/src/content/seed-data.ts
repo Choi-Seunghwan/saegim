@@ -12,6 +12,16 @@ interface CardComposition {
   font: CardFont;
   textPos?: { xp: number; yp: number } | null;
   sourcePos?: { xp: number; yp: number } | null;
+  bgImage?: {
+    url: string;
+    objectKey?: string;
+    alt?: string;
+    naturalWidth?: number;
+    naturalHeight?: number;
+    focalX: number;
+    focalY: number;
+    zoom: number;
+  } | null;
 }
 
 interface AccountProfile {
@@ -95,7 +105,8 @@ const defaultCardComp: CardComposition = {
   align: "center",
   font: "gothic",
   textPos: null,
-  sourcePos: null
+  sourcePos: null,
+  bgImage: null
 };
 
 const editorAccount: AccountProfile = {

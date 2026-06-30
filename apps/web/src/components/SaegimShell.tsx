@@ -2,17 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
+  ChangeEvent as ReactChangeEvent,
   CSSProperties,
   FormEvent,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   RefObject,
-  WheelEvent as ReactWheelEvent
+  WheelEvent as ReactWheelEvent,
 } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
 import type {
   AccountProfile,
+  CardBackgroundImage,
   CardComposition,
   CreatePostInput,
   EditorialPage,
@@ -20,7 +22,7 @@ import type {
   PostBundle,
   PostComment,
   SentenceCard,
-  UpdateAccountInput
+  UpdateAccountInput,
 } from "@saegim/domain";
 import {
   carvePost,
@@ -47,7 +49,7 @@ import {
   uncarvePost,
   unlikePost,
   unfollowAccount,
-  updateCurrentAccount
+  updateCurrentAccount,
 } from "../lib/api";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
@@ -71,7 +73,12 @@ type CaptureDraftCard = {
   comp: CardComposition;
 };
 type CaptureConfirmState =
-  | { kind: "publish"; input: CreatePostInput; cardCount: number }
+  | {
+      kind: "publish";
+      input: CreatePostInput;
+      cardCount: number;
+      skippedEmptyCardCount: number;
+    }
   | { kind: "delete"; index: number; cardNumber: number };
 type CaptureDragTarget = "text" | "source" | "resize";
 type CapturePointerDrag = {
@@ -88,6 +95,15 @@ type CapturePointerDrag = {
   maxXp: number;
   minYp: number;
   maxYp: number;
+};
+type CaptureImageCropDrag = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  baseFocalX: number;
+  baseFocalY: number;
+  zoom: number;
+  rect: DOMRect;
 };
 type DetailReturnTarget =
   | { surface: "tab"; tab: MainReturnTab }
@@ -114,20 +130,23 @@ const tabLabels: Record<TabKey, string> = {
   discover: "발견",
   capture: "포착",
   shelf: "둘러보기",
-  me: "나"
+  me: "나",
 };
 
-const topbarCopy: Record<Exclude<TabKey, "discover">, { title: string; subtitle: string }> = {
+const topbarCopy: Record<
+  Exclude<TabKey, "discover">,
+  { title: string; subtitle: string }
+> = {
   home: { title: "새김", subtitle: "마음에 새길 한 줄" },
   capture: { title: "포착", subtitle: "한 줄을 카드로 남기기" },
   shelf: { title: "둘러보기", subtitle: "엮어 둔 글 모음" },
-  me: { title: "나", subtitle: "내가 남긴 글과 서랍" }
+  me: { title: "나", subtitle: "내가 남긴 글과 서랍" },
 };
 
 const editorialHeroBackgrounds: Record<EditorialPage["kind"], string> = {
   notice: "linear-gradient(150deg,#4A4651,#38323F)",
   event: "linear-gradient(150deg,#5A5466,#3C3652)",
-  ad: "linear-gradient(150deg,#6E6A74,#4A4651)"
+  ad: "linear-gradient(150deg,#6E6A74,#4A4651)",
 };
 
 const guestAccount: AccountProfile = {
@@ -137,7 +156,7 @@ const guestAccount: AccountProfile = {
   tagline: "마음에 새길 한 줄을 둘러보는 중",
   verification: "none",
   postCount: 0,
-  writingFriendCount: 0
+  writingFriendCount: 0,
 };
 
 const captureToolLabels: Record<CaptureSheetKey, string> = {
@@ -145,7 +164,7 @@ const captureToolLabels: Record<CaptureSheetKey, string> = {
   title: "제목",
   background: "배경",
   source: "출처",
-  tag: "태그"
+  tag: "태그",
 };
 
 const captureBackgroundOptions = [
@@ -154,71 +173,102 @@ const captureBackgroundOptions = [
     label: "안개",
     bg: "linear-gradient(150deg,#EEF0F3,#E6E9F0 55%,#ECE8F1)",
     dim: 0,
-    textColor: "#38323F"
+    textColor: "#38323F",
   },
   {
     id: "dawn",
     label: "새벽",
     bg: "linear-gradient(150deg,#EAF0F7,#DDE6F0 60%,#EFEAF4)",
     dim: 0,
-    textColor: "#38323F"
+    textColor: "#38323F",
   },
   {
     id: "sunset",
     label: "노을",
     bg: "linear-gradient(150deg,#F7D9C7,#F1BFA7 56%,#DBA3B1)",
     dim: 0,
-    textColor: "#38323F"
+    textColor: "#38323F",
   },
   {
     id: "apricot",
     label: "살구",
     bg: "linear-gradient(150deg,#F9E1D0,#F4C7AF 58%,#E7B7A9)",
     dim: 0,
-    textColor: "#38323F"
+    textColor: "#38323F",
   },
   {
     id: "lavender",
     label: "라벤더",
     bg: "linear-gradient(150deg,#EDE7F5,#D8D0EA 58%,#C8C7E1)",
     dim: 0,
-    textColor: "#38323F"
+    textColor: "#38323F",
   },
   {
     id: "night",
     label: "밤",
     bg: "linear-gradient(150deg,#3C3652,#241F38)",
     dim: 0.16,
-    textColor: "#FBF8FC"
-  }
+    textColor: "#FBF8FC",
+  },
 ] as const;
 
-const captureSolidColorOptions = ["#F6F5F6", "#ECE8F1", "#EAF0F7", "#F9E1D0", "#353039", "#241F38"] as const;
-const captureTextColorOptions = ["#38323F", "#1F1C24", "#6E6A74", "#9A8E86", "#A7A2AC", "#FFFFFF", "#F4EFF6"] as const;
+const captureSolidColorOptions = [
+  "#F6F5F6",
+  "#ECE8F1",
+  "#EAF0F7",
+  "#F9E1D0",
+  "#353039",
+  "#241F38",
+] as const;
+const captureTextColorOptions = [
+  "#38323F",
+  "#1F1C24",
+  "#6E6A74",
+  "#9A8E86",
+  "#A7A2AC",
+  "#FFFFFF",
+  "#F4EFF6",
+] as const;
+const captureImageAcceptedTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+]);
+const captureImageMaxBytes = 5 * 1024 * 1024;
+const maxCaptureDraftCards = 10;
+const profilePhotoMaxBytes = 5 * 1024 * 1024;
+const profilePhotoSize = 512;
 const captureFontOptions: { id: CardComposition["font"]; label: string }[] = [
   { id: "gothic", label: "고딕" },
   { id: "serif", label: "명조" },
   { id: "round", label: "둥근" },
   { id: "pen", label: "손글씨" },
-  { id: "black", label: "진한" }
+  { id: "black", label: "진한" },
 ];
-const captureWeightOptions: { value: CardComposition["weight"]; label: string }[] = [
+const captureWeightOptions: {
+  value: CardComposition["weight"];
+  label: string;
+}[] = [
   { value: 300, label: "가늘게" },
   { value: 400, label: "보통" },
   { value: 700, label: "굵게" },
-  { value: 800, label: "두껍게" }
+  { value: 800, label: "두껍게" },
 ];
-const captureAlignOptions: { value: CardComposition["align"]; label: string }[] = [
+const captureAlignOptions: {
+  value: CardComposition["align"];
+  label: string;
+}[] = [
   { value: "left", label: "왼쪽" },
   { value: "center", label: "가운데" },
-  { value: "right", label: "오른쪽" }
+  { value: "right", label: "오른쪽" },
 ];
 const listInitialCount = 8;
 const listLoadStep = 8;
 const emptyPageInfo: PageInfo = {
   nextCursor: null,
   hasNextPage: false,
-  limit: listInitialCount
+  limit: listInitialCount,
 };
 
 function formatCount(value: number) {
@@ -228,7 +278,7 @@ function formatCount(value: number) {
 function formatCommentDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
     month: "short",
-    day: "numeric"
+    day: "numeric",
   }).format(new Date(value));
 }
 
@@ -268,7 +318,87 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function useProgressiveItems<T>(items: T[], resetKey: string, initialCount = listInitialCount) {
+function cssImageUrl(url: string) {
+  return url.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n|\r/g, "");
+}
+
+function cardBackgroundImageStyle(image: CardBackgroundImage): CSSProperties {
+  const focalX = clampNumber(image.focalX, 0, 100);
+  const focalY = clampNumber(image.focalY, 0, 100);
+
+  return {
+    objectPosition: `${focalX}% ${focalY}%`,
+    transform: `scale(${clampNumber(image.zoom, 1, 2.5)})`,
+    transformOrigin: `${focalX}% ${focalY}%`,
+  };
+}
+
+function readImageFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error("사진을 읽을 수 없어요."));
+    };
+
+    reader.onerror = () => reject(new Error("사진을 읽을 수 없어요."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("사진을 읽을 수 없어요."));
+    image.src = src;
+  });
+}
+
+async function createProfilePhotoDataUrl(file: File) {
+  const sourceUrl = await readImageFileAsDataUrl(file);
+  const image = await loadImageElement(sourceUrl);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("사진을 다듬을 수 없어요.");
+  }
+
+  const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+  const sourceX = Math.max(0, (image.naturalWidth - sourceSize) / 2);
+  const sourceY = Math.max(0, (image.naturalHeight - sourceSize) / 2);
+
+  canvas.width = profilePhotoSize;
+  canvas.height = profilePhotoSize;
+  context.fillStyle = "#F6F5F6";
+  context.fillRect(0, 0, profilePhotoSize, profilePhotoSize);
+  context.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    sourceSize,
+    sourceSize,
+    0,
+    0,
+    profilePhotoSize,
+    profilePhotoSize,
+  );
+
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
+
+function useProgressiveItems<T>(
+  items: T[],
+  resetKey: string,
+  initialCount = listInitialCount,
+) {
   const [visibleCount, setVisibleCount] = useState(initialCount);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -278,7 +408,11 @@ function useProgressiveItems<T>(items: T[], resetKey: string, initialCount = lis
 
   useEffect(() => {
     const target = loadMoreRef.current;
-    if (!target || visibleCount >= items.length || typeof IntersectionObserver === "undefined") {
+    if (
+      !target ||
+      visibleCount >= items.length ||
+      typeof IntersectionObserver === "undefined"
+    ) {
       return undefined;
     }
 
@@ -288,9 +422,11 @@ function useProgressiveItems<T>(items: T[], resetKey: string, initialCount = lis
           return;
         }
 
-        setVisibleCount((currentCount) => Math.min(currentCount + listLoadStep, items.length));
+        setVisibleCount((currentCount) =>
+          Math.min(currentCount + listLoadStep, items.length),
+        );
       },
-      { rootMargin: "220px 0px" }
+      { rootMargin: "220px 0px" },
     );
 
     observer.observe(target);
@@ -300,16 +436,25 @@ function useProgressiveItems<T>(items: T[], resetKey: string, initialCount = lis
   return {
     hasMore: visibleCount < items.length,
     loadMoreRef,
-    visibleItems: items.slice(0, Math.min(visibleCount, items.length))
+    visibleItems: items.slice(0, Math.min(visibleCount, items.length)),
   };
 }
 
-function useServerLoadMore(hasMore: boolean, isLoading: boolean, onLoadMore: () => void) {
+function useServerLoadMore(
+  hasMore: boolean,
+  isLoading: boolean,
+  onLoadMore: () => void,
+) {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const target = loadMoreRef.current;
-    if (!target || !hasMore || isLoading || typeof IntersectionObserver === "undefined") {
+    if (
+      !target ||
+      !hasMore ||
+      isLoading ||
+      typeof IntersectionObserver === "undefined"
+    ) {
       return undefined;
     }
 
@@ -319,7 +464,7 @@ function useServerLoadMore(hasMore: boolean, isLoading: boolean, onLoadMore: () 
           onLoadMore();
         }
       },
-      { rootMargin: "220px 0px" }
+      { rootMargin: "220px 0px" },
     );
 
     observer.observe(target);
@@ -339,7 +484,7 @@ function accountListKey(accounts: AccountProfile[]) {
 
 function LoadMoreSentinel({
   hasMore,
-  innerRef
+  innerRef,
 }: {
   hasMore: boolean;
   innerRef: RefObject<HTMLDivElement | null>;
@@ -377,19 +522,22 @@ function createCaptureDraftComp(baseComp?: CardComposition): CardComposition {
     dim: baseComp?.dim ?? baseBackground.dim,
     textColor: baseComp?.textColor ?? baseBackground.textColor,
     textPos: null,
-    sourcePos: null
+    sourcePos: null,
   };
 }
 
 function createCaptureDraftCard(baseComp?: CardComposition): CaptureDraftCard {
   return {
     text: "",
-    comp: createCaptureDraftComp(baseComp)
+    comp: createCaptureDraftComp(baseComp),
   };
 }
 
-function isSameBackgroundOption(option: (typeof captureBackgroundOptions)[number], comp: CardComposition) {
-  return option.bg === comp.bg && option.dim === comp.dim;
+function isSameBackgroundOption(
+  option: (typeof captureBackgroundOptions)[number],
+  comp: CardComposition,
+) {
+  return !comp.bgImage && option.bg === comp.bg && option.dim === comp.dim;
 }
 
 const cardFontFamily: Record<CardComposition["font"], string> = {
@@ -397,23 +545,71 @@ const cardFontFamily: Record<CardComposition["font"], string> = {
   serif: "var(--font-card)",
   round: "var(--font-round)",
   pen: "var(--font-pen)",
-  black: "var(--font-black)"
+  black: "var(--font-black)",
 };
 
-function cardSurfaceStyle(card: SentenceCard): CSSProperties {
-  return {
-    "--cv-text": card.comp.textColor,
-    background: bgWithDim(card.comp.bg, card.comp.dim),
-    color: card.comp.textColor
+function cardCompositionSurfaceStyle(comp: CardComposition): CSSProperties {
+  const image = comp.bgImage;
+  const style = {
+    "--cv-text": comp.textColor,
+    background: bgWithDim(comp.bg, image ? 0 : comp.dim),
+    color: comp.textColor,
   } as CSSProperties;
+
+  if (image?.url) {
+    style.backgroundImage = `linear-gradient(rgba(0,0,0,${comp.dim}), rgba(0,0,0,${comp.dim})), url("${cssImageUrl(
+      image.url,
+    )}")`;
+    style.backgroundPosition = `center, ${clampNumber(image.focalX, 0, 100)}% ${clampNumber(image.focalY, 0, 100)}%`;
+    style.backgroundSize = "auto, cover";
+    style.backgroundRepeat = "repeat, no-repeat";
+  }
+
+  return style;
 }
 
-function cardTextStyle(comp: CardComposition, scale = 1, includePosition = false): CSSProperties {
+function cardSurfaceStyle(card: SentenceCard): CSSProperties {
+  return cardCompositionSurfaceStyle(card.comp);
+}
+
+function CardBackgroundImageLayer({ comp }: { comp: CardComposition }) {
+  const image = comp.bgImage;
+
+  if (!image?.url) {
+    return null;
+  }
+
+  return (
+    <>
+      <div className="card-bg-photo" aria-hidden="true">
+        <img
+          alt=""
+          draggable={false}
+          src={image.url}
+          style={cardBackgroundImageStyle(image)}
+        />
+      </div>
+      {comp.dim > 0 ? (
+        <div
+          className="card-bg-dim"
+          aria-hidden="true"
+          style={{ background: `rgba(0,0,0,${comp.dim})` }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function cardTextStyle(
+  comp: CardComposition,
+  scale = 1,
+  includePosition = false,
+): CSSProperties {
   const style: CSSProperties = {
     fontFamily: cardFontFamily[comp.font],
     fontSize: `${Math.round(comp.size * scale)}px`,
     fontWeight: comp.weight,
-    textAlign: comp.align
+    textAlign: comp.align,
   };
 
   if (includePosition && comp.textPos) {
@@ -431,7 +627,7 @@ function cardSourceStyle(comp: CardComposition): CSSProperties | undefined {
     left: `${comp.sourcePos.xp}%`,
     top: `${comp.sourcePos.yp}%`,
     bottom: "auto",
-    transform: "translate(-50%, -50%)"
+    transform: "translate(-50%, -50%)",
   };
 }
 
@@ -487,7 +683,11 @@ function PlusIcon() {
 
 function BookmarkIcon({ filled = false }: { filled?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" fill={filled ? "currentColor" : "none"}>
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill={filled ? "currentColor" : "none"}
+    >
       <path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-3.6L6 21V4z" />
     </svg>
   );
@@ -495,7 +695,11 @@ function BookmarkIcon({ filled = false }: { filled?: boolean }) {
 
 function HeartIcon({ filled = false }: { filled?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" fill={filled ? "currentColor" : "none"}>
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill={filled ? "currentColor" : "none"}
+    >
       <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
     </svg>
   );
@@ -573,10 +777,19 @@ function MenuIcon() {
   );
 }
 
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 20h4.4L20 8.4 15.6 4 4 15.6V20z" />
+      <path d="M13.8 5.8l4.4 4.4" />
+    </svg>
+  );
+}
+
 function Avatar({
   displayName,
   photoUrl,
-  size
+  size,
 }: {
   displayName: string;
   photoUrl?: string | null | undefined;
@@ -591,11 +804,16 @@ function Avatar({
     setImageFailed(false);
   }, [cleanPhotoUrl]);
 
-  const className = size === "tab" ? "avatar avatar-tab" : size ? `avatar ${size}` : "avatar";
+  const className =
+    size === "tab" ? "avatar avatar-tab" : size ? `avatar ${size}` : "avatar";
 
   return (
     <div className={className}>
-      {showImage ? <img src={cleanPhotoUrl} alt="" onError={() => setImageFailed(true)} /> : initial}
+      {showImage ? (
+        <img src={cleanPhotoUrl} alt="" onError={() => setImageFailed(true)} />
+      ) : (
+        initial
+      )}
     </div>
   );
 }
@@ -611,7 +829,11 @@ function GuestTabAvatar() {
   );
 }
 
-function OfficialMark({ verification }: { verification: AccountProfile["verification"] }) {
+function OfficialMark({
+  verification,
+}: {
+  verification: AccountProfile["verification"];
+}) {
   if (verification !== "official") return null;
 
   return (
@@ -632,45 +854,60 @@ function AccountName({ account }: { account: AccountProfile }) {
 
 export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("discover");
-  const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("discover");
+  const [captureReturnTab, setCaptureReturnTab] =
+    useState<Exclude<TabKey, "capture">>("discover");
   const [entryState, setEntryState] = useState<EntryState>("guest");
-  const [initialLoadState, setInitialLoadState] = useState<InitialLoadState>("loading");
+  const [initialLoadState, setInitialLoadState] =
+    useState<InitialLoadState>("loading");
   const [initialLoadRetryKey, setInitialLoadRetryKey] = useState(0);
-  const [authSheetIntent, setAuthSheetIntent] = useState<AuthSheetIntent | null>(null);
-  const [authSheetInitialMode, setAuthSheetInitialMode] = useState<AuthMode>("login");
+  const [authSheetIntent, setAuthSheetIntent] =
+    useState<AuthSheetIntent | null>(null);
+  const [authSheetInitialMode, setAuthSheetInitialMode] =
+    useState<AuthMode>("login");
   const [isSearching, setIsSearching] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isViewingDrawer, setIsViewingDrawer] = useState(false);
-  const [drawerReturnSurface, setDrawerReturnSurface] = useState<DrawerReturnSurface>("profile");
+  const [drawerReturnSurface, setDrawerReturnSurface] =
+    useState<DrawerReturnSurface>("profile");
   const [isViewingFollowing, setIsViewingFollowing] = useState(false);
   const [isViewingSettings, setIsViewingSettings] = useState(false);
   const [isViewingNoticeList, setIsViewingNoticeList] = useState(false);
-  const [editorialPageState, setEditorialPageState] = useState<EditorialPageState | null>(null);
+  const [editorialPageState, setEditorialPageState] =
+    useState<EditorialPageState | null>(null);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [infoSheet, setInfoSheet] = useState<InfoSheetState | null>(null);
-  const [detailReturnTarget, setDetailReturnTarget] = useState<DetailReturnTarget | null>(null);
-  const [profileReturnTarget, setProfileReturnTarget] = useState<ProfileReturnTarget | null>(null);
+  const [detailReturnTarget, setDetailReturnTarget] =
+    useState<DetailReturnTarget | null>(null);
+  const [profileReturnTarget, setProfileReturnTarget] =
+    useState<ProfileReturnTarget | null>(null);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
+    null,
+  );
   const [posts, setPosts] = useState<PostBundle[]>([]);
   const [feedPageInfo, setFeedPageInfo] = useState<PageInfo>(emptyPageInfo);
   const [isLoadingMoreFeed, setIsLoadingMoreFeed] = useState(false);
   const [accounts, setAccounts] = useState<AccountProfile[]>([]);
   const [editorialPages, setEditorialPages] = useState<EditorialPage[]>([]);
-  const [currentAccount, setCurrentAccount] = useState<AccountProfile>(guestAccount);
+  const [currentAccount, setCurrentAccount] =
+    useState<AccountProfile>(guestAccount);
   const featuredPost = posts[0] ?? null;
-  const activePost = posts.find((post) => post.post.id === activePostId) ?? featuredPost;
+  const activePost =
+    posts.find((post) => post.post.id === activePostId) ?? featuredPost;
   const selectedProfile =
     selectedProfileId === currentAccount.id
       ? currentAccount
-      : accounts.find((account) => account.id === selectedProfileId) ??
+      : (accounts.find((account) => account.id === selectedProfileId) ??
         posts.find((post) => post.author.id === selectedProfileId)?.author ??
-        currentAccount;
+        currentAccount);
   const isOwnProfile = selectedProfile.id === currentAccount.id;
-  const infoSheetPost = infoSheet ? posts.find((post) => post.post.id === infoSheet.postId) : null;
+  const infoSheetPost = infoSheet
+    ? posts.find((post) => post.post.id === infoSheet.postId)
+    : null;
   const selectedEditorialPage = editorialPageState
-    ? editorialPages.find((page) => page.id === editorialPageState.pageId) ?? null
+    ? (editorialPages.find((page) => page.id === editorialPageState.pageId) ??
+      null)
     : null;
   const noticePages = editorialPages.filter((page) => page.kind === "notice");
   const isFullPage =
@@ -688,15 +925,24 @@ export function SaegimShell() {
     "mobile-frame",
     isDiscoverMode ? "is-discover" : "",
     isFullPage ? "is-full" : "",
-    isProfileTab ? "is-profile" : ""
+    isProfileTab ? "is-profile" : "",
   ]
     .filter(Boolean)
     .join(" ");
-  const topbar = activeTab === "discover" ? topbarCopy.home : topbarCopy[activeTab];
-  const activePostIndex = activePost ? Math.max(0, posts.findIndex((post) => post.post.id === activePost.post.id)) : 0;
+  const topbar =
+    activeTab === "discover" ? topbarCopy.home : topbarCopy[activeTab];
+  const activePostIndex = activePost
+    ? Math.max(
+        0,
+        posts.findIndex((post) => post.post.id === activePost.post.id),
+      )
+    : 0;
 
   function handlePostPublished(post: PostBundle) {
-    setPosts((currentPosts) => [post, ...currentPosts.filter((item) => item.post.id !== post.post.id)]);
+    setPosts((currentPosts) => [
+      post,
+      ...currentPosts.filter((item) => item.post.id !== post.post.id),
+    ]);
     setActivePostId(post.post.id);
     setActiveCardIndex(0);
     setIsSearching(false);
@@ -708,29 +954,46 @@ export function SaegimShell() {
   }
 
   function replacePost(post: PostBundle) {
-    setPosts((currentPosts) => currentPosts.map((item) => (item.post.id === post.post.id ? post : item)));
-    setCommentPost((currentPost) => (currentPost?.post.id === post.post.id ? post : currentPost));
+    setPosts((currentPosts) =>
+      currentPosts.map((item) => (item.post.id === post.post.id ? post : item)),
+    );
+    setCommentPost((currentPost) =>
+      currentPost?.post.id === post.post.id ? post : currentPost,
+    );
   }
 
   function mergePosts(nextPosts: PostBundle[]) {
     setPosts((currentPosts) => {
-      const nextPostMap = new Map(nextPosts.map((post) => [post.post.id, post]));
+      const nextPostMap = new Map(
+        nextPosts.map((post) => [post.post.id, post]),
+      );
       const currentPostIds = new Set(currentPosts.map((post) => post.post.id));
-      const mergedPosts = currentPosts.map((post) => nextPostMap.get(post.post.id) ?? post);
-      const newPosts = nextPosts.filter((post) => !currentPostIds.has(post.post.id));
+      const mergedPosts = currentPosts.map(
+        (post) => nextPostMap.get(post.post.id) ?? post,
+      );
+      const newPosts = nextPosts.filter(
+        (post) => !currentPostIds.has(post.post.id),
+      );
 
       return [...mergedPosts, ...newPosts];
     });
   }
 
   async function loadMoreFeed() {
-    if (!feedPageInfo.hasNextPage || !feedPageInfo.nextCursor || isLoadingMoreFeed) {
+    if (
+      !feedPageInfo.hasNextPage ||
+      !feedPageInfo.nextCursor ||
+      isLoadingMoreFeed
+    ) {
       return [] as PostBundle[];
     }
 
     try {
       setIsLoadingMoreFeed(true);
-      const page = await fetchFeed({ cursor: feedPageInfo.nextCursor, limit: listLoadStep });
+      const page = await fetchFeed({
+        cursor: feedPageInfo.nextCursor,
+        limit: listLoadStep,
+      });
       setFeedPageInfo(page.pageInfo);
       mergePosts(page.items);
       return page.items;
@@ -749,12 +1012,16 @@ export function SaegimShell() {
         return [account, ...currentAccounts];
       }
 
-      return currentAccounts.map((item) => (item.id === account.id ? account : item));
+      return currentAccounts.map((item) =>
+        item.id === account.id ? account : item,
+      );
     });
   }
 
   function replaceAccount(account: AccountProfile) {
-    setAccounts((currentAccounts) => currentAccounts.map((item) => (item.id === account.id ? account : item)));
+    setAccounts((currentAccounts) =>
+      currentAccounts.map((item) => (item.id === account.id ? account : item)),
+    );
     setPosts((currentPosts) =>
       currentPosts.map((post) =>
         post.author.id === account.id
@@ -767,11 +1034,11 @@ export function SaegimShell() {
                 carved: post.viewerState?.carved ?? false,
                 subscribed: account.viewerState?.subscribed ?? false,
                 likeCount: post.viewerState?.likeCount ?? 0,
-                commentCount: post.viewerState?.commentCount ?? 0
-              }
+                commentCount: post.viewerState?.commentCount ?? 0,
+              },
             }
-          : post
-      )
+          : post,
+      ),
     );
   }
 
@@ -779,7 +1046,10 @@ export function SaegimShell() {
     return entryState === "signed-in";
   }
 
-  function openAuthSheet(intent: AuthSheetIntent = "default", mode: AuthMode = "login") {
+  function openAuthSheet(
+    intent: AuthSheetIntent = "default",
+    mode: AuthMode = "login",
+  ) {
     setCommentPost(null);
     setInfoSheet(null);
     setAuthSheetInitialMode(mode);
@@ -807,11 +1077,11 @@ export function SaegimShell() {
         ? await signupWithEmail({
             displayName: input.displayName,
             email: input.email,
-            password: input.password
+            password: input.password,
           })
         : await loginWithEmail({
             email: input.email,
-            password: input.password
+            password: input.password,
           });
 
     setCurrentAccount(nextAccount);
@@ -898,7 +1168,9 @@ export function SaegimShell() {
     setProfileReturnTarget(null);
 
     if (tab === "discover") {
-      setActivePostId((currentPostId) => currentPostId ?? featuredPost?.post.id ?? null);
+      setActivePostId(
+        (currentPostId) => currentPostId ?? featuredPost?.post.id ?? null,
+      );
       setActiveCardIndex(0);
     }
 
@@ -960,7 +1232,9 @@ export function SaegimShell() {
     }
 
     try {
-      const updatedPost = post.viewerState?.liked ? await unlikePost(post.post.id) : await likePost(post.post.id);
+      const updatedPost = post.viewerState?.liked
+        ? await unlikePost(post.post.id)
+        : await likePost(post.post.id);
       replacePost(updatedPost);
     } catch {
       // 네트워크 실패 시 현재 화면 상태를 유지한다.
@@ -973,7 +1247,9 @@ export function SaegimShell() {
     }
 
     try {
-      const updatedPost = post.viewerState?.carved ? await uncarvePost(post.post.id) : await carvePost(post.post.id);
+      const updatedPost = post.viewerState?.carved
+        ? await uncarvePost(post.post.id)
+        : await carvePost(post.post.id);
       replacePost(updatedPost);
     } catch {
       // 네트워크 실패 시 현재 화면 상태를 유지한다.
@@ -998,7 +1274,9 @@ export function SaegimShell() {
     }
 
     try {
-      const updatedAccount = subscribed ? await unfollowAccount(accountId) : await followAccount(accountId);
+      const updatedAccount = subscribed
+        ? await unfollowAccount(accountId)
+        : await followAccount(accountId);
       replaceAccount(updatedAccount);
       return updatedAccount;
     } catch {
@@ -1010,7 +1288,10 @@ export function SaegimShell() {
     const returnTarget: DetailReturnTarget | null = isViewingDrawer
       ? { surface: "drawer" }
       : isSearching
-        ? { surface: "search", tab: activeTab === "capture" ? "home" : activeTab }
+        ? {
+            surface: "search",
+            tab: activeTab === "capture" ? "home" : activeTab,
+          }
         : activeTab !== "discover" && activeTab !== "capture"
           ? { surface: "tab", tab: activeTab }
           : null;
@@ -1022,7 +1303,9 @@ export function SaegimShell() {
         return [post, ...currentPosts];
       }
 
-      return currentPosts.map((item) => (item.post.id === post.post.id ? post : item));
+      return currentPosts.map((item) =>
+        item.post.id === post.post.id ? post : item,
+      );
     });
     setActivePostId(post.post.id);
     setActiveCardIndex(0);
@@ -1082,7 +1365,10 @@ export function SaegimShell() {
     }
 
     if (isSearching) {
-      return { surface: "search", tab: activeTab === "capture" ? "home" : activeTab };
+      return {
+        surface: "search",
+        tab: activeTab === "capture" ? "home" : activeTab,
+      };
     }
 
     if (activeTab === "discover") {
@@ -1226,7 +1512,9 @@ export function SaegimShell() {
       return;
     }
 
-    setActiveCardIndex(Math.min(Math.max(index, 0), activePost.cards.length - 1));
+    setActiveCardIndex(
+      Math.min(Math.max(index, 0), activePost.cards.length - 1),
+    );
   }
 
   function openInfoSheet(post: PostBundle) {
@@ -1257,11 +1545,12 @@ export function SaegimShell() {
 
     async function loadInitialData() {
       try {
-        const [nextPostPage, nextAccountPage, nextEditorialPages] = await Promise.all([
-          fetchFeed({ limit: listInitialCount }, controller.signal),
-          fetchRecommendedAccounts({ limit: 12 }, controller.signal),
-          fetchEditorialPages(controller.signal)
-        ]);
+        const [nextPostPage, nextAccountPage, nextEditorialPages] =
+          await Promise.all([
+            fetchFeed({ limit: listInitialCount }, controller.signal),
+            fetchRecommendedAccounts({ limit: 12 }, controller.signal),
+            fetchEditorialPages(controller.signal),
+          ]);
 
         setPosts(nextPostPage.items);
         setFeedPageInfo(nextPostPage.pageInfo);
@@ -1270,7 +1559,9 @@ export function SaegimShell() {
 
         if (entryState === "signed-in") {
           try {
-            const nextCurrentAccount = await fetchCurrentAccount(controller.signal);
+            const nextCurrentAccount = await fetchCurrentAccount(
+              controller.signal,
+            );
             setCurrentAccount(nextCurrentAccount);
             setSelectedProfileId(nextCurrentAccount.id);
           } catch {
@@ -1302,7 +1593,9 @@ export function SaegimShell() {
       return;
     }
 
-    setActiveCardIndex((currentIndex) => Math.min(currentIndex, Math.max(activePost.cards.length - 1, 0)));
+    setActiveCardIndex((currentIndex) =>
+      Math.min(currentIndex, Math.max(activePost.cards.length - 1, 0)),
+    );
   }, [activePost?.cards.length, activePost?.post.id]);
 
   const content = useMemo(() => {
@@ -1339,7 +1632,13 @@ export function SaegimShell() {
     }
 
     if (isSearching) {
-      return <SearchView onClose={() => setIsSearching(false)} onOpenPost={openPost} onOpenProfile={openProfile} />;
+      return (
+        <SearchView
+          onClose={() => setIsSearching(false)}
+          onOpenPost={openPost}
+          onOpenProfile={openProfile}
+        />
+      );
     }
 
     if (activeTab === "discover") {
@@ -1515,7 +1814,7 @@ export function SaegimShell() {
     noticePages,
     posts,
     selectedEditorialPage,
-    selectedProfile
+    selectedProfile,
   ]);
 
   return (
@@ -1524,7 +1823,11 @@ export function SaegimShell() {
         {isDiscoverMode || isFullPage || isProfileTab ? null : (
           <header className="topbar">
             <div>
-              <div className={activeTab === "home" ? "wordmark brand" : "wordmark"}>{topbar.title}</div>
+              <div
+                className={activeTab === "home" ? "wordmark brand" : "wordmark"}
+              >
+                {topbar.title}
+              </div>
               <p>{topbar.subtitle}</p>
             </div>
             <button
@@ -1548,7 +1851,11 @@ export function SaegimShell() {
         <div className="screen">{content}</div>
 
         {commentPost ? (
-          <CommentSheet post={commentPost} onClose={() => setCommentPost(null)} onPostChange={replacePost} />
+          <CommentSheet
+            post={commentPost}
+            onClose={() => setCommentPost(null)}
+            onPostChange={replacePost}
+          />
         ) : null}
 
         {infoSheet && infoSheetPost ? (
@@ -1561,18 +1868,18 @@ export function SaegimShell() {
         {isFullPage ? null : (
           <>
             <nav className="tabbar" aria-label="주요 메뉴">
-            {(["home", "discover"] as const).map((tabKey) => (
-              <button
-                key={tabKey}
-                className={tabKey === activeTab ? "tab is-active" : "tab"}
-                type="button"
-                onClick={() => selectTab(tabKey)}
-                aria-label={tabLabels[tabKey]}
-                aria-current={tabKey === activeTab ? "page" : undefined}
-              >
-                <TabIcon tab={tabKey} />
-              </button>
-            ))}
+              {(["home", "discover"] as const).map((tabKey) => (
+                <button
+                  key={tabKey}
+                  className={tabKey === activeTab ? "tab is-active" : "tab"}
+                  type="button"
+                  onClick={() => selectTab(tabKey)}
+                  aria-label={tabLabels[tabKey]}
+                  aria-current={tabKey === activeTab ? "page" : undefined}
+                >
+                  <TabIcon tab={tabKey} />
+                </button>
+              ))}
               <span className="tab tab-spacer" aria-hidden="true" />
               {(["shelf", "me"] as const).map((tabKey) => (
                 <button
@@ -1580,7 +1887,11 @@ export function SaegimShell() {
                   className={tabKey === activeTab ? "tab is-active" : "tab"}
                   type="button"
                   onClick={() => selectTab(tabKey)}
-                  aria-label={tabKey === "me" && !isSignedIn() ? "나, 게스트" : tabLabels[tabKey]}
+                  aria-label={
+                    tabKey === "me" && !isSignedIn()
+                      ? "나, 게스트"
+                      : tabLabels[tabKey]
+                  }
                   aria-current={tabKey === activeTab ? "page" : undefined}
                 >
                   {tabKey === "me" ? (
@@ -1618,7 +1929,10 @@ export function SaegimShell() {
           />
         ) : null}
         {initialLoadState !== "ready" ? (
-          <AppLoadingOverlay state={initialLoadState} onRetry={retryInitialLoad} />
+          <AppLoadingOverlay
+            state={initialLoadState}
+            onRetry={retryInitialLoad}
+          />
         ) : null}
       </section>
     </main>
@@ -1627,7 +1941,7 @@ export function SaegimShell() {
 
 function AppLoadingOverlay({
   state,
-  onRetry
+  onRetry,
 }: {
   state: Exclude<InitialLoadState, "ready">;
   onRetry: () => void;
@@ -1661,7 +1975,7 @@ function AuthSheet({
   initialMode,
   onClose,
   onEnter,
-  onGoogleLogin
+  onGoogleLogin,
 }: {
   initialMode: AuthMode;
   onClose: () => void;
@@ -1676,7 +1990,11 @@ function AuthSheet({
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSignup = mode === "signup";
-  const submitLabel = isSubmitting ? "확인 중" : isSignup ? "가입하기" : "로그인";
+  const submitLabel = isSubmitting
+    ? "확인 중"
+    : isSignup
+      ? "가입하기"
+      : "로그인";
   const passwordRuleText = "8자 이상, 영문과 숫자를 함께 입력해 주세요.";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1719,10 +2037,12 @@ function AuthSheet({
         mode,
         displayName: cleanDisplayName,
         email: cleanEmail,
-        password: cleanPassword
+        password: cleanPassword,
       });
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "로그인을 다시 시도해 주세요.");
+      setSubmitError(
+        error instanceof Error ? error.message : "로그인을 다시 시도해 주세요.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -1730,7 +2050,12 @@ function AuthSheet({
 
   return (
     <>
-      <button className="auth-sheet-backdrop" type="button" aria-label="로그인 패널 닫기" onClick={onClose} />
+      <button
+        className="auth-sheet-backdrop"
+        type="button"
+        aria-label="로그인 패널 닫기"
+        onClick={onClose}
+      />
       <section className="auth-sheet" aria-label="로그인">
         <div className="sheet-grip" aria-hidden="true">
           <span />
@@ -1775,7 +2100,11 @@ function AuthSheet({
 
           {isSignup ? (
             <label className="auth-agree">
-              <input checked={agreed} onChange={(event) => setAgreed(event.target.checked)} type="checkbox" />
+              <input
+                checked={agreed}
+                onChange={(event) => setAgreed(event.target.checked)}
+                type="checkbox"
+              />
               <span>이용약관 및 개인정보 처리방침에 동의합니다</span>
             </label>
           ) : null}
@@ -1796,7 +2125,11 @@ function AuthSheet({
             <div className="auth-div">
               <span>또는</span>
             </div>
-            <button className="auth-social google" type="button" onClick={onGoogleLogin}>
+            <button
+              className="auth-social google"
+              type="button"
+              onClick={onGoogleLogin}
+            >
               Google로 계속하기
             </button>
           </>
@@ -1824,13 +2157,18 @@ function AuthSheet({
 }
 
 function isValidSignupPassword(password: string) {
-  return password.length >= 8 && password.length <= 120 && /[A-Za-z]/.test(password) && /\d/.test(password);
+  return (
+    password.length >= 8 &&
+    password.length <= 120 &&
+    /[A-Za-z]/.test(password) &&
+    /\d/.test(password)
+  );
 }
 
 function SearchView({
   onClose,
   onOpenPost,
-  onOpenProfile
+  onOpenProfile,
 }: {
   onClose: () => void;
   onOpenPost: (post: PostBundle) => void;
@@ -1840,7 +2178,8 @@ function SearchView({
   const [segment, setSegment] = useState<"all" | "accounts" | "posts">("all");
   const [accounts, setAccounts] = useState<AccountProfile[]>([]);
   const [posts, setPosts] = useState<PostBundle[]>([]);
-  const [accountPageInfo, setAccountPageInfo] = useState<PageInfo>(emptyPageInfo);
+  const [accountPageInfo, setAccountPageInfo] =
+    useState<PageInfo>(emptyPageInfo);
   const [postPageInfo, setPostPageInfo] = useState<PageInfo>(emptyPageInfo);
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [loadingMoreAccounts, setLoadingMoreAccounts] = useState(false);
@@ -1852,7 +2191,11 @@ function SearchView({
   const visiblePosts = segment === "accounts" ? [] : posts;
 
   async function loadMoreSearchAccounts() {
-    if (!accountPageInfo.hasNextPage || !accountPageInfo.nextCursor || loadingMoreAccounts) {
+    if (
+      !accountPageInfo.hasNextPage ||
+      !accountPageInfo.nextCursor ||
+      loadingMoreAccounts
+    ) {
       return;
     }
 
@@ -1860,12 +2203,20 @@ function SearchView({
       setLoadingMoreAccounts(true);
       const result = await fetchSearch(
         cleanQuery,
-        { accountCursor: accountPageInfo.nextCursor, accountLimit: listLoadStep },
-        undefined
+        {
+          accountCursor: accountPageInfo.nextCursor,
+          accountLimit: listLoadStep,
+        },
+        undefined,
       );
       setAccounts((currentAccounts) => {
-        const accountIds = new Set(currentAccounts.map((account) => account.id));
-        return [...currentAccounts, ...result.accounts.filter((account) => !accountIds.has(account.id))];
+        const accountIds = new Set(
+          currentAccounts.map((account) => account.id),
+        );
+        return [
+          ...currentAccounts,
+          ...result.accounts.filter((account) => !accountIds.has(account.id)),
+        ];
       });
       setAccountPageInfo(result.accountPageInfo);
     } catch {
@@ -1876,16 +2227,27 @@ function SearchView({
   }
 
   async function loadMoreSearchPosts() {
-    if (!postPageInfo.hasNextPage || !postPageInfo.nextCursor || loadingMorePosts) {
+    if (
+      !postPageInfo.hasNextPage ||
+      !postPageInfo.nextCursor ||
+      loadingMorePosts
+    ) {
       return;
     }
 
     try {
       setLoadingMorePosts(true);
-      const result = await fetchSearch(cleanQuery, { postCursor: postPageInfo.nextCursor, postLimit: listLoadStep }, undefined);
+      const result = await fetchSearch(
+        cleanQuery,
+        { postCursor: postPageInfo.nextCursor, postLimit: listLoadStep },
+        undefined,
+      );
       setPosts((currentPosts) => {
         const postIds = new Set(currentPosts.map((post) => post.post.id));
-        return [...currentPosts, ...result.posts.filter((post) => !postIds.has(post.post.id))];
+        return [
+          ...currentPosts,
+          ...result.posts.filter((post) => !postIds.has(post.post.id)),
+        ];
       });
       setPostPageInfo(result.postPageInfo);
     } catch {
@@ -1898,17 +2260,21 @@ function SearchView({
   const popularLoadMoreRef = useServerLoadMore(
     !cleanQuery && postPageInfo.hasNextPage,
     loadingMorePosts,
-    loadMoreSearchPosts
+    loadMoreSearchPosts,
   );
   const accountLoadMoreRef = useServerLoadMore(
-    cleanQuery.length > 0 && visibleAccounts.length > 0 && accountPageInfo.hasNextPage,
+    cleanQuery.length > 0 &&
+      visibleAccounts.length > 0 &&
+      accountPageInfo.hasNextPage,
     loadingMoreAccounts,
-    loadMoreSearchAccounts
+    loadMoreSearchAccounts,
   );
   const postLoadMoreRef = useServerLoadMore(
-    cleanQuery.length > 0 && visiblePosts.length > 0 && postPageInfo.hasNextPage,
+    cleanQuery.length > 0 &&
+      visiblePosts.length > 0 &&
+      postPageInfo.hasNextPage,
     loadingMorePosts,
-    loadMoreSearchPosts
+    loadMoreSearchPosts,
   );
 
   useEffect(() => {
@@ -1921,7 +2287,7 @@ function SearchView({
         const result = await fetchSearch(
           query,
           { accountLimit: listInitialCount, postLimit: listInitialCount },
-          controller.signal
+          controller.signal,
         );
         setAccounts(result.accounts);
         setPosts(result.posts);
@@ -1945,12 +2311,21 @@ function SearchView({
   }, [query]);
 
   const isEmpty =
-    cleanQuery.length > 0 && status !== "loading" && !error && visibleAccounts.length === 0 && visiblePosts.length === 0;
+    cleanQuery.length > 0 &&
+    status !== "loading" &&
+    !error &&
+    visibleAccounts.length === 0 &&
+    visiblePosts.length === 0;
 
   return (
     <section className="search-view">
       <div className="search-head">
-        <button className="back-icon" type="button" onClick={onClose} aria-label="검색 닫기">
+        <button
+          className="back-icon"
+          type="button"
+          onClick={onClose}
+          aria-label="검색 닫기"
+        >
           ←
         </button>
         <label className="search-input">
@@ -1962,7 +2337,11 @@ function SearchView({
             value={query}
           />
           {query ? (
-            <button type="button" onClick={() => setQuery("")} aria-label="검색어 지우기">
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="검색어 지우기"
+            >
               ×
             </button>
           ) : null}
@@ -1974,7 +2353,7 @@ function SearchView({
           {[
             ["all", "전체"],
             ["accounts", "계정"],
-            ["posts", "글"]
+            ["posts", "글"],
           ].map(([key, label]) => (
             <button
               className={segment === key ? "is-active" : undefined}
@@ -1994,13 +2373,20 @@ function SearchView({
           {popularPosts.length > 0 ? (
             <div className="masonry">
               {popularPosts.map((post) => (
-                <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+                <PostPreviewButton
+                  key={post.post.id}
+                  post={post}
+                  onOpenPost={onOpenPost}
+                />
               ))}
             </div>
           ) : (
             <p className="search-empty">아직 보여줄 글이 없어요.</p>
           )}
-          <LoadMoreSentinel hasMore={postPageInfo.hasNextPage} innerRef={popularLoadMoreRef} />
+          <LoadMoreSentinel
+            hasMore={postPageInfo.hasNextPage}
+            innerRef={popularLoadMoreRef}
+          />
         </section>
       ) : null}
 
@@ -2009,10 +2395,17 @@ function SearchView({
           <h2>계정</h2>
           <div className="search-account-list">
             {visibleAccounts.map((account) => (
-              <AccountResultButton account={account} key={account.id} onOpenProfile={onOpenProfile} />
+              <AccountResultButton
+                account={account}
+                key={account.id}
+                onOpenProfile={onOpenProfile}
+              />
             ))}
           </div>
-          <LoadMoreSentinel hasMore={accountPageInfo.hasNextPage} innerRef={accountLoadMoreRef} />
+          <LoadMoreSentinel
+            hasMore={accountPageInfo.hasNextPage}
+            innerRef={accountLoadMoreRef}
+          />
         </section>
       ) : null}
 
@@ -2021,29 +2414,46 @@ function SearchView({
           <h2>글</h2>
           <div className="masonry">
             {visiblePosts.map((post) => (
-              <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+              <PostPreviewButton
+                key={post.post.id}
+                post={post}
+                onOpenPost={onOpenPost}
+              />
             ))}
           </div>
-          <LoadMoreSentinel hasMore={postPageInfo.hasNextPage} innerRef={postLoadMoreRef} />
+          <LoadMoreSentinel
+            hasMore={postPageInfo.hasNextPage}
+            innerRef={postLoadMoreRef}
+          />
         </section>
       ) : null}
 
-      {cleanQuery && status === "loading" ? <p className="search-empty">찾는 중</p> : null}
-      {isEmpty ? <p className="search-empty">‘{cleanQuery}’에 대한 결과가 없어요.</p> : null}
-      {error && visibleAccounts.length === 0 && visiblePosts.length === 0 ? <p className="search-empty">{error}</p> : null}
+      {cleanQuery && status === "loading" ? (
+        <p className="search-empty">찾는 중</p>
+      ) : null}
+      {isEmpty ? (
+        <p className="search-empty">‘{cleanQuery}’에 대한 결과가 없어요.</p>
+      ) : null}
+      {error && visibleAccounts.length === 0 && visiblePosts.length === 0 ? (
+        <p className="search-empty">{error}</p>
+      ) : null}
     </section>
   );
 }
 
 function AccountResultButton({
   account,
-  onOpenProfile
+  onOpenProfile,
 }: {
   account: AccountProfile;
   onOpenProfile: (account: AccountProfile) => void;
 }) {
   return (
-    <button className="search-account-row" type="button" onClick={() => onOpenProfile(account)}>
+    <button
+      className="search-account-row"
+      type="button"
+      onClick={() => onOpenProfile(account)}
+    >
       <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
       <div>
         <strong>
@@ -2051,7 +2461,8 @@ function AccountResultButton({
         </strong>
         <p>{account.tagline}</p>
         <small>
-          글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
+          글 {formatCount(account.postCount)}개 · 글벗{" "}
+          {formatCount(account.writingFriendCount)}
         </small>
       </div>
     </button>
@@ -2062,7 +2473,7 @@ function PostPreviewButton({
   hideAuthor = false,
   hideLikeCount = false,
   post,
-  onOpenPost
+  onOpenPost,
 }: {
   hideAuthor?: boolean;
   hideLikeCount?: boolean;
@@ -2075,12 +2486,18 @@ function PostPreviewButton({
 
   return (
     <button
-      className={post.post.cardCount > 1 ? "shelf-card post-card-button has-page-badge" : "shelf-card post-card-button"}
+      className={
+        post.post.cardCount > 1
+          ? "shelf-card post-card-button has-page-badge"
+          : "shelf-card post-card-button"
+      }
       type="button"
       onClick={() => onOpenPost(post)}
       style={cardSurfaceStyle(card)}
     >
-      {post.post.cardCount > 1 ? <span className="page-badge">{post.post.cardCount}장</span> : null}
+      {post.post.cardCount > 1 ? (
+        <span className="page-badge">{post.post.cardCount}장</span>
+      ) : null}
       <p className="sq" style={cardTextStyle(card.comp, 0.58)}>
         {card.text}
       </p>
@@ -2096,7 +2513,9 @@ function PostPreviewButton({
                 {hideLikeCount ? null : <span className="dot">·</span>}
               </>
             )}
-            {hideLikeCount ? null : <span className="mtr">♡ {formatCount(likeCount)}</span>}
+            {hideLikeCount ? null : (
+              <span className="mtr">♡ {formatCount(likeCount)}</span>
+            )}
           </span>
         ) : null}
       </footer>
@@ -2113,7 +2532,7 @@ function HomeView({
   onOpenAllPosts,
   onOpenEditorialPage,
   onOpenProfile,
-  onToggleFollow
+  onToggleFollow,
 }: {
   posts: PostBundle[];
   accounts: AccountProfile[];
@@ -2125,7 +2544,9 @@ function HomeView({
   onOpenProfile: (account: AccountProfile) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
 }) {
-  const displayAccounts = accounts.filter((account) => account.id !== currentAccountId);
+  const displayAccounts = accounts.filter(
+    (account) => account.id !== currentAccountId,
+  );
   const heroPost = posts[0] ?? null;
   const heroCard = heroPost?.cards[0] ?? null;
   const todayPosts = posts.slice(0, 5);
@@ -2139,8 +2560,8 @@ function HomeView({
             text: heroCard.text,
             by: `${heroPost.author.displayName} · 『${heroPost.post.title}』`,
             style: cardSurfaceStyle(heroCard),
-            onOpen: () => onOpenPost(heroPost)
-          }
+            onOpen: () => onOpenPost(heroPost),
+          },
         ]
       : []),
     ...editorialPages.map((page) => ({
@@ -2152,10 +2573,10 @@ function HomeView({
       style: {
         "--cv-text": "#FBF8FC",
         background: editorialHeroBackgrounds[page.kind],
-        color: "#FBF8FC"
+        color: "#FBF8FC",
       } as CSSProperties,
-      onOpen: () => onOpenEditorialPage(page)
-    }))
+      onOpen: () => onOpenEditorialPage(page),
+    })),
   ];
   const [heroIndex, setHeroIndex] = useState(0);
   const safeHeroIndex = Math.min(heroIndex, Math.max(heroItems.length - 1, 0));
@@ -2180,9 +2601,18 @@ function HomeView({
         {heroItems.length > 0 ? (
           <>
             <div className="hb-viewport">
-              <div className="hb-track" style={{ transform: `translateX(-${safeHeroIndex * 100}%)` }}>
+              <div
+                className="hb-track"
+                style={{ transform: `translateX(-${safeHeroIndex * 100}%)` }}
+              >
                 {heroItems.map((item) => (
-                  <button className="hb-slide" key={item.key} type="button" onClick={item.onOpen} style={item.style}>
+                  <button
+                    className="hb-slide"
+                    key={item.key}
+                    type="button"
+                    onClick={item.onOpen}
+                    style={item.style}
+                  >
                     <span className="hb-tag">{item.tag}</span>
                     <p className="hb-q">{item.text}</p>
                     <span className="hb-by">{item.by}</span>
@@ -2219,7 +2649,13 @@ function HomeView({
         </div>
         <div className="home-rail">
           {todayPosts.length > 0 ? (
-            todayPosts.map((item) => <PostPreviewButton key={item.post.id} post={item} onOpenPost={onOpenPost} />)
+            todayPosts.map((item) => (
+              <PostPreviewButton
+                key={item.post.id}
+                post={item}
+                onOpenPost={onOpenPost}
+              />
+            ))
           ) : (
             <p className="home-empty-inline">아직 공개된 글이 없어요.</p>
           )}
@@ -2235,15 +2671,23 @@ function HomeView({
 
               return (
                 <article className="home-acct account-chip" key={account.id}>
-                  <button className="account-chip-main" type="button" onClick={() => onOpenProfile(account)}>
-                    <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
+                  <button
+                    className="account-chip-main"
+                    type="button"
+                    onClick={() => onOpenProfile(account)}
+                  >
+                    <Avatar
+                      displayName={account.displayName}
+                      photoUrl={account.photoUrl}
+                    />
                     <div>
                       <strong>
                         <AccountName account={account} />
                       </strong>
                       <p>{account.tagline}</p>
                       <small className="fol">
-                        글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
+                        글 {formatCount(account.postCount)}개 · 글벗{" "}
+                        {formatCount(account.writingFriendCount)}
                       </small>
                     </div>
                   </button>
@@ -2297,7 +2741,7 @@ function DiscoverView({
   onOpenInfo,
   onOpenProfile,
   onToggleFollow,
-  onToggleLike
+  onToggleLike,
 }: {
   activeCardIndex: number;
   currentAccountId: string;
@@ -2335,9 +2779,11 @@ function DiscoverView({
   const activeDragAxis = dragState?.axis;
   const dragTrackStyle = {
     "--detail-drag-x": `${dragState?.x ?? 0}px`,
-    "--detail-drag-y": `${dragState?.y ?? 0}px`
+    "--detail-drag-y": `${dragState?.y ?? 0}px`,
   } as CSSProperties;
-  const dragTrackClassName = dragState?.isAnimating ? "detail-carousel-track is-animating" : "detail-carousel-track";
+  const dragTrackClassName = dragState?.isAnimating
+    ? "detail-carousel-track is-animating"
+    : "detail-carousel-track";
 
   function clearDragResetTimer() {
     if (dragResetTimerRef.current) {
@@ -2346,13 +2792,18 @@ function DiscoverView({
     }
   }
 
-  function animateDetailMove(axis: "x" | "y", direction: -1 | 1, size: number, onMove: () => void) {
+  function animateDetailMove(
+    axis: "x" | "y",
+    direction: -1 | 1,
+    size: number,
+    onMove: () => void,
+  ) {
     clearDragResetTimer();
     setDragState({
       x: axis === "x" ? (direction > 0 ? -size : size) : 0,
       y: axis === "y" ? (direction > 0 ? -size : size) : 0,
       axis,
-      isAnimating: true
+      isAnimating: true,
     });
     dragResetTimerRef.current = window.setTimeout(() => {
       onMove();
@@ -2362,7 +2813,10 @@ function DiscoverView({
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
-    if (dragState?.isAnimating || (event.target as HTMLElement).closest("button, input, textarea")) {
+    if (
+      dragState?.isAnimating ||
+      (event.target as HTMLElement).closest("button, input, textarea")
+    ) {
       return;
     }
 
@@ -2382,7 +2836,9 @@ function DiscoverView({
     const dy = event.clientY - start.y;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
-    const nextAxis = dragState?.axis ?? (Math.max(absX, absY) > 10 ? (absX > absY ? "x" : "y") : null);
+    const nextAxis =
+      dragState?.axis ??
+      (Math.max(absX, absY) > 10 ? (absX > absY ? "x" : "y") : null);
 
     if (!nextAxis) {
       setDragState({ x: 0, y: 0, axis: null, isAnimating: false });
@@ -2391,12 +2847,22 @@ function DiscoverView({
 
     if (nextAxis === "x") {
       const canMove = (dx < 0 && hasNextCard) || (dx > 0 && hasPreviousCard);
-      setDragState({ x: canMove ? dx : dx * 0.24, y: 0, axis: "x", isAnimating: false });
+      setDragState({
+        x: canMove ? dx : dx * 0.24,
+        y: 0,
+        axis: "x",
+        isAnimating: false,
+      });
       return;
     }
 
     const canMove = (dy < 0 && hasNextPost) || (dy > 0 && hasPreviousPost);
-    setDragState({ x: 0, y: canMove ? dy : dy * 0.24, axis: "y", isAnimating: false });
+    setDragState({
+      x: 0,
+      y: canMove ? dy : dy * 0.24,
+      axis: "y",
+      isAnimating: false,
+    });
   }
 
   function handlePointerUp(event: ReactPointerEvent<HTMLElement>) {
@@ -2404,7 +2870,11 @@ function DiscoverView({
     const currentDragState = dragState;
     pointerStartRef.current = null;
 
-    if (!start || !currentDragState || (event.target as HTMLElement).closest("button, input, textarea")) {
+    if (
+      !start ||
+      !currentDragState ||
+      (event.target as HTMLElement).closest("button, input, textarea")
+    ) {
       return;
     }
 
@@ -2413,13 +2883,21 @@ function DiscoverView({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     const axis = currentDragState.axis ?? (absX > absY ? "x" : "y");
-    const threshold = Math.min(axis === "x" ? event.currentTarget.clientWidth * 0.2 : event.currentTarget.clientHeight * 0.16, 96);
+    const threshold = Math.min(
+      axis === "x"
+        ? event.currentTarget.clientWidth * 0.2
+        : event.currentTarget.clientHeight * 0.16,
+      96,
+    );
 
     if (axis === "y" && absY > threshold) {
       const direction = dy < 0 ? 1 : -1;
       const canMove = direction > 0 ? hasNextPost : hasPreviousPost;
       if (canMove) {
-        const targetY = direction > 0 ? -event.currentTarget.clientHeight : event.currentTarget.clientHeight;
+        const targetY =
+          direction > 0
+            ? -event.currentTarget.clientHeight
+            : event.currentTarget.clientHeight;
         setDragState({ x: 0, y: targetY, axis: "y", isAnimating: true });
         dragResetTimerRef.current = window.setTimeout(() => {
           if (direction > 0) onNextPost();
@@ -2435,7 +2913,10 @@ function DiscoverView({
       const direction = dx < 0 ? 1 : -1;
       const canMove = direction > 0 ? hasNextCard : hasPreviousCard;
       if (canMove) {
-        const targetX = direction > 0 ? -event.currentTarget.clientWidth : event.currentTarget.clientWidth;
+        const targetX =
+          direction > 0
+            ? -event.currentTarget.clientWidth
+            : event.currentTarget.clientWidth;
         setDragState({ x: targetX, y: 0, axis: "x", isAnimating: true });
         dragResetTimerRef.current = window.setTimeout(() => {
           if (direction > 0) onNextCard();
@@ -2476,7 +2957,10 @@ function DiscoverView({
   }
 
   function handleWheel(event: ReactWheelEvent<HTMLElement>) {
-    if (dragState?.isAnimating || (event.target as HTMLElement).closest("button, input, textarea")) {
+    if (
+      dragState?.isAnimating ||
+      (event.target as HTMLElement).closest("button, input, textarea")
+    ) {
       return;
     }
 
@@ -2493,7 +2977,12 @@ function DiscoverView({
     }
 
     const axis: "x" | "y" = event.shiftKey || absX > absY ? "x" : "y";
-    const delta = axis === "x" ? (event.shiftKey && absY >= absX ? event.deltaY : event.deltaX) : event.deltaY;
+    const delta =
+      axis === "x"
+        ? event.shiftKey && absY >= absX
+          ? event.deltaY
+          : event.deltaX
+        : event.deltaY;
     const direction: -1 | 1 = delta > 0 ? 1 : -1;
     const canMove =
       axis === "x"
@@ -2517,21 +3006,31 @@ function DiscoverView({
     }
 
     wheelLockUntilRef.current = now + 430;
-    animateDetailMove(axis, direction, axis === "x" ? event.currentTarget.clientWidth : event.currentTarget.clientHeight, () => {
-      if (axis === "x") {
-        if (direction > 0) onNextCard();
-        else onPreviousCard();
-        return;
-      }
+    animateDetailMove(
+      axis,
+      direction,
+      axis === "x"
+        ? event.currentTarget.clientWidth
+        : event.currentTarget.clientHeight,
+      () => {
+        if (axis === "x") {
+          if (direction > 0) onNextCard();
+          else onPreviousCard();
+          return;
+        }
 
-      if (direction > 0) onNextPost();
-      else onPreviousPost();
-    });
+        if (direction > 0) onNextPost();
+        else onPreviousPost();
+      },
+    );
   }
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
@@ -2555,7 +3054,16 @@ function DiscoverView({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasNextCard, hasNextPost, hasPreviousCard, hasPreviousPost, onNextCard, onNextPost, onPreviousCard, onPreviousPost]);
+  }, [
+    hasNextCard,
+    hasNextPost,
+    hasPreviousCard,
+    hasPreviousPost,
+    onNextCard,
+    onNextPost,
+    onPreviousCard,
+    onPreviousPost,
+  ]);
 
   return (
     <article
@@ -2568,19 +3076,36 @@ function DiscoverView({
       onWheel={handleWheel}
     >
       {onBack ? (
-        <button className="detail-back" type="button" onClick={onBack} aria-label="이전 화면으로 돌아가기">
+        <button
+          className="detail-back"
+          type="button"
+          onClick={onBack}
+          aria-label="이전 화면으로 돌아가기"
+        >
           ←
         </button>
       ) : null}
-      {shouldShowTitle ? <div className="detail-title">{post.post.title}</div> : null}
+      {shouldShowTitle ? (
+        <div className="detail-title">{post.post.title}</div>
+      ) : null}
       <div className="feed-controls" aria-label="글 이동">
-        <button type="button" onClick={onPreviousPost} disabled={!hasPreviousPost} aria-label="이전 글">
+        <button
+          type="button"
+          onClick={onPreviousPost}
+          disabled={!hasPreviousPost}
+          aria-label="이전 글"
+        >
           ↑
         </button>
         <span>
           {postIndex + 1}/{postCount}
         </span>
-        <button type="button" onClick={onNextPost} disabled={!hasNextPost} aria-label="다음 글">
+        <button
+          type="button"
+          onClick={onNextPost}
+          disabled={!hasNextPost}
+          aria-label="다음 글"
+        >
           ↓
         </button>
       </div>
@@ -2614,7 +3139,11 @@ function DiscoverView({
               post={nextPost}
             />
           ) : null}
-          <DetailCardSurface className="is-current" cardIndex={activeCardIndex} post={post} />
+          <DetailCardSurface
+            className="is-current"
+            cardIndex={activeCardIndex}
+            post={post}
+          />
         </div>
 
         {post.cards.length > 1 ? (
@@ -2655,8 +3184,15 @@ function DiscoverView({
         </div>
       ) : null}
       <div className="writer-bar">
-        <button className="writer-identity" type="button" onClick={() => onOpenProfile(post.author)}>
-          <Avatar displayName={post.author.displayName} photoUrl={post.author.photoUrl} />
+        <button
+          className="writer-identity"
+          type="button"
+          onClick={() => onOpenProfile(post.author)}
+        >
+          <Avatar
+            displayName={post.author.displayName}
+            photoUrl={post.author.photoUrl}
+          />
           <strong>
             <AccountName account={post.author} />
           </strong>
@@ -2694,13 +3230,22 @@ function DiscoverView({
           </span>
           <small>{formatCount(viewerState?.likeCount ?? 0)}</small>
         </button>
-        <button type="button" aria-label="댓글" onClick={() => onOpenComments(post)}>
+        <button
+          type="button"
+          aria-label="댓글"
+          onClick={() => onOpenComments(post)}
+        >
           <span className="ring">
             <CommentIcon />
           </span>
           <small>{formatCount(viewerState?.commentCount ?? 0)}</small>
         </button>
-        <button className="more-action" type="button" aria-label="더보기" onClick={() => onOpenInfo(post, activeCardIndex)}>
+        <button
+          className="more-action"
+          type="button"
+          aria-label="더보기"
+          onClick={() => onOpenInfo(post, activeCardIndex)}
+        >
           <span className="ring">
             <MoreIcon />
           </span>
@@ -2710,7 +3255,15 @@ function DiscoverView({
   );
 }
 
-function DetailCardSurface({ cardIndex, className, post }: { cardIndex: number; className: string; post: PostBundle }) {
+function DetailCardSurface({
+  cardIndex,
+  className,
+  post,
+}: {
+  cardIndex: number;
+  className: string;
+  post: PostBundle;
+}) {
   const card = post.cards[cardIndex] ?? post.cards[0]!;
 
   return (
@@ -2719,6 +3272,7 @@ function DetailCardSurface({ cardIndex, className, post }: { cardIndex: number; 
       style={cardSurfaceStyle(card)}
       aria-hidden={className !== "is-current" ? "true" : undefined}
     >
+      <CardBackgroundImageLayer comp={card.comp} />
       <div className="cv-grain" aria-hidden="true" />
       <div className="cmp-layer">
         <p className="cmp-text" style={cardTextStyle(card.comp, 1, true)}>
@@ -2734,7 +3288,13 @@ function DetailCardSurface({ cardIndex, className, post }: { cardIndex: number; 
   );
 }
 
-function PostInfoSheet({ onClose, post }: { onClose: () => void; post: PostBundle }) {
+function PostInfoSheet({
+  onClose,
+  post,
+}: {
+  onClose: () => void;
+  post: PostBundle;
+}) {
   const card = post.cards[0]!;
   const dragRef = useRef<{ pointerId: number; startY: number } | null>(null);
   const mouseDragRef = useRef<{ startY: number } | null>(null);
@@ -2826,8 +3386,17 @@ function PostInfoSheet({ onClose, post }: { onClose: () => void; post: PostBundl
 
   return (
     <>
-      <button className="comment-backdrop" type="button" aria-label="정보 닫기" onClick={onClose} />
-      <section className={isDragging ? "info-sheet is-dragging" : "info-sheet"} aria-label="정보" style={sheetStyle}>
+      <button
+        className="comment-backdrop"
+        type="button"
+        aria-label="정보 닫기"
+        onClick={onClose}
+      />
+      <section
+        className={isDragging ? "info-sheet is-dragging" : "info-sheet"}
+        aria-label="정보"
+        style={sheetStyle}
+      >
         <div
           className="sheet-grip"
           aria-label="정보 패널 닫기"
@@ -2847,7 +3416,11 @@ function PostInfoSheet({ onClose, post }: { onClose: () => void; post: PostBundl
         </div>
 
         <div className="info-summary">
-          <Avatar displayName={post.author.displayName} photoUrl={post.author.photoUrl} size="mini" />
+          <Avatar
+            displayName={post.author.displayName}
+            photoUrl={post.author.photoUrl}
+            size="mini"
+          />
           <div>
             <strong>{post.post.title}</strong>
             <span>
@@ -2883,7 +3456,7 @@ function PostInfoSheet({ onClose, post }: { onClose: () => void; post: PostBundl
 function CommentSheet({
   post,
   onClose,
-  onPostChange
+  onPostChange,
 }: {
   post: PostBundle;
   onClose: () => void;
@@ -2891,7 +3464,9 @@ function CommentSheet({
 }) {
   const [comments, setComments] = useState<PostComment[]>([]);
   const [body, setBody] = useState("");
-  const [status, setStatus] = useState<"loading" | "idle" | "submitting">("loading");
+  const [status, setStatus] = useState<"loading" | "idle" | "submitting">(
+    "loading",
+  );
   const [error, setError] = useState("");
   const canSubmit = body.trim().length > 0 && status !== "submitting";
 
@@ -2902,7 +3477,10 @@ function CommentSheet({
       try {
         setStatus("loading");
         setError("");
-        const nextComments = await fetchPostComments(post.post.id, controller.signal);
+        const nextComments = await fetchPostComments(
+          post.post.id,
+          controller.signal,
+        );
         setComments(nextComments);
         setStatus("idle");
       } catch {
@@ -2942,7 +3520,12 @@ function CommentSheet({
 
   return (
     <>
-      <button className="comment-backdrop" type="button" aria-label="댓글 닫기" onClick={onClose} />
+      <button
+        className="comment-backdrop"
+        type="button"
+        aria-label="댓글 닫기"
+        onClick={onClose}
+      />
       <section className="comment-sheet" aria-label="댓글">
         <div className="sheet-grip" aria-hidden="true">
           <span />
@@ -2958,19 +3541,27 @@ function CommentSheet({
         </div>
 
         <div className="comment-list">
-          {status === "loading" ? <p className="comment-empty">불러오는 중</p> : null}
+          {status === "loading" ? (
+            <p className="comment-empty">불러오는 중</p>
+          ) : null}
           {status !== "loading" && !error && comments.length === 0 ? (
             <p className="comment-empty">아직 댓글이 없어요.</p>
           ) : null}
           {comments.map((comment) => (
             <article className="comment-item" key={comment.id}>
-              <Avatar displayName={comment.author.displayName} photoUrl={comment.author.photoUrl} size="mini" />
+              <Avatar
+                displayName={comment.author.displayName}
+                photoUrl={comment.author.photoUrl}
+                size="mini"
+              />
               <div>
                 <header>
                   <strong>
                     <AccountName account={comment.author} />
                   </strong>
-                  <time dateTime={comment.createdAt}>{formatCommentDate(comment.createdAt)}</time>
+                  <time dateTime={comment.createdAt}>
+                    {formatCommentDate(comment.createdAt)}
+                  </time>
                 </header>
                 <p>{comment.body}</p>
               </div>
@@ -2983,7 +3574,7 @@ function CommentSheet({
             aria-label="댓글 입력"
             maxLength={300}
             onChange={(event) => setBody(event.target.value)}
-            placeholder="짧게 남기기"
+            placeholder="댓글 남기기"
             value={body}
           />
           <button type="submit" disabled={!canSubmit}>
@@ -2998,46 +3589,61 @@ function CommentSheet({
 
 function CaptureView({
   onClose,
-  onPublished
+  onPublished,
 }: {
   onClose: () => void;
   onPublished: (post: PostBundle) => void;
 }) {
-  const [cards, setCards] = useState<CaptureDraftCard[]>(() => [createCaptureDraftCard()]);
+  const [cards, setCards] = useState<CaptureDraftCard[]>(() => [
+    createCaptureDraftCard(),
+  ]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
-  const [selectedTool, setSelectedTool] = useState<CaptureSheetKey | null>(null);
+  const [selectedTool, setSelectedTool] = useState<CaptureSheetKey | null>(
+    null,
+  );
   const [title, setTitle] = useState("");
   const [sourceAuthor, setSourceAuthor] = useState("");
   const [sourceWork, setSourceWork] = useState("");
   const [tags, setTags] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState("");
-  const [confirmState, setConfirmState] = useState<CaptureConfirmState | null>(null);
-  const [captureDragTarget, setCaptureDragTarget] = useState<CaptureDragTarget | null>(null);
+  const [confirmState, setConfirmState] = useState<CaptureConfirmState | null>(
+    null,
+  );
+  const [captureDragTarget, setCaptureDragTarget] =
+    useState<CaptureDragTarget | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const captureDragRef = useRef<CapturePointerDrag | null>(null);
+  const imageCropDragRef = useRef<CaptureImageCropDrag | null>(null);
   const activeDraft = cards[activeDraftIndex] ?? cards[0]!;
   const activeSentence = activeDraft.text;
   const activeComp = activeDraft.comp;
-  const activeBackgroundOption = captureBackgroundOptions.find((background) => isSameBackgroundOption(background, activeComp));
-  const solidBackgroundColor = solidColorFromBackground(activeComp.bg) ?? captureSolidColorOptions[0];
-  const customTextColor = /^#[0-9a-fA-F]{6}$/.test(activeComp.textColor) ? activeComp.textColor : "#38323F";
+  const activeBgImage = activeComp.bgImage ?? null;
+  const activeBackgroundOption = captureBackgroundOptions.find((background) =>
+    isSameBackgroundOption(background, activeComp),
+  );
+  const solidBackgroundColor =
+    solidColorFromBackground(activeComp.bg) ?? captureSolidColorOptions[0];
+  const customTextColor = /^#[0-9a-fA-F]{6}$/.test(activeComp.textColor)
+    ? activeComp.textColor
+    : "#38323F";
   const captureStageStyle = {
+    ...cardCompositionSurfaceStyle(activeComp),
     "--capture-text": activeComp.textColor,
-    background: bgWithDim(activeComp.bg, activeComp.dim),
-    color: activeComp.textColor
+    color: activeComp.textColor,
   } as CSSProperties;
   const captureTextBoxStyle = {
     left: `${activeComp.textPos?.xp ?? 50}%`,
-    top: `${activeComp.textPos?.yp ?? 45}%`
+    top: `${activeComp.textPos?.yp ?? 45}%`,
   } as CSSProperties;
   const captureSourceChipStyle = activeComp.sourcePos
     ? ({
         left: `${activeComp.sourcePos.xp}%`,
         top: `${activeComp.sourcePos.yp}%`,
         bottom: "auto",
-        transform: "translate(-50%, -50%)"
+        transform: "translate(-50%, -50%)",
       } as CSSProperties)
     : undefined;
   const tagList = tags
@@ -3045,7 +3651,10 @@ function CaptureView({
     .map((tag) => tag.trim())
     .filter(Boolean)
     .slice(0, 3);
-  const canPublish = cards.some((card) => card.text.trim().length > 0) && status !== "submitting";
+  const canPublish =
+    cards.some((card) => card.text.trim().length > 0) &&
+    status !== "submitting";
+  const canAddDraftCard = cards.length < maxCaptureDraftCards;
 
   useEffect(() => {
     const textarea = textAreaRef.current;
@@ -3067,30 +3676,41 @@ function CaptureView({
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [confirmState, status]);
 
-  function updateActiveDraft(updater: (draft: CaptureDraftCard) => CaptureDraftCard) {
-    setCards((currentCards) => currentCards.map((card, index) => (index === activeDraftIndex ? updater(card) : card)));
+  function updateActiveDraft(
+    updater: (draft: CaptureDraftCard) => CaptureDraftCard,
+  ) {
+    setCards((currentCards) =>
+      currentCards.map((card, index) =>
+        index === activeDraftIndex ? updater(card) : card,
+      ),
+    );
   }
 
-  function updateActiveComp(updater: (comp: CardComposition) => CardComposition) {
+  function updateActiveComp(
+    updater: (comp: CardComposition) => CardComposition,
+  ) {
     updateActiveDraft((draft) => ({
       ...draft,
-      comp: updater(draft.comp)
+      comp: updater(draft.comp),
     }));
   }
 
   function updateActiveSentence(value: string) {
     updateActiveDraft((draft) => ({
       ...draft,
-      text: value
+      text: value,
     }));
   }
 
-  function applyBackgroundOption(background: (typeof captureBackgroundOptions)[number]) {
+  function applyBackgroundOption(
+    background: (typeof captureBackgroundOptions)[number],
+  ) {
     updateActiveComp((comp) => ({
       ...comp,
       bg: background.bg,
       dim: background.dim,
-      textColor: background.textColor
+      textColor: background.textColor,
+      bgImage: null,
     }));
   }
 
@@ -3099,12 +3719,157 @@ function CaptureView({
       ...comp,
       bg: color,
       dim: 0,
-      textColor: isLightHexColor(color) ? "#38323F" : "#F4EFF6"
+      textColor: isLightHexColor(color) ? "#38323F" : "#F4EFF6",
+      bgImage: null,
     }));
   }
 
+  function updateBackgroundImage(
+    updater: (image: CardBackgroundImage) => CardBackgroundImage,
+  ) {
+    updateActiveComp((comp) =>
+      comp.bgImage ? { ...comp, bgImage: updater(comp.bgImage) } : comp,
+    );
+  }
+
+  function handleBackgroundImageSelect(
+    event: ReactChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!captureImageAcceptedTypes.has(file.type)) {
+      setError("JPG, PNG, WebP, AVIF 이미지만 올릴 수 있어요.");
+      return;
+    }
+
+    if (file.size > captureImageMaxBytes) {
+      setError("지금 미리보기는 5MB 이하 이미지만 받아요.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const url = typeof reader.result === "string" ? reader.result : "";
+
+      if (!url) {
+        setError("사진을 읽을 수 없어요. 다른 이미지를 골라 주세요.");
+        return;
+      }
+
+      const image = new Image();
+
+      image.onload = () => {
+        updateActiveComp((comp) => ({
+          ...comp,
+          bg: "#353039",
+          dim: Math.max(comp.dim, 0.34),
+          textColor: "#FBF8FC",
+          bgImage: {
+            url,
+            alt: file.name,
+            naturalWidth: image.naturalWidth,
+            naturalHeight: image.naturalHeight,
+            focalX: 50,
+            focalY: 50,
+            zoom: 1,
+          },
+        }));
+        setError("");
+      };
+
+      image.onerror = () => {
+        setError("사진을 읽을 수 없어요. 다른 이미지를 골라 주세요.");
+      };
+
+      image.src = url;
+    };
+
+    reader.onerror = () => {
+      setError("사진을 읽을 수 없어요. 다른 이미지를 골라 주세요.");
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  function removeBackgroundImage() {
+    updateActiveComp((comp) => ({
+      ...comp,
+      dim: 0,
+      bgImage: null,
+    }));
+    setError("");
+  }
+
+  function beginImageCropDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (!activeBgImage) return;
+
+    imageCropDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseFocalX: activeBgImage.focalX,
+      baseFocalY: activeBgImage.focalY,
+      zoom: activeBgImage.zoom,
+      rect: event.currentTarget.getBoundingClientRect(),
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function moveImageCropDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = imageCropDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const speed = Math.max(drag.zoom, 1);
+    const nextFocalX = clampNumber(
+      drag.baseFocalX -
+        ((event.clientX - drag.startX) / drag.rect.width) * (100 / speed),
+      0,
+      100,
+    );
+    const nextFocalY = clampNumber(
+      drag.baseFocalY -
+        ((event.clientY - drag.startY) / drag.rect.height) * (100 / speed),
+      0,
+      100,
+    );
+
+    updateBackgroundImage((image) => ({
+      ...image,
+      focalX: nextFocalX,
+      focalY: nextFocalY,
+    }));
+    event.preventDefault();
+  }
+
+  function endImageCropDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = imageCropDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    imageCropDragRef.current = null;
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // 이미 캡처가 해제된 경우에는 무시한다.
+    }
+  }
+
   function addDraftCard() {
-    setCards((currentCards) => [...currentCards, createCaptureDraftCard(activeComp)]);
+    if (!canAddDraftCard) {
+      setError(`한 글은 최대 ${maxCaptureDraftCards}장까지 작성할 수 있어요.`);
+      return;
+    }
+
+    setCards([...cards, createCaptureDraftCard(activeComp)]);
     setActiveDraftIndex(cards.length);
     setError("");
   }
@@ -3114,7 +3879,11 @@ function CaptureView({
       return;
     }
 
-    setConfirmState({ kind: "delete", index: activeDraftIndex, cardNumber: activeDraftIndex + 1 });
+    setConfirmState({
+      kind: "delete",
+      index: activeDraftIndex,
+      cardNumber: activeDraftIndex + 1,
+    });
   }
 
   function deleteDraftCard(index: number) {
@@ -3125,7 +3894,10 @@ function CaptureView({
     setConfirmState(null);
   }
 
-  function beginCaptureDrag(target: CaptureDragTarget, event: ReactPointerEvent<HTMLElement>) {
+  function beginCaptureDrag(
+    target: CaptureDragTarget,
+    event: ReactPointerEvent<HTMLElement>,
+  ) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     const stage = stageRef.current;
     if (!stage) return;
@@ -3148,9 +3920,16 @@ function CaptureView({
       moved: false,
       rect,
       minXp: target === "resize" ? 6 : clampNumber(halfWidthPercent + 2, 6, 48),
-      maxXp: target === "resize" ? 94 : clampNumber(100 - halfWidthPercent - 2, 52, 94),
-      minYp: target === "resize" ? 8 : clampNumber(halfHeightPercent + 2, 8, 44),
-      maxYp: target === "resize" ? 92 : clampNumber(100 - halfHeightPercent - 2, 56, 92)
+      maxXp:
+        target === "resize"
+          ? 94
+          : clampNumber(100 - halfWidthPercent - 2, 52, 94),
+      minYp:
+        target === "resize" ? 8 : clampNumber(halfHeightPercent + 2, 8, 44),
+      maxYp:
+        target === "resize"
+          ? 92
+          : clampNumber(100 - halfHeightPercent - 2, 56, 92),
     };
 
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -3166,15 +3945,20 @@ function CaptureView({
     const drag = captureDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    const movedEnough = Math.abs(event.clientX - drag.startX) > 3 || Math.abs(event.clientY - drag.startY) > 3;
+    const movedEnough =
+      Math.abs(event.clientX - drag.startX) > 3 ||
+      Math.abs(event.clientY - drag.startY) > 3;
     drag.moved = drag.moved || movedEnough;
 
     if (drag.target === "resize") {
-      const delta = (event.clientX - drag.startX + event.clientY - drag.startY) / 2;
-      const nextSize = Math.round(clampNumber(drag.baseSize + delta * 0.35, 16, 84));
+      const delta =
+        (event.clientX - drag.startX + event.clientY - drag.startY) / 2;
+      const nextSize = Math.round(
+        clampNumber(drag.baseSize + delta * 0.35, 16, 84),
+      );
       updateActiveComp((comp) => ({
         ...comp,
-        size: nextSize
+        size: nextSize,
       }));
       event.preventDefault();
       return;
@@ -3183,13 +3967,23 @@ function CaptureView({
     if (!drag.moved) return;
 
     const nextPosition = {
-      xp: clampNumber(drag.baseXp + ((event.clientX - drag.startX) / drag.rect.width) * 100, drag.minXp, drag.maxXp),
-      yp: clampNumber(drag.baseYp + ((event.clientY - drag.startY) / drag.rect.height) * 100, drag.minYp, drag.maxYp)
+      xp: clampNumber(
+        drag.baseXp + ((event.clientX - drag.startX) / drag.rect.width) * 100,
+        drag.minXp,
+        drag.maxXp,
+      ),
+      yp: clampNumber(
+        drag.baseYp + ((event.clientY - drag.startY) / drag.rect.height) * 100,
+        drag.minYp,
+        drag.maxYp,
+      ),
     };
 
     updateActiveComp((comp) => ({
       ...comp,
-      ...(drag.target === "source" ? { sourcePos: nextPosition } : { textPos: nextPosition })
+      ...(drag.target === "source"
+        ? { sourcePos: nextPosition }
+        : { textPos: nextPosition }),
     }));
     event.preventDefault();
   }
@@ -3226,7 +4020,7 @@ function CaptureView({
     const cleanCards = cards
       .map((card) => ({
         ...card,
-        text: card.text.trim()
+        text: card.text.trim(),
       }))
       .filter((card) => card.text.length > 0);
 
@@ -3235,9 +4029,15 @@ function CaptureView({
       return null;
     }
 
+    if (cleanCards.length > maxCaptureDraftCards) {
+      setError(`한 글은 최대 ${maxCaptureDraftCards}장까지 발행할 수 있어요.`);
+      return null;
+    }
+
     const cleanTitle = title.trim();
     const cleanAuthor = sourceAuthor.trim();
     const cleanWork = sourceWork.trim();
+    const skippedEmptyCardCount = cards.length - cleanCards.length;
     const input: CreatePostInput = {
       visibility: "public",
       creationType: "original",
@@ -3247,17 +4047,17 @@ function CaptureView({
         source: {
           kind: "direct",
           ...(cleanAuthor ? { author: cleanAuthor } : {}),
-          ...(cleanWork ? { work: cleanWork } : {})
+          ...(cleanWork ? { work: cleanWork } : {}),
         },
-        tags: tagList
-      }))
+        tags: tagList,
+      })),
     };
 
     if (cleanTitle) {
       input.title = cleanTitle;
     }
 
-    return { input, cardCount: cleanCards.length };
+    return { input, cardCount: cleanCards.length, skippedEmptyCardCount };
   }
 
   async function publishPost(input: CreatePostInput) {
@@ -3268,7 +4068,11 @@ function CaptureView({
       resetCaptureDrafts();
       onPublished(publishedPost);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "발행할 수 없어요. 잠시 뒤 다시 시도해 주세요.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "발행할 수 없어요. 잠시 뒤 다시 시도해 주세요.",
+      );
     } finally {
       setStatus("idle");
       setConfirmState(null);
@@ -3298,7 +4102,12 @@ function CaptureView({
 
     setSelectedTool(null);
     setError("");
-    setConfirmState({ kind: "publish", input: nextPost.input, cardCount: nextPost.cardCount });
+    setConfirmState({
+      kind: "publish",
+      input: nextPost.input,
+      cardCount: nextPost.cardCount,
+      skippedEmptyCardCount: nextPost.skippedEmptyCardCount,
+    });
   }
 
   const confirmCopy = confirmState
@@ -3306,23 +4115,36 @@ function CaptureView({
       ? {
           title: `${confirmState.cardNumber}번째 장을 삭제할까요?`,
           desc: "이 장의 문장·배경·출처가 사라져요. 되돌릴 수 없어요.",
-          ok: "삭제"
+          ok: "삭제",
         }
       : {
           title: "이 글을 발행할까요?",
-          desc: `${confirmState.cardCount}장으로 발견 피드에 올릴게요.`,
-          ok: status === "submitting" ? "발행 중" : "발행"
+          desc:
+            confirmState.skippedEmptyCardCount > 0
+              ? `${confirmState.cardCount}장으로 발견 피드에 올릴게요. 빈 장 ${confirmState.skippedEmptyCardCount}장은 제외돼요.`
+              : `${confirmState.cardCount}장으로 발견 피드에 올릴게요.`,
+          ok: status === "submitting" ? "발행 중" : "발행",
         }
     : null;
 
   return (
     <form className="capture-view" onSubmit={handleSubmit}>
       <div className="capture-stage" style={captureStageStyle} ref={stageRef}>
+        <CardBackgroundImageLayer comp={activeComp} />
         <div className="capture-head">
-          <button className="capture-close" type="button" onClick={onClose} aria-label="닫기">
+          <button
+            className="capture-close"
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+          >
             ×
           </button>
-          <button className="capture-submit" type="submit" disabled={!canPublish}>
+          <button
+            className="capture-submit"
+            type="submit"
+            disabled={!canPublish}
+          >
             {status === "submitting" ? "발행 중" : "발행"}
           </button>
         </div>
@@ -3333,7 +4155,11 @@ function CaptureView({
               <button
                 className={selectedTool === tool ? "is-active" : undefined}
                 type="button"
-                onClick={() => setSelectedTool((currentTool) => (currentTool === tool ? null : tool))}
+                onClick={() =>
+                  setSelectedTool((currentTool) =>
+                    currentTool === tool ? null : tool,
+                  )
+                }
                 aria-label={captureToolLabels[tool]}
               >
                 <CaptureToolIcon tool={tool} />
@@ -3343,7 +4169,9 @@ function CaptureView({
           ))}
         </div>
 
-        {title.trim() ? <div className="capture-title-chip">{title.trim()}</div> : null}
+        {title.trim() ? (
+          <div className="capture-title-chip">{title.trim()}</div>
+        ) : null}
         <div className="sentence-card editable capture-card">
           <div
             className={`capture-textbox ${captureDragTarget === "text" ? "is-dragging" : ""}`}
@@ -3395,35 +4223,59 @@ function CaptureView({
         ) : null}
 
         <div className="capture-bottom">
-          <button className="capture-stylebar" type="button" onClick={() => setSelectedTool("text")}>
+          <button
+            className="capture-stylebar"
+            type="button"
+            onClick={() => setSelectedTool("text")}
+          >
             <strong>Aa</strong>
-            <span>{captureFontOptions.find((font) => font.id === activeComp.font)?.label ?? "문구"}</span>
+            <span>
+              {captureFontOptions.find((font) => font.id === activeComp.font)
+                ?.label ?? "문구"}
+            </span>
             <em>{activeComp.size}px</em>
           </button>
           <div className="capture-pagebar" aria-label="장 관리">
-            <span>{activeDraftIndex + 1}장</span>
+            <span>
+              {activeDraftIndex + 1}/{maxCaptureDraftCards}장
+            </span>
             <div className="capture-page-tabs" aria-label="장 목록">
               {cards.map((card, index) => (
                 <button
-                  className={index === activeDraftIndex ? "is-active" : undefined}
+                  className={
+                    index === activeDraftIndex ? "is-active" : undefined
+                  }
                   key={index}
                   type="button"
                   onClick={() => setActiveDraftIndex(index)}
                   aria-label={`${index + 1}장으로 이동`}
-                  style={{
-                    background: bgWithDim(card.comp.bg, card.comp.dim),
-                    color: card.comp.textColor
-                  }}
+                  style={cardCompositionSurfaceStyle(card.comp)}
                 >
                   <small>{index + 1}</small>
                   <span>{card.text.trim() || "새 문장"}</span>
                 </button>
               ))}
-              <button className="capture-page-add" type="button" onClick={addDraftCard} aria-label="장 추가">
+              <button
+                className="capture-page-add"
+                type="button"
+                onClick={addDraftCard}
+                disabled={!canAddDraftCard}
+                aria-label={
+                  canAddDraftCard
+                    ? "장 추가"
+                    : `최대 ${maxCaptureDraftCards}장까지 작성할 수 있어요`
+                }
+              >
                 +
               </button>
             </div>
-            <button className="capture-page-delete" type="button" onClick={removeDraftCard} disabled={cards.length <= 1} aria-label="현재 장 삭제">
+            <button
+              className="capture-page-delete"
+              type="button"
+              onClick={removeDraftCard}
+              disabled={cards.length <= 1}
+              aria-label="현재 장 삭제"
+            >
               <TrashIcon />
             </button>
           </div>
@@ -3451,7 +4303,11 @@ function CaptureView({
               <h3 id="captureConfirmTitle">{confirmCopy.title}</h3>
               <p id="captureConfirmDesc">{confirmCopy.desc}</p>
               <div className="capture-confirm-actions">
-                <button type="button" onClick={() => setConfirmState(null)} disabled={status === "submitting"}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmState(null)}
+                  disabled={status === "submitting"}
+                >
                   취소
                 </button>
                 <button
@@ -3470,14 +4326,26 @@ function CaptureView({
 
       {selectedTool ? (
         <>
-          <button className="capture-sheet-backdrop" type="button" aria-label="카드 설정 닫기" onClick={() => setSelectedTool(null)} />
-          <section className="capture-tool-sheet" aria-label={`${captureToolLabels[selectedTool]} 설정`}>
+          <button
+            className="capture-sheet-backdrop"
+            type="button"
+            aria-label="카드 설정 닫기"
+            onClick={() => setSelectedTool(null)}
+          />
+          <section
+            className="capture-tool-sheet"
+            aria-label={`${captureToolLabels[selectedTool]} 설정`}
+          >
             <div className="sheet-grip" aria-hidden="true">
               <span />
             </div>
             <div className="capture-sheet-head">
               <h3>{captureToolLabels[selectedTool]}</h3>
-              <button type="button" onClick={() => setSelectedTool(null)} aria-label="닫기">
+              <button
+                type="button"
+                onClick={() => setSelectedTool(null)}
+                aria-label="닫기"
+              >
                 ×
               </button>
             </div>
@@ -3489,10 +4357,19 @@ function CaptureView({
                     <div className="capture-option-grid font-options">
                       {captureFontOptions.map((font) => (
                         <button
-                          className={activeComp.font === font.id ? "is-active" : undefined}
+                          className={
+                            activeComp.font === font.id
+                              ? "is-active"
+                              : undefined
+                          }
                           key={font.id}
                           type="button"
-                          onClick={() => updateActiveComp((comp) => ({ ...comp, font: font.id }))}
+                          onClick={() =>
+                            updateActiveComp((comp) => ({
+                              ...comp,
+                              font: font.id,
+                            }))
+                          }
                           style={{ fontFamily: cardFontFamily[font.id] }}
                         >
                           {font.label}
@@ -3505,10 +4382,19 @@ function CaptureView({
                     <div className="capture-option-grid">
                       {captureAlignOptions.map((align) => (
                         <button
-                          className={activeComp.align === align.value ? "is-active" : undefined}
+                          className={
+                            activeComp.align === align.value
+                              ? "is-active"
+                              : undefined
+                          }
                           key={align.value}
                           type="button"
-                          onClick={() => updateActiveComp((comp) => ({ ...comp, align: align.value }))}
+                          onClick={() =>
+                            updateActiveComp((comp) => ({
+                              ...comp,
+                              align: align.value,
+                            }))
+                          }
                         >
                           {align.label}
                         </button>
@@ -3520,10 +4406,19 @@ function CaptureView({
                     <div className="capture-option-grid">
                       {captureWeightOptions.map((weight) => (
                         <button
-                          className={activeComp.weight === weight.value ? "is-active" : undefined}
+                          className={
+                            activeComp.weight === weight.value
+                              ? "is-active"
+                              : undefined
+                          }
                           key={weight.value}
                           type="button"
-                          onClick={() => updateActiveComp((comp) => ({ ...comp, weight: weight.value }))}
+                          onClick={() =>
+                            updateActiveComp((comp) => ({
+                              ...comp,
+                              weight: weight.value,
+                            }))
+                          }
                           style={{ fontWeight: weight.value }}
                         >
                           {weight.label}
@@ -3544,7 +4439,7 @@ function CaptureView({
                       onChange={(event) =>
                         updateActiveComp((comp) => ({
                           ...comp,
-                          size: Number(event.target.value)
+                          size: Number(event.target.value),
                         }))
                       }
                     />
@@ -3554,19 +4449,37 @@ function CaptureView({
                     <div className="capture-color-row">
                       {captureTextColorOptions.map((color) => (
                         <button
-                          className={activeComp.textColor.toLowerCase() === color.toLowerCase() ? "is-active" : undefined}
+                          className={
+                            activeComp.textColor.toLowerCase() ===
+                            color.toLowerCase()
+                              ? "is-active"
+                              : undefined
+                          }
                           key={color}
                           type="button"
                           aria-label={`글자색 ${color}`}
-                          onClick={() => updateActiveComp((comp) => ({ ...comp, textColor: color }))}
+                          onClick={() =>
+                            updateActiveComp((comp) => ({
+                              ...comp,
+                              textColor: color,
+                            }))
+                          }
                           style={{ background: color }}
                         />
                       ))}
-                      <label className="capture-color-picker" aria-label="글자 직접 색상">
+                      <label
+                        className="capture-color-picker"
+                        aria-label="글자 직접 색상"
+                      >
                         <input
                           type="color"
                           value={customTextColor}
-                          onChange={(event) => updateActiveComp((comp) => ({ ...comp, textColor: event.target.value }))}
+                          onChange={(event) =>
+                            updateActiveComp((comp) => ({
+                              ...comp,
+                              textColor: event.target.value,
+                            }))
+                          }
                         />
                       </label>
                     </div>
@@ -3577,7 +4490,11 @@ function CaptureView({
               {selectedTool === "title" ? (
                 <label className="capture-field">
                   <span>제목</span>
-                  <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="첫 문장이 제목이 돼요" />
+                  <input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="첫 문장이 제목이 돼요"
+                  />
                 </label>
               ) : null}
 
@@ -3588,7 +4505,11 @@ function CaptureView({
                     <div className="capture-color-row capture-bg-colors">
                       {captureSolidColorOptions.map((color) => (
                         <button
-                          className={activeComp.bg.toLowerCase() === color.toLowerCase() ? "is-active" : undefined}
+                          className={
+                            activeComp.bg.toLowerCase() === color.toLowerCase()
+                              ? "is-active"
+                              : undefined
+                          }
                           key={color}
                           type="button"
                           aria-label={`배경색 ${color}`}
@@ -3596,10 +4517,148 @@ function CaptureView({
                           style={{ background: color }}
                         />
                       ))}
-                      <label className="capture-color-picker large" aria-label="배경 직접 색상">
-                        <input type="color" value={solidBackgroundColor} onChange={(event) => applySolidBackground(event.target.value)} />
+                      <label
+                        className="capture-color-picker large"
+                        aria-label="배경 직접 색상"
+                      >
+                        <input
+                          type="color"
+                          value={solidBackgroundColor}
+                          onChange={(event) =>
+                            applySolidBackground(event.target.value)
+                          }
+                        />
                       </label>
                     </div>
+                  </div>
+                  <div className="capture-style-section capture-image-section">
+                    <span className="capture-section-title">직접 이미지</span>
+                    <input
+                      ref={imageInputRef}
+                      className="capture-image-input"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
+                      onChange={handleBackgroundImageSelect}
+                    />
+                    <div className="capture-image-actions">
+                      <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                      >
+                        사진 선택
+                      </button>
+                      {activeBgImage ? (
+                        <button
+                          className="is-muted"
+                          type="button"
+                          onClick={removeBackgroundImage}
+                        >
+                          사진 제거
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="capture-image-hint">
+                      권장 9:16 · 1080×1920 이상 · 현재 미리보기 5MB 이하
+                    </p>
+                    {activeBgImage ? (
+                      <div className="capture-image-editor">
+                        <div
+                          className="capture-image-frame"
+                          onPointerDown={beginImageCropDrag}
+                          onPointerMove={moveImageCropDrag}
+                          onPointerUp={endImageCropDrag}
+                          onPointerCancel={endImageCropDrag}
+                        >
+                          <div
+                            className="capture-image-card"
+                            style={cardCompositionSurfaceStyle(activeComp)}
+                          >
+                            <CardBackgroundImageLayer comp={activeComp} />
+                            <div
+                              className="capture-image-guide"
+                              aria-hidden="true"
+                            >
+                              <span />
+                              <span />
+                              <span />
+                              <span />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="capture-image-meta">
+                          <span>
+                            {activeBgImage.naturalWidth &&
+                            activeBgImage.naturalHeight
+                              ? `${activeBgImage.naturalWidth}×${activeBgImage.naturalHeight}`
+                              : "이미지"}
+                          </span>
+                          <span>
+                            초점 {Math.round(activeBgImage.focalX)} ·{" "}
+                            {Math.round(activeBgImage.focalY)}
+                          </span>
+                        </div>
+                        <label className="capture-range-field">
+                          <span>
+                            확대 <em>{activeBgImage.zoom.toFixed(2)}x</em>
+                          </span>
+                          <input
+                            type="range"
+                            min="1"
+                            max="2.5"
+                            step="0.05"
+                            value={activeBgImage.zoom}
+                            onChange={(event) =>
+                              updateBackgroundImage((image) => ({
+                                ...image,
+                                zoom: Number(event.target.value),
+                              }))
+                            }
+                          />
+                        </label>
+                        <label className="capture-range-field">
+                          <span>
+                            가로 초점{" "}
+                            <em>{Math.round(activeBgImage.focalX)}%</em>
+                          </span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value={activeBgImage.focalX}
+                            onChange={(event) =>
+                              updateBackgroundImage((image) => ({
+                                ...image,
+                                focalX: Number(event.target.value),
+                              }))
+                            }
+                          />
+                        </label>
+                        <label className="capture-range-field">
+                          <span>
+                            세로 초점{" "}
+                            <em>{Math.round(activeBgImage.focalY)}%</em>
+                          </span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value={activeBgImage.focalY}
+                            onChange={(event) =>
+                              updateBackgroundImage((image) => ({
+                                ...image,
+                                focalY: Number(event.target.value),
+                              }))
+                            }
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="capture-image-empty">
+                        카드 배경 미리보기
+                      </div>
+                    )}
                   </div>
                   <label className="capture-range-field">
                     <span>
@@ -3614,7 +4673,7 @@ function CaptureView({
                       onChange={(event) =>
                         updateActiveComp((comp) => ({
                           ...comp,
-                          dim: Number(event.target.value)
+                          dim: Number(event.target.value),
                         }))
                       }
                     />
@@ -3622,13 +4681,17 @@ function CaptureView({
                   <div className="capture-bg-grid">
                     {captureBackgroundOptions.map((background) => (
                       <button
-                        className={activeBackgroundOption?.id === background.id ? "is-active" : undefined}
+                        className={
+                          activeBackgroundOption?.id === background.id
+                            ? "is-active"
+                            : undefined
+                        }
                         key={background.id}
                         type="button"
                         onClick={() => applyBackgroundOption(background)}
                         style={{
                           background: bgWithDim(background.bg, background.dim),
-                          color: background.textColor
+                          color: background.textColor,
                         }}
                       >
                         <span>{background.label}</span>
@@ -3643,11 +4706,21 @@ function CaptureView({
                   <div className="capture-field-grid">
                     <label className="capture-field">
                       <span>저자</span>
-                      <input value={sourceAuthor} onChange={(event) => setSourceAuthor(event.target.value)} placeholder="윤동주" />
+                      <input
+                        value={sourceAuthor}
+                        onChange={(event) =>
+                          setSourceAuthor(event.target.value)
+                        }
+                        placeholder="윤동주"
+                      />
                     </label>
                     <label className="capture-field">
                       <span>출처명</span>
-                      <input value={sourceWork} onChange={(event) => setSourceWork(event.target.value)} placeholder="책, 연설, 글, 명언 등" />
+                      <input
+                        value={sourceWork}
+                        onChange={(event) => setSourceWork(event.target.value)}
+                        placeholder="책, 연설, 글, 명언 등"
+                      />
                     </label>
                   </div>
                   <button className="capture-book-link" type="button" disabled>
@@ -3668,7 +4741,11 @@ function CaptureView({
                   ) : null}
                   <label className="capture-field">
                     <span>태그</span>
-                    <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="쉼표로 3개까지" />
+                    <input
+                      value={tags}
+                      onChange={(event) => setTags(event.target.value)}
+                      placeholder="쉼표로 3개까지"
+                    />
                   </label>
                 </>
               ) : null}
@@ -3691,7 +4768,11 @@ function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
   const serverSortMode = sortMode === "popular" ? "popular" : "latest";
   const heroPost = posts[0] ?? null;
   const heroCard = heroPost?.cards[0] ?? null;
-  const loadMoreRef = useServerLoadMore(pageInfo.hasNextPage, loadingMore, loadMoreShelfPosts);
+  const loadMoreRef = useServerLoadMore(
+    pageInfo.hasNextPage,
+    loadingMore,
+    loadMoreShelfPosts,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -3700,7 +4781,11 @@ function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
       try {
         setStatus("loading");
         setError("");
-        const page = await fetchShelf(serverSortMode, { limit: listInitialCount }, controller.signal);
+        const page = await fetchShelf(
+          serverSortMode,
+          { limit: listInitialCount },
+          controller.signal,
+        );
         setPosts(page.items);
         setPageInfo(page.pageInfo);
         setStatus("idle");
@@ -3725,10 +4810,16 @@ function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
 
     try {
       setLoadingMore(true);
-      const page = await fetchShelf(serverSortMode, { cursor: pageInfo.nextCursor, limit: listLoadStep });
+      const page = await fetchShelf(serverSortMode, {
+        cursor: pageInfo.nextCursor,
+        limit: listLoadStep,
+      });
       setPosts((currentPosts) => {
         const postIds = new Set(currentPosts.map((post) => post.post.id));
-        return [...currentPosts, ...page.items.filter((post) => !postIds.has(post.post.id))];
+        return [
+          ...currentPosts,
+          ...page.items.filter((post) => !postIds.has(post.post.id)),
+        ];
       });
       setPageInfo(page.pageInfo);
     } catch {
@@ -3741,12 +4832,18 @@ function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
   return (
     <section className="shelf-view">
       {heroPost && heroCard ? (
-        <button className="shelf-hero" type="button" onClick={() => onOpenPost(heroPost)} style={cardSurfaceStyle(heroCard)}>
+        <button
+          className="shelf-hero"
+          type="button"
+          onClick={() => onOpenPost(heroPost)}
+          style={cardSurfaceStyle(heroCard)}
+        >
           <div className="tag">✦ 에디터 픽 · 오늘의 글</div>
           <div className="htt">{heroPost.post.title}</div>
           <div className="hq">{heroCard.text}</div>
           <div className="hm">
-            {heroPost.post.cardCount}장 · ♡ {formatCount(heroPost.viewerState?.likeCount ?? 0)} ·{" "}
+            {heroPost.post.cardCount}장 · ♡{" "}
+            {formatCount(heroPost.viewerState?.likeCount ?? 0)} ·{" "}
             <AccountName account={heroPost.author} />
           </div>
         </button>
@@ -3780,7 +4877,11 @@ function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
       </div>
       <div className="shelf-grid masonry">
         {posts.map((post) => (
-          <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+          <PostPreviewButton
+            key={post.post.id}
+            post={post}
+            onOpenPost={onOpenPost}
+          />
         ))}
       </div>
       <LoadMoreSentinel hasMore={pageInfo.hasNextPage} innerRef={loadMoreRef} />
@@ -3791,7 +4892,7 @@ function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
 function EditorialPageView({
   page,
   onBack,
-  onOpenDiscover
+  onOpenDiscover,
 }: {
   page: EditorialPage;
   onBack: () => void;
@@ -3802,7 +4903,12 @@ function EditorialPageView({
   return (
     <article className="editorial-page">
       <div className="page-head">
-        <button className="back-icon" type="button" onClick={onBack} aria-label="이전으로 돌아가기">
+        <button
+          className="back-icon"
+          type="button"
+          onClick={onBack}
+          aria-label="이전으로 돌아가기"
+        >
           ←
         </button>
         <div>
@@ -3836,18 +4942,26 @@ function EditorialPageView({
 function NoticeListView({
   onBack,
   onOpenPage,
-  pages
+  pages,
 }: {
   onBack: () => void;
   onOpenPage: (page: EditorialPage) => void;
   pages: EditorialPage[];
 }) {
-  const pageList = useProgressiveItems(pages, `notices:${pages.map((page) => page.id).join("|")}`);
+  const pageList = useProgressiveItems(
+    pages,
+    `notices:${pages.map((page) => page.id).join("|")}`,
+  );
 
   return (
     <section className="notice-list-view">
       <div className="settings-head">
-        <button className="back-icon" type="button" onClick={onBack} aria-label="설정으로 돌아가기">
+        <button
+          className="back-icon"
+          type="button"
+          onClick={onBack}
+          aria-label="설정으로 돌아가기"
+        >
           ←
         </button>
         <div>
@@ -3859,7 +4973,12 @@ function NoticeListView({
       <div className="notice-list">
         {pages.length > 0 ? (
           pageList.visibleItems.map((page) => (
-            <button className="notice-row" key={page.id} type="button" onClick={() => onOpenPage(page)}>
+            <button
+              className="notice-row"
+              key={page.id}
+              type="button"
+              onClick={() => onOpenPage(page)}
+            >
               <span>{page.label}</span>
               <strong>{page.title}</strong>
               <p>{page.summary}</p>
@@ -3870,7 +4989,10 @@ function NoticeListView({
           <p className="drawer-empty">아직 등록된 공지가 없어요.</p>
         )}
       </div>
-      <LoadMoreSentinel hasMore={pageList.hasMore} innerRef={pageList.loadMoreRef} />
+      <LoadMoreSentinel
+        hasMore={pageList.hasMore}
+        innerRef={pageList.loadMoreRef}
+      />
     </section>
   );
 }
@@ -3881,7 +5003,7 @@ function SettingsView({
   onLogout,
   onOpenDrawer,
   onOpenFollowing,
-  onOpenNotices
+  onOpenNotices,
 }: {
   onBack: () => void;
   onEditProfile: () => void;
@@ -3896,18 +5018,21 @@ function SettingsView({
   }> = [
     {
       title: "계정",
-      rows: [{ label: "프로필 편집", onClick: onEditProfile }]
+      rows: [{ label: "프로필 편집", onClick: onEditProfile }],
     },
     {
       title: "활동",
       rows: [
         { label: "내 서랍", onClick: onOpenDrawer },
-        { label: "구독 목록", onClick: onOpenFollowing }
-      ]
+        { label: "구독 목록", onClick: onOpenFollowing },
+      ],
     },
     {
       title: "알림",
-      rows: [{ label: "푸시 알림", state: "준비 중" }, { label: "새김 소식", state: "준비 중" }]
+      rows: [
+        { label: "푸시 알림", state: "준비 중" },
+        { label: "새김 소식", state: "준비 중" },
+      ],
     },
     {
       title: "정보",
@@ -3915,15 +5040,20 @@ function SettingsView({
         { label: "공지사항", onClick: onOpenNotices },
         { label: "이용약관", state: "준비 중" },
         { label: "개인정보 처리방침", state: "준비 중" },
-        { label: "문의하기", state: "준비 중" }
-      ]
-    }
+        { label: "문의하기", state: "준비 중" },
+      ],
+    },
   ];
 
   return (
     <section className="settings-view">
       <div className="settings-head">
-        <button className="back-icon" type="button" onClick={onBack} aria-label="프로필로 돌아가기">
+        <button
+          className="back-icon"
+          type="button"
+          onClick={onBack}
+          aria-label="프로필로 돌아가기"
+        >
           ←
         </button>
         <div>
@@ -3938,7 +5068,9 @@ function SettingsView({
             <div className="settings-list">
               {section.rows.map((row) => (
                 <button
-                  className={!row.onClick ? "settings-row is-disabled" : "settings-row"}
+                  className={
+                    !row.onClick ? "settings-row is-disabled" : "settings-row"
+                  }
                   disabled={!row.onClick}
                   key={row.label}
                   onClick={row.onClick}
@@ -3963,12 +5095,14 @@ function SettingsView({
 
 function FollowingView({
   onBack,
-  onOpenProfile
+  onOpenProfile,
 }: {
   onBack: () => void;
   onOpenProfile: (account: AccountProfile) => void;
 }) {
-  const [followingAccounts, setFollowingAccounts] = useState<AccountProfile[]>([]);
+  const [followingAccounts, setFollowingAccounts] = useState<AccountProfile[]>(
+    [],
+  );
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [error, setError] = useState("");
@@ -4000,17 +5134,24 @@ function FollowingView({
     const cleanQuery = query.trim().toLowerCase();
     if (!cleanQuery) return true;
 
-    return `${account.displayName} ${account.handle} ${account.tagline}`.toLowerCase().includes(cleanQuery);
+    return `${account.displayName} ${account.handle} ${account.tagline}`
+      .toLowerCase()
+      .includes(cleanQuery);
   });
   const accountList = useProgressiveItems(
     visibleAccounts,
-    `following:${query.trim()}:${accountListKey(visibleAccounts)}`
+    `following:${query.trim()}:${accountListKey(visibleAccounts)}`,
   );
 
   return (
     <section className="drawer-view following-view">
       <div className="drawer-head">
-        <button className="back-icon" type="button" onClick={onBack} aria-label="설정으로 돌아가기">
+        <button
+          className="back-icon"
+          type="button"
+          onClick={onBack}
+          aria-label="설정으로 돌아가기"
+        >
           ←
         </button>
         <div>
@@ -4031,29 +5172,41 @@ function FollowingView({
         </label>
       </div>
 
-      {status === "loading" ? <p className="drawer-empty">불러오는 중</p> : null}
+      {status === "loading" ? (
+        <p className="drawer-empty">불러오는 중</p>
+      ) : null}
       {status !== "loading" && !error && followingAccounts.length === 0 ? (
         <p className="drawer-empty">아직 구독중인 글벗이 없어요.</p>
       ) : null}
-      {status !== "loading" && !error && followingAccounts.length > 0 && visibleAccounts.length === 0 ? (
+      {status !== "loading" &&
+      !error &&
+      followingAccounts.length > 0 &&
+      visibleAccounts.length === 0 ? (
         <p className="drawer-empty">검색에 맞는 글벗이 없어요.</p>
       ) : null}
       {error ? <p className="drawer-empty">{error}</p> : null}
       {visibleAccounts.length > 0 ? (
         <div className="search-account-list following-account-list">
           {accountList.visibleItems.map((account) => (
-            <AccountResultButton account={account} key={account.id} onOpenProfile={onOpenProfile} />
+            <AccountResultButton
+              account={account}
+              key={account.id}
+              onOpenProfile={onOpenProfile}
+            />
           ))}
         </div>
       ) : null}
-      <LoadMoreSentinel hasMore={accountList.hasMore} innerRef={accountList.loadMoreRef} />
+      <LoadMoreSentinel
+        hasMore={accountList.hasMore}
+        innerRef={accountList.loadMoreRef}
+      />
     </section>
   );
 }
 
 function DrawerView({
   onBack,
-  onOpenPost
+  onOpenPost,
 }: {
   onBack: () => void;
   onOpenPost: (post: PostBundle) => void;
@@ -4064,7 +5217,11 @@ function DrawerView({
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
-  const loadMoreRef = useServerLoadMore(pageInfo.hasNextPage, loadingMore, loadMoreDrawerPosts);
+  const loadMoreRef = useServerLoadMore(
+    pageInfo.hasNextPage,
+    loadingMore,
+    loadMoreDrawerPosts,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -4073,7 +5230,10 @@ function DrawerView({
       try {
         setStatus("loading");
         setError("");
-        const page = await fetchDrawer({ limit: listInitialCount }, controller.signal);
+        const page = await fetchDrawer(
+          { limit: listInitialCount },
+          controller.signal,
+        );
         setDrawerPosts(page.items);
         setPageInfo(page.pageInfo);
         setStatus("idle");
@@ -4098,10 +5258,16 @@ function DrawerView({
 
     try {
       setLoadingMore(true);
-      const page = await fetchDrawer({ cursor: pageInfo.nextCursor, limit: listLoadStep });
+      const page = await fetchDrawer({
+        cursor: pageInfo.nextCursor,
+        limit: listLoadStep,
+      });
       setDrawerPosts((currentPosts) => {
         const postIds = new Set(currentPosts.map((post) => post.post.id));
-        return [...currentPosts, ...page.items.filter((post) => !postIds.has(post.post.id))];
+        return [
+          ...currentPosts,
+          ...page.items.filter((post) => !postIds.has(post.post.id)),
+        ];
       });
       setPageInfo(page.pageInfo);
     } catch {
@@ -4123,7 +5289,12 @@ function DrawerView({
   return (
     <section className="drawer-view">
       <div className="drawer-head">
-        <button className="back-icon" type="button" onClick={onBack} aria-label="이전 화면으로 돌아가기">
+        <button
+          className="back-icon"
+          type="button"
+          onClick={onBack}
+          aria-label="이전 화면으로 돌아가기"
+        >
           ←
         </button>
         <div>
@@ -4144,22 +5315,34 @@ function DrawerView({
         </label>
       </div>
 
-      {status === "loading" ? <p className="drawer-empty">불러오는 중</p> : null}
+      {status === "loading" ? (
+        <p className="drawer-empty">불러오는 중</p>
+      ) : null}
       {status !== "loading" && !error && drawerPosts.length === 0 ? (
         <p className="drawer-empty">아직 간직한 글이 없어요.</p>
       ) : null}
-      {status !== "loading" && !error && drawerPosts.length > 0 && visiblePosts.length === 0 ? (
+      {status !== "loading" &&
+      !error &&
+      drawerPosts.length > 0 &&
+      visiblePosts.length === 0 ? (
         <p className="drawer-empty">검색에 맞는 글이 없어요.</p>
       ) : null}
       {error ? <p className="drawer-empty">{error}</p> : null}
       {visiblePosts.length > 0 ? (
         <div className="masonry">
           {visiblePosts.map((post) => (
-            <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+            <PostPreviewButton
+              key={post.post.id}
+              post={post}
+              onOpenPost={onOpenPost}
+            />
           ))}
         </div>
       ) : null}
-      <LoadMoreSentinel hasMore={!query.trim() && pageInfo.hasNextPage} innerRef={loadMoreRef} />
+      <LoadMoreSentinel
+        hasMore={!query.trim() && pageInfo.hasNextPage}
+        innerRef={loadMoreRef}
+      />
     </section>
   );
 }
@@ -4172,7 +5355,7 @@ function ProfileView({
   onOpenDrawer,
   onOpenPost,
   onOpenSettings,
-  onToggleFollow
+  onToggleFollow,
 }: {
   account: AccountProfile;
   isOwnProfile: boolean;
@@ -4190,7 +5373,11 @@ function ProfileView({
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
-  const loadMoreRef = useServerLoadMore(pageInfo.hasNextPage, loadingMore, loadMoreProfilePosts);
+  const loadMoreRef = useServerLoadMore(
+    pageInfo.hasNextPage,
+    loadingMore,
+    loadMoreProfilePosts,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -4199,7 +5386,11 @@ function ProfileView({
       try {
         setStatus("loading");
         setError("");
-        const page = await fetchAccountPosts(account.id, { limit: listInitialCount }, controller.signal);
+        const page = await fetchAccountPosts(
+          account.id,
+          { limit: listInitialCount },
+          controller.signal,
+        );
         setProfilePosts(page.items);
         setPageInfo(page.pageInfo);
         setStatus("idle");
@@ -4224,10 +5415,16 @@ function ProfileView({
 
     try {
       setLoadingMore(true);
-      const page = await fetchAccountPosts(account.id, { cursor: pageInfo.nextCursor, limit: listLoadStep });
+      const page = await fetchAccountPosts(account.id, {
+        cursor: pageInfo.nextCursor,
+        limit: listLoadStep,
+      });
       setProfilePosts((currentPosts) => {
         const postIds = new Set(currentPosts.map((post) => post.post.id));
-        return [...currentPosts, ...page.items.filter((post) => !postIds.has(post.post.id))];
+        return [
+          ...currentPosts,
+          ...page.items.filter((post) => !postIds.has(post.post.id)),
+        ];
       });
       setPageInfo(page.pageInfo);
     } catch {
@@ -4243,12 +5440,22 @@ function ProfileView({
         {isOwnProfile ? (
           <span aria-hidden="true" />
         ) : (
-          <button className="profile-icon-button" type="button" onClick={onBack} aria-label="이전 화면으로 돌아가기">
+          <button
+            className="profile-icon-button"
+            type="button"
+            onClick={onBack}
+            aria-label="이전 화면으로 돌아가기"
+          >
             ←
           </button>
         )}
         {isOwnProfile ? (
-          <button className="profile-icon-button" type="button" onClick={onOpenSettings} aria-label="설정">
+          <button
+            className="profile-icon-button"
+            type="button"
+            onClick={onOpenSettings}
+            aria-label="설정"
+          >
             <MenuIcon />
           </button>
         ) : (
@@ -4256,28 +5463,43 @@ function ProfileView({
         )}
       </div>
       <div className="profile-head">
-        <Avatar displayName={account.displayName} photoUrl={account.photoUrl} size="large" />
+        <Avatar
+          displayName={account.displayName}
+          photoUrl={account.photoUrl}
+          size="large"
+        />
         <div className="profile-meta">
           <h2>
             <AccountName account={account} />
           </h2>
           <p>{account.tagline}</p>
           <small>
-            글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
+            글 {formatCount(account.postCount)}개 · 글벗{" "}
+            {formatCount(account.writingFriendCount)}
           </small>
         </div>
         {isOwnProfile ? (
           <div className="profile-actions" aria-label="내 프로필 행동">
-            <button className="profile-sub" type="button" onClick={onOpenDrawer}>
+            <button
+              className="profile-sub"
+              type="button"
+              onClick={onOpenDrawer}
+            >
               내 서랍
             </button>
-            <button className="profile-sub ghost" type="button" onClick={onEdit}>
+            <button
+              className="profile-sub ghost"
+              type="button"
+              onClick={onEdit}
+            >
               프로필 편집
             </button>
           </div>
         ) : (
           <button
-            className={isSubscribed ? "profile-sub is-subscribed" : "profile-sub"}
+            className={
+              isSubscribed ? "profile-sub is-subscribed" : "profile-sub"
+            }
             type="button"
             aria-pressed={isSubscribed}
             onClick={() => onToggleFollow(account.id, isSubscribed)}
@@ -4286,14 +5508,18 @@ function ProfileView({
           </button>
         )}
       </div>
-      {account.bio && account.bio !== account.tagline ? <div className="profile-bio">{account.bio}</div> : null}
+      {account.bio && account.bio !== account.tagline ? (
+        <div className="profile-bio">{account.bio}</div>
+      ) : null}
 
       <section className="profile-posts">
         <div className="profile-shelf-head">
           <h2>{shelfTitle}</h2>
           <span>글 {formatCount(account.postCount)}</span>
         </div>
-        {status === "loading" ? <p className="profile-empty">불러오는 중</p> : null}
+        {status === "loading" ? (
+          <p className="profile-empty">불러오는 중</p>
+        ) : null}
         {error ? <p className="profile-empty">{error}</p> : null}
         {status !== "loading" && !error && profilePosts.length > 0 ? (
           <div className="masonry">
@@ -4311,7 +5537,10 @@ function ProfileView({
         {status !== "loading" && !error && profilePosts.length === 0 ? (
           <p className="profile-empty">아직 공개된 글이 없어요.</p>
         ) : null}
-        <LoadMoreSentinel hasMore={pageInfo.hasNextPage} innerRef={loadMoreRef} />
+        <LoadMoreSentinel
+          hasMore={pageInfo.hasNextPage}
+          innerRef={loadMoreRef}
+        />
       </section>
     </section>
   );
@@ -4320,7 +5549,7 @@ function ProfileView({
 function ProfileEditView({
   account,
   onCancel,
-  onSubmit
+  onSubmit,
 }: {
   account: AccountProfile;
   onCancel: () => void;
@@ -4331,13 +5560,20 @@ function ProfileEditView({
   const [bio, setBio] = useState(account.bio ?? "");
   const [photoUrl, setPhotoUrl] = useState(account.photoUrl ?? "");
   const [status, setStatus] = useState<"idle" | "saving">("idle");
+  const [photoStatus, setPhotoStatus] = useState<"idle" | "loading">("idle");
   const [error, setError] = useState("");
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!displayName.trim()) {
       setError("닉네임을 입력해 주세요.");
+      return;
+    }
+
+    if (photoStatus === "loading") {
+      setError("사진을 다듬는 중이에요. 잠시 뒤 저장해 주세요.");
       return;
     }
 
@@ -4348,7 +5584,7 @@ function ProfileEditView({
         displayName: displayName.trim(),
         tagline: tagline.trim(),
         bio: bio.trim() || null,
-        photoUrl: photoUrl.trim() || null
+        photoUrl: photoUrl.trim() || null,
       });
     } catch {
       setStatus("idle");
@@ -4356,36 +5592,92 @@ function ProfileEditView({
     }
   }
 
+  async function handlePhotoSelect(event: ReactChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!captureImageAcceptedTypes.has(file.type)) {
+      setError("JPG, PNG, WebP, AVIF 이미지만 올릴 수 있어요.");
+      return;
+    }
+
+    if (file.size > profilePhotoMaxBytes) {
+      setError("프로필 사진은 5MB 이하 이미지만 올릴 수 있어요.");
+      return;
+    }
+
+    try {
+      setPhotoStatus("loading");
+      setError("");
+      const nextPhotoUrl = await createProfilePhotoDataUrl(file);
+      setPhotoUrl(nextPhotoUrl);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "사진을 바꿀 수 없어요. 다른 이미지를 골라 주세요.");
+    } finally {
+      setPhotoStatus("idle");
+    }
+  }
+
   return (
     <form className="profile-edit-view" onSubmit={handleSubmit}>
       <div className="edit-page-head">
         <div>
-          <button className="back-icon" type="button" onClick={onCancel} aria-label="프로필로 돌아가기">
+          <button
+            className="back-icon"
+            type="button"
+            onClick={onCancel}
+            aria-label="프로필로 돌아가기"
+          >
             ←
           </button>
           <h2>프로필 편집</h2>
         </div>
-        <button className="edit-save" type="submit" disabled={status === "saving"}>
+        <button
+          className="edit-save"
+          type="submit"
+          disabled={status === "saving" || photoStatus === "loading"}
+        >
           {status === "saving" ? "저장 중" : "저장"}
         </button>
       </div>
 
       <div className="edit-photo">
-        <div className="edit-avatar-wrap">
-          <Avatar displayName={displayName || account.displayName} photoUrl={photoUrl} size="large" />
-          <span aria-hidden="true">사진</span>
-        </div>
-        <p>{tagline || "한 줄을 곁에 두는 사람"}</p>
-      </div>
-
-      <label className="edit-field">
-        <span className="edit-label">프로필 사진 URL</span>
         <input
-          onChange={(event) => setPhotoUrl(event.target.value)}
-          placeholder="이미지 주소"
-          value={photoUrl}
+          ref={photoInputRef}
+          className="edit-photo-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          onChange={handlePhotoSelect}
         />
-      </label>
+        <div className="edit-avatar-wrap">
+          <Avatar
+            displayName={displayName || account.displayName}
+            photoUrl={photoUrl}
+            size="large"
+          />
+          <button
+            className="edit-avatar-button"
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            aria-label="프로필 사진 바꾸기"
+            disabled={photoStatus === "loading"}
+          >
+            <PencilIcon />
+          </button>
+        </div>
+        <p>
+          {photoStatus === "loading" ? "사진을 다듬는 중" : tagline || "한 줄을 곁에 두는 사람"}
+        </p>
+        {photoUrl ? (
+          <button className="edit-photo-remove" type="button" onClick={() => setPhotoUrl("")}>
+            사진 제거
+          </button>
+        ) : null}
+      </div>
       <label className="edit-field">
         <div>
           <span className="edit-label">닉네임</span>

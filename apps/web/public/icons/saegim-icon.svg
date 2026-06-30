@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">새김 앱 아이콘</title>
+  <desc id="desc">안개빛 배경 위에 겹친 문장 카드와 잉크 밑줄을 그린 새김 아이콘</desc>
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="430" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FCFBFC"/>
+      <stop offset=".5" stop-color="#F6F5F6"/>
+      <stop offset="1" stop-color="#ECEBEE"/>
+    </linearGradient>
+    <linearGradient id="card" x1="146" y1="110" x2="376" y2="418" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset=".58" stop-color="#F8F7F9"/>
+      <stop offset="1" stop-color="#EFEEF1"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#38323F" flood-opacity=".2"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#38323F" flood-opacity=".12"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M96 0h320c53 0 96 43 96 96v320c0 53-43 96-96 96H96c-53 0-96-43-96-96V96C0 43 43 0 96 0Z" fill="none" stroke="#38323F" stroke-opacity=".08" stroke-width="2"/>
+
+  <g filter="url(#soft-shadow)">
+    <rect x="128" y="108" width="242" height="310" rx="50" fill="#ECEBEE" transform="rotate(-7 249 263)"/>
+    <rect x="148" y="90" width="242" height="310" rx="50" fill="#F9F8FA" transform="rotate(6 269 245)"/>
+    <rect x="142" y="94" width="248" height="324" rx="54" fill="url(#card)" stroke="#38323F" stroke-opacity=".12" stroke-width="4"/>
+  </g>
+
+  <g fill="#38323F">
+    <rect x="184" y="184" width="148" height="20" rx="10"/>
+    <rect x="184" y="226" width="104" height="20" rx="10" opacity=".78"/>
+    <rect x="184" y="268" width="142" height="20" rx="10" opacity=".34"/>
+  </g>
+  <rect x="184" y="334" width="132" height="12" rx="6" fill="#353039"/>
+  <rect x="184" y="358" width="78" height="12" rx="6" fill="#38323F" opacity=".34"/>
+</svg>

@@ -5,6 +5,7 @@ import { PrismaService } from "../database/prisma.service.js";
 import { seedAccounts, seedEditorialPages, seedPostBundles } from "./seed-data.js";
 import type {
   AccountProfile,
+  CardBackgroundImage,
   CardComposition,
   ContentSource,
   CreateCommentInput,
@@ -116,11 +117,18 @@ const defaultCardComp: CardComposition = {
   align: "center",
   font: "gothic",
   textPos: null,
-  sourcePos: null
+  sourcePos: null,
+  bgImage: null
 };
 const defaultPageLimit = 8;
 const defaultAccountPageLimit = 12;
 const maxPageLimit = 24;
+const maxCardsPerPost = 10;
+const maxProfilePhotoValueLength = 240_000;
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
 
 type PageQueryOptions = {
   cursor?: string | undefined;
@@ -1079,6 +1087,10 @@ export class ContentRepository {
       throw new BadRequestException("문장을 입력해 주세요.");
     }
 
+    if (cards.length > maxCardsPerPost) {
+      throw new BadRequestException(`한 글은 최대 ${maxCardsPerPost}장까지 발행할 수 있어요.`);
+    }
+
     return cards;
   }
 
@@ -1087,7 +1099,28 @@ export class ContentRepository {
       ...defaultCardComp,
       ...comp,
       textPos: comp?.textPos ?? defaultCardComp.textPos ?? null,
-      sourcePos: comp?.sourcePos ?? defaultCardComp.sourcePos ?? null
+      sourcePos: comp?.sourcePos ?? defaultCardComp.sourcePos ?? null,
+      bgImage: this.normalizeBackgroundImage(comp?.bgImage)
+    };
+  }
+
+  private normalizeBackgroundImage(image?: CardBackgroundImage | null): CardBackgroundImage | null {
+    if (!image?.url?.trim()) {
+      return null;
+    }
+
+    const naturalWidth = Number(image.naturalWidth);
+    const naturalHeight = Number(image.naturalHeight);
+
+    return {
+      url: image.url.trim(),
+      ...(image.objectKey?.trim() ? { objectKey: image.objectKey.trim() } : {}),
+      ...(image.alt?.trim() ? { alt: image.alt.trim().slice(0, 100) } : {}),
+      ...(Number.isFinite(naturalWidth) && naturalWidth > 0 ? { naturalWidth: Math.round(naturalWidth) } : {}),
+      ...(Number.isFinite(naturalHeight) && naturalHeight > 0 ? { naturalHeight: Math.round(naturalHeight) } : {}),
+      focalX: clampNumber(Number.isFinite(image.focalX) ? image.focalX : 50, 0, 100),
+      focalY: clampNumber(Number.isFinite(image.focalY) ? image.focalY : 50, 0, 100),
+      zoom: clampNumber(Number.isFinite(image.zoom) ? image.zoom : 1, 1, 2.5)
     };
   }
 
@@ -1130,7 +1163,7 @@ export class ContentRepository {
     }
 
     if (Object.hasOwn(input, "photoUrl")) {
-      data.photoUrl = this.normalizeText(input.photoUrl, "프로필 사진", 2048);
+      data.photoUrl = this.normalizeText(input.photoUrl, "프로필 사진", maxProfilePhotoValueLength);
     }
 
     if (Object.keys(data).length === 0) {
