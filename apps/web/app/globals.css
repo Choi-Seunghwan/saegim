@@ -3639,6 +3639,7 @@ textarea:focus-visible {
   align-items: flex-start;
   justify-content: space-around;
   padding: 9px 0 0;
+  overflow: visible;
   border-top: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(248, 247, 249, 0), rgba(248, 247, 249, 0.92) 38%, var(--paper));
   backdrop-filter: blur(14px);
@@ -3649,6 +3650,7 @@ textarea:focus-visible {
   max-width: 74px;
   height: 48px;
   padding-top: 4px;
+  overflow: visible;
   color: var(--muted-soft);
   transition: color 0.2s var(--ease);
 }
@@ -3738,7 +3740,7 @@ textarea:focus-visible {
 }
 
 .tab.is-active .avatar.tab {
-  box-shadow: 0 0 0 2px var(--ink-strong);
+  box-shadow: 0 0 0 1px rgba(56, 50, 63, 0.16);
 }
 
 @media (max-width: 520px) {
