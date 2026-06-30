@@ -568,7 +568,10 @@ function Avatar({
 function GuestTabAvatar() {
   return (
     <div className="guest-tab-avatar" aria-hidden="true">
-      게
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="8.5" r="3.2" />
+        <path d="M5.8 19.2c.9-3.3 3.1-5 6.2-5s5.3 1.7 6.2 5" />
+      </svg>
     </div>
   );
 }

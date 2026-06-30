@@ -3713,8 +3713,17 @@ textarea:focus-visible {
   border-radius: 50%;
   background: rgba(56, 50, 63, 0.08);
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 850;
+  box-shadow: inset 0 0 0 1px rgba(56, 50, 63, 0.08);
+}
+
+.guest-tab-avatar svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .tab:active .guest-tab-avatar {
