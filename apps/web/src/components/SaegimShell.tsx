@@ -503,7 +503,7 @@ function HeartIcon({ filled = false }: { filled?: boolean }) {
 
 function CommentIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
       <path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-6A8.4 8.4 0 1 1 21 11.5z" />
     </svg>
   );
@@ -2950,7 +2950,7 @@ function CommentSheet({
         <div className="comment-sheet-head">
           <div>
             <strong>댓글</strong>
-            <span>{formatCount(post.viewerState?.commentCount ?? comments.length)}개</span>
+            <span>{formatCount(comments.length)}개</span>
           </div>
           <button type="button" onClick={onClose} aria-label="닫기">
             ×
@@ -3051,7 +3051,7 @@ function CaptureView({
     const textarea = textAreaRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 360)}px`;
+    textarea.style.height = `${textarea.scrollHeight}px`;
   }, [activeSentence, activeComp.size, activeDraftIndex]);
 
   useEffect(() => {
