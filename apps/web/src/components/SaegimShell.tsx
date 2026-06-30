@@ -591,8 +591,10 @@ function Avatar({
     setImageFailed(false);
   }, [cleanPhotoUrl]);
 
+  const className = size === "tab" ? "avatar avatar-tab" : size ? `avatar ${size}` : "avatar";
+
   return (
-    <div className={size ? `avatar ${size}` : "avatar"}>
+    <div className={className}>
       {showImage ? <img src={cleanPhotoUrl} alt="" onError={() => setImageFailed(true)} /> : initial}
     </div>
   );

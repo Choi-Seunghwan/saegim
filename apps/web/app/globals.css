@@ -1120,9 +1120,10 @@ textarea:focus-visible {
   font-size: 12px;
 }
 
-.avatar.tab {
+.avatar.avatar-tab {
   width: 28px;
   height: 28px;
+  overflow: hidden;
   font-size: 11px;
   box-shadow: 0 0 0 1px rgba(56, 50, 63, 0.16);
 }
@@ -3739,7 +3740,7 @@ textarea:focus-visible {
   transform: scale(0.94);
 }
 
-.tab.is-active .avatar.tab {
+.tab.is-active .avatar.avatar-tab {
   box-shadow: 0 0 0 1px rgba(56, 50, 63, 0.16);
 }
 
