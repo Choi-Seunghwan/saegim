@@ -49,6 +49,7 @@ import {
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
 type EntryState = "guest" | "signed-in";
+type InitialLoadState = "loading" | "ready" | "error";
 type InfoSheetState = { postId: string };
 type AuthSheetIntent = "default" | "capture" | "profile";
 type AuthMode = "login" | "signup";
@@ -595,6 +596,8 @@ export function SaegimShell() {
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("home");
   const [entryState, setEntryState] = useState<EntryState>("guest");
+  const [initialLoadState, setInitialLoadState] = useState<InitialLoadState>("loading");
+  const [initialLoadRetryKey, setInitialLoadRetryKey] = useState(0);
   const [authSheetIntent, setAuthSheetIntent] = useState<AuthSheetIntent | null>(null);
   const [authSheetInitialMode, setAuthSheetInitialMode] = useState<AuthMode>("login");
   const [isSearching, setIsSearching] = useState(false);
@@ -733,6 +736,11 @@ export function SaegimShell() {
 
     openAuthSheet(intent);
     return false;
+  }
+
+  function retryInitialLoad() {
+    setInitialLoadState("loading");
+    setInitialLoadRetryKey((currentKey) => currentKey + 1);
   }
 
   async function enterApp(input: AuthSubmitInput) {
@@ -1189,22 +1197,31 @@ export function SaegimShell() {
         setEditorialPages(nextEditorialPages);
 
         if (entryState === "signed-in") {
-          const nextCurrentAccount = await fetchCurrentAccount(controller.signal);
-          setCurrentAccount(nextCurrentAccount);
-          setSelectedProfileId(nextCurrentAccount.id);
+          try {
+            const nextCurrentAccount = await fetchCurrentAccount(controller.signal);
+            setCurrentAccount(nextCurrentAccount);
+            setSelectedProfileId(nextCurrentAccount.id);
+          } catch {
+            setCurrentAccount(guestAccount);
+            setSelectedProfileId(null);
+            setEntryState("guest");
+          }
         }
+
+        setInitialLoadState("ready");
       } catch {
         if (!controller.signal.aborted) {
           setPosts([]);
           setAccounts([]);
           setEditorialPages([]);
+          setInitialLoadState("error");
         }
       }
     }
 
     void loadInitialData();
     return () => controller.abort();
-  }, [entryState]);
+  }, [entryState, initialLoadRetryKey]);
 
   useEffect(() => {
     if (!activePost) {
@@ -1527,8 +1544,43 @@ export function SaegimShell() {
             onGoogleLogin={startGoogleOAuth}
           />
         ) : null}
+        {initialLoadState !== "ready" ? (
+          <AppLoadingOverlay state={initialLoadState} onRetry={retryInitialLoad} />
+        ) : null}
       </section>
     </main>
+  );
+}
+
+function AppLoadingOverlay({
+  state,
+  onRetry
+}: {
+  state: Exclude<InitialLoadState, "ready">;
+  onRetry: () => void;
+}) {
+  const isError = state === "error";
+
+  return (
+    <div className="app-loading-overlay" role="status" aria-live="polite">
+      <div className="app-loading-content">
+        <div className="app-loading-brand">새김</div>
+        {isError ? (
+          <>
+            <strong>잠시 연결이 고르지 않아요.</strong>
+            <p>화면을 다시 불러오면 이어서 둘러볼 수 있어요.</p>
+            <button type="button" onClick={onRetry}>
+              다시 불러오기
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="app-loading-line" aria-hidden="true" />
+            <p>문장을 불러오고 있어요.</p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -2014,8 +2066,8 @@ function HomeView({
           </>
         ) : (
           <div className="home-empty-card">
-            <strong>홈에 보여줄 데이터가 없어요.</strong>
-            <p>DB에 글이나 공지 데이터가 추가되면 이곳에 표시돼요.</p>
+            <strong>아직 준비된 글이 없어요.</strong>
+            <p>새로운 글이 도착하면 이곳에서 먼저 보여드릴게요.</p>
           </div>
         )}
       </div>
@@ -2082,7 +2134,7 @@ function EmptyDiscoverView() {
     <section className="discover-view empty-discover">
       <div className="empty-discover-card">
         <strong>아직 발견할 글이 없어요.</strong>
-        <p>DB에 공개 글이 추가되면 이곳에 바로 보여요.</p>
+        <p>새로운 글이 도착하면 이곳에서 이어서 보여드릴게요.</p>
       </div>
     </section>
   );
@@ -2746,7 +2798,7 @@ function CommentSheet({
       setStatus("idle");
     } catch {
       setStatus("idle");
-      setError("댓글을 남길 수 없어요. API 서버를 확인해 주세요.");
+      setError("댓글을 남길 수 없어요. 잠시 뒤 다시 시도해 주세요.");
     }
   }
 
@@ -4066,7 +4118,7 @@ function ProfileEditView({
       });
     } catch {
       setStatus("idle");
-      setError("프로필을 저장할 수 없어요. API 서버를 확인해 주세요.");
+      setError("프로필을 저장할 수 없어요. 잠시 뒤 다시 시도해 주세요.");
     }
   }
 
