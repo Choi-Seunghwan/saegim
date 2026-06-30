@@ -6,7 +6,9 @@ import type {
   FormEvent,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
-  PointerEvent as ReactPointerEvent
+  PointerEvent as ReactPointerEvent,
+  RefObject,
+  WheelEvent as ReactWheelEvent
 } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
 import type {
@@ -87,6 +89,13 @@ type DetailReturnTarget =
   | { surface: "tab"; tab: MainReturnTab }
   | { surface: "search"; tab: MainReturnTab }
   | { surface: "drawer" };
+type ProfileReturnTarget =
+  | { surface: "tab"; tab: MainReturnTab }
+  | { surface: "search"; tab: MainReturnTab }
+  | { surface: "discover" }
+  | { surface: "drawer"; drawerReturnSurface: DrawerReturnSurface }
+  | { surface: "following" }
+  | { surface: "settings" };
 type DrawerReturnSurface = "profile" | "settings";
 type DetailDragState = {
   x: number;
@@ -200,6 +209,8 @@ const captureAlignOptions: { value: CardComposition["align"]; label: string }[] 
   { value: "center", label: "가운데" },
   { value: "right", label: "오른쪽" }
 ];
+const listInitialCount = 8;
+const listLoadStep = 8;
 
 function formatCount(value: number) {
   return value.toLocaleString("ko-KR");
@@ -246,6 +257,68 @@ function bgWithDim(background: string, dim: number) {
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function useProgressiveItems<T>(items: T[], resetKey: string, initialCount = listInitialCount) {
+  const [visibleCount, setVisibleCount] = useState(initialCount);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setVisibleCount(initialCount);
+  }, [initialCount, resetKey]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || visibleCount >= items.length || typeof IntersectionObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) {
+          return;
+        }
+
+        setVisibleCount((currentCount) => Math.min(currentCount + listLoadStep, items.length));
+      },
+      { rootMargin: "220px 0px" }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [items.length, visibleCount]);
+
+  return {
+    hasMore: visibleCount < items.length,
+    loadMoreRef,
+    visibleItems: items.slice(0, Math.min(visibleCount, items.length))
+  };
+}
+
+function postListKey(posts: PostBundle[]) {
+  return posts.map((post) => post.post.id).join("|");
+}
+
+function accountListKey(accounts: AccountProfile[]) {
+  return accounts.map((account) => account.id).join("|");
+}
+
+function LoadMoreSentinel({
+  hasMore,
+  innerRef
+}: {
+  hasMore: boolean;
+  innerRef: RefObject<HTMLDivElement | null>;
+}) {
+  if (!hasMore) {
+    return null;
+  }
+
+  return (
+    <div className="list-load-sentinel" ref={innerRef} aria-live="polite">
+      더 불러오는 중
+    </div>
+  );
 }
 
 function isLightHexColor(color: string) {
@@ -536,6 +609,7 @@ export function SaegimShell() {
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [infoSheet, setInfoSheet] = useState<InfoSheetState | null>(null);
   const [detailReturnTarget, setDetailReturnTarget] = useState<DetailReturnTarget | null>(null);
+  const [profileReturnTarget, setProfileReturnTarget] = useState<ProfileReturnTarget | null>(null);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -696,6 +770,7 @@ export function SaegimShell() {
       setCommentPost(null);
       setInfoSheet(null);
       setDetailReturnTarget(null);
+      setProfileReturnTarget(null);
       setActiveTab("capture");
       return;
     }
@@ -712,6 +787,7 @@ export function SaegimShell() {
       setCommentPost(null);
       setInfoSheet(null);
       setDetailReturnTarget(null);
+      setProfileReturnTarget(null);
       setActiveTab("me");
     }
   }
@@ -730,6 +806,7 @@ export function SaegimShell() {
     setCommentPost(null);
     setInfoSheet(null);
     setDetailReturnTarget(null);
+    setProfileReturnTarget(null);
     setSelectedProfileId(currentAccount.id);
     setEntryState("guest");
     setUsesLocalAuth(false);
@@ -755,6 +832,7 @@ export function SaegimShell() {
     setCommentPost(null);
     setInfoSheet(null);
     setDetailReturnTarget(null);
+    setProfileReturnTarget(null);
 
     if (tab === "discover") {
       setActivePostId((currentPostId) => currentPostId ?? featuredPost?.post.id ?? null);
@@ -927,6 +1005,89 @@ export function SaegimShell() {
     setIsSearching(target.surface === "search");
   }
 
+  function makeProfileReturnTarget(): ProfileReturnTarget | null {
+    if (isViewingFollowing) {
+      return { surface: "following" };
+    }
+
+    if (isViewingSettings) {
+      return { surface: "settings" };
+    }
+
+    if (isViewingDrawer) {
+      return { surface: "drawer", drawerReturnSurface };
+    }
+
+    if (isSearching) {
+      return { surface: "search", tab: activeTab === "capture" ? "home" : activeTab };
+    }
+
+    if (activeTab === "discover") {
+      return { surface: "discover" };
+    }
+
+    if (activeTab !== "me" && activeTab !== "capture") {
+      return { surface: "tab", tab: activeTab };
+    }
+
+    return null;
+  }
+
+  function closeProfile() {
+    const target = profileReturnTarget;
+    setProfileReturnTarget(null);
+    setIsEditingProfile(false);
+    setIsViewingDrawer(false);
+    setIsViewingFollowing(false);
+    setIsViewingSettings(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
+    setCommentPost(null);
+    setInfoSheet(null);
+
+    if (!target) {
+      setSelectedProfileId(currentAccount.id);
+      return;
+    }
+
+    if (target.surface === "discover") {
+      setActiveTab("discover");
+      setIsSearching(false);
+      return;
+    }
+
+    if (target.surface === "search") {
+      setActiveTab(target.tab);
+      setIsSearching(true);
+      return;
+    }
+
+    if (target.surface === "drawer") {
+      setActiveTab("me");
+      setDrawerReturnSurface(target.drawerReturnSurface);
+      setIsViewingDrawer(true);
+      setIsSearching(false);
+      return;
+    }
+
+    if (target.surface === "following") {
+      setActiveTab("me");
+      setIsViewingFollowing(true);
+      setIsSearching(false);
+      return;
+    }
+
+    if (target.surface === "settings") {
+      setActiveTab("me");
+      setIsViewingSettings(true);
+      setIsSearching(false);
+      return;
+    }
+
+    setActiveTab(target.tab);
+    setIsSearching(false);
+  }
+
   async function openProfile(account: AccountProfile) {
     if (account.id === currentAccount.id && !isSignedIn()) {
       setSelectedProfileId(currentAccount.id);
@@ -940,12 +1101,15 @@ export function SaegimShell() {
       setEditorialPageState(null);
       setCommentPost(null);
       setInfoSheet(null);
+      setProfileReturnTarget(null);
       setActiveTab("me");
       return;
     }
 
+    const returnTarget = makeProfileReturnTarget();
     upsertAccount(account);
     setSelectedProfileId(account.id);
+    setProfileReturnTarget(returnTarget);
     setIsSearching(false);
     setIsEditingProfile(false);
     setIsViewingDrawer(false);
@@ -1208,7 +1372,7 @@ export function SaegimShell() {
           }}
           isOwnProfile={isOwnProfile}
           onOpenPost={openPost}
-          onOpenProfile={() => setSelectedProfileId(currentAccount.id)}
+          onBack={closeProfile}
           onOpenDrawer={() => {
             if (!requireSignedIn("profile")) {
               return;
@@ -1523,12 +1687,18 @@ function SearchView({
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [error, setError] = useState("");
   const cleanQuery = query.trim();
-  const suggestedPosts = posts
+  const popularPosts = posts
     .slice()
     .sort((a, b) => (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0))
-    .slice(0, 4);
+    .slice();
   const visibleAccounts = segment === "posts" ? [] : accounts;
   const visiblePosts = segment === "accounts" ? [] : posts;
+  const popularList = useProgressiveItems(popularPosts, `popular:${postListKey(popularPosts)}`, 4);
+  const accountList = useProgressiveItems(
+    visibleAccounts,
+    `search-accounts:${segment}:${cleanQuery}:${accountListKey(visibleAccounts)}`
+  );
+  const postList = useProgressiveItems(visiblePosts, `search-posts:${segment}:${cleanQuery}:${postListKey(visiblePosts)}`);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1600,15 +1770,16 @@ function SearchView({
       {!cleanQuery ? (
         <section className="search-suggest">
           <div className="search-label">인기 있는 글</div>
-          {suggestedPosts.length > 0 ? (
+          {popularPosts.length > 0 ? (
             <div className="masonry">
-              {suggestedPosts.map((post) => (
+              {popularList.visibleItems.map((post) => (
                 <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
               ))}
             </div>
           ) : (
             <p className="search-empty">아직 보여줄 글이 없어요.</p>
           )}
+          <LoadMoreSentinel hasMore={popularList.hasMore} innerRef={popularList.loadMoreRef} />
         </section>
       ) : null}
 
@@ -1616,10 +1787,11 @@ function SearchView({
         <section className="search-section">
           <h2>계정</h2>
           <div className="search-account-list">
-            {visibleAccounts.map((account) => (
+            {accountList.visibleItems.map((account) => (
               <AccountResultButton account={account} key={account.id} onOpenProfile={onOpenProfile} />
             ))}
           </div>
+          <LoadMoreSentinel hasMore={accountList.hasMore} innerRef={accountList.loadMoreRef} />
         </section>
       ) : null}
 
@@ -1627,10 +1799,11 @@ function SearchView({
         <section className="search-section">
           <h2>글</h2>
           <div className="masonry">
-            {visiblePosts.map((post) => (
+            {postList.visibleItems.map((post) => (
               <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
             ))}
           </div>
+          <LoadMoreSentinel hasMore={postList.hasMore} innerRef={postList.loadMoreRef} />
         </section>
       ) : null}
 
@@ -1936,6 +2109,7 @@ function DiscoverView({
   const shouldShowTitle = post.post.title.trim() !== card.text.trim();
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragResetTimerRef = useRef<number | null>(null);
+  const wheelLockUntilRef = useRef(0);
   const [dragState, setDragState] = useState<DetailDragState | null>(null);
   const activeDragAxis = dragState?.axis;
   const dragTrackStyle = {
@@ -1949,6 +2123,21 @@ function DiscoverView({
       window.clearTimeout(dragResetTimerRef.current);
       dragResetTimerRef.current = null;
     }
+  }
+
+  function animateDetailMove(axis: "x" | "y", direction: -1 | 1, size: number, onMove: () => void) {
+    clearDragResetTimer();
+    setDragState({
+      x: axis === "x" ? (direction > 0 ? -size : size) : 0,
+      y: axis === "y" ? (direction > 0 ? -size : size) : 0,
+      axis,
+      isAnimating: true
+    });
+    dragResetTimerRef.current = window.setTimeout(() => {
+      onMove();
+      setDragState(null);
+      dragResetTimerRef.current = null;
+    }, 230);
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
@@ -2065,6 +2254,60 @@ function DiscoverView({
     }
   }
 
+  function handleWheel(event: ReactWheelEvent<HTMLElement>) {
+    if (dragState?.isAnimating || (event.target as HTMLElement).closest("button, input, textarea")) {
+      return;
+    }
+
+    const absX = Math.abs(event.deltaX);
+    const absY = Math.abs(event.deltaY);
+    if (Math.max(absX, absY) < 18) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now < wheelLockUntilRef.current) {
+      event.preventDefault();
+      return;
+    }
+
+    const axis: "x" | "y" = event.shiftKey || absX > absY ? "x" : "y";
+    const delta = axis === "x" ? (event.shiftKey && absY >= absX ? event.deltaY : event.deltaX) : event.deltaY;
+    const direction: -1 | 1 = delta > 0 ? 1 : -1;
+    const canMove =
+      axis === "x"
+        ? direction > 0
+          ? hasNextCard
+          : hasPreviousCard
+        : direction > 0
+          ? hasNextPost
+          : hasPreviousPost;
+
+    event.preventDefault();
+    if (!canMove) {
+      wheelLockUntilRef.current = now + 180;
+      setDragState({ x: 0, y: 0, axis, isAnimating: true });
+      clearDragResetTimer();
+      dragResetTimerRef.current = window.setTimeout(() => {
+        setDragState(null);
+        dragResetTimerRef.current = null;
+      }, 160);
+      return;
+    }
+
+    wheelLockUntilRef.current = now + 430;
+    animateDetailMove(axis, direction, axis === "x" ? event.currentTarget.clientWidth : event.currentTarget.clientHeight, () => {
+      if (axis === "x") {
+        if (direction > 0) onNextCard();
+        else onPreviousCard();
+        return;
+      }
+
+      if (direction > 0) onNextPost();
+      else onPreviousPost();
+    });
+  }
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
@@ -2101,6 +2344,7 @@ function DiscoverView({
       }}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
+      onWheel={handleWheel}
     >
       {onBack ? (
         <button className="detail-back" type="button" onClick={onBack} aria-label="이전 화면으로 돌아가기">
@@ -3229,6 +3473,7 @@ function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (po
 
     return Date.parse(b.post.createdAt) - Date.parse(a.post.createdAt);
   });
+  const postList = useProgressiveItems(sortedPosts, `shelf:${sortMode}:${postListKey(sortedPosts)}`);
 
   return (
     <section className="shelf-view">
@@ -3267,10 +3512,11 @@ function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (po
         </div>
       </div>
       <div className="shelf-grid masonry">
-        {sortedPosts.map((post) => (
+        {postList.visibleItems.map((post) => (
           <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
         ))}
       </div>
+      <LoadMoreSentinel hasMore={postList.hasMore} innerRef={postList.loadMoreRef} />
     </section>
   );
 }
@@ -3329,6 +3575,8 @@ function NoticeListView({
   onOpenPage: (page: EditorialPage) => void;
   pages: EditorialPage[];
 }) {
+  const pageList = useProgressiveItems(pages, `notices:${pages.map((page) => page.id).join("|")}`);
+
   return (
     <section className="notice-list-view">
       <div className="settings-head">
@@ -3343,7 +3591,7 @@ function NoticeListView({
 
       <div className="notice-list">
         {pages.length > 0 ? (
-          pages.map((page) => (
+          pageList.visibleItems.map((page) => (
             <button className="notice-row" key={page.id} type="button" onClick={() => onOpenPage(page)}>
               <span>{page.label}</span>
               <strong>{page.title}</strong>
@@ -3355,6 +3603,7 @@ function NoticeListView({
           <p className="drawer-empty">아직 등록된 공지가 없어요.</p>
         )}
       </div>
+      <LoadMoreSentinel hasMore={pageList.hasMore} innerRef={pageList.loadMoreRef} />
     </section>
   );
 }
@@ -3486,6 +3735,10 @@ function FollowingView({
 
     return `${account.displayName} ${account.handle} ${account.tagline}`.toLowerCase().includes(cleanQuery);
   });
+  const accountList = useProgressiveItems(
+    visibleAccounts,
+    `following:${query.trim()}:${accountListKey(visibleAccounts)}`
+  );
 
   return (
     <section className="drawer-view following-view">
@@ -3521,11 +3774,12 @@ function FollowingView({
       {error ? <p className="drawer-empty">{error}</p> : null}
       {visibleAccounts.length > 0 ? (
         <div className="search-account-list following-account-list">
-          {visibleAccounts.map((account) => (
+          {accountList.visibleItems.map((account) => (
             <AccountResultButton account={account} key={account.id} onOpenProfile={onOpenProfile} />
           ))}
         </div>
       ) : null}
+      <LoadMoreSentinel hasMore={accountList.hasMore} innerRef={accountList.loadMoreRef} />
     </section>
   );
 }
@@ -3582,6 +3836,7 @@ function DrawerView({
 
       return Date.parse(b.post.updatedAt) - Date.parse(a.post.updatedAt);
     });
+  const postList = useProgressiveItems(visiblePosts, `drawer:${sortMode}:${query.trim()}:${postListKey(visiblePosts)}`);
 
   return (
     <section className="drawer-view">
@@ -3633,11 +3888,12 @@ function DrawerView({
       {error ? <p className="drawer-empty">{error}</p> : null}
       {visiblePosts.length > 0 ? (
         <div className="masonry">
-          {visiblePosts.map((post) => (
+          {postList.visibleItems.map((post) => (
             <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
           ))}
         </div>
       ) : null}
+      <LoadMoreSentinel hasMore={postList.hasMore} innerRef={postList.loadMoreRef} />
     </section>
   );
 }
@@ -3645,26 +3901,27 @@ function DrawerView({
 function ProfileView({
   account,
   isOwnProfile,
+  onBack,
   onEdit,
   onOpenDrawer,
   onOpenPost,
-  onOpenProfile,
   onOpenSettings,
   onToggleFollow,
   posts
 }: {
   account: AccountProfile;
   isOwnProfile: boolean;
+  onBack: () => void;
   onEdit: () => void;
   onOpenDrawer: () => void;
   onOpenPost: (post: PostBundle) => void;
-  onOpenProfile: () => void;
   onOpenSettings: () => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
   posts: PostBundle[];
 }) {
   const isSubscribed = account.viewerState?.subscribed ?? false;
   const shelfTitle = isOwnProfile ? "내 글" : `${account.displayName}의 글`;
+  const postList = useProgressiveItems(posts, `profile:${account.id}:${postListKey(posts)}`);
 
   return (
     <section className="profile-view">
@@ -3672,7 +3929,7 @@ function ProfileView({
         {isOwnProfile ? (
           <span aria-hidden="true" />
         ) : (
-          <button className="profile-icon-button" type="button" onClick={onOpenProfile} aria-label="내 프로필로 돌아가기">
+          <button className="profile-icon-button" type="button" onClick={onBack} aria-label="이전 화면으로 돌아가기">
             ←
           </button>
         )}
@@ -3724,7 +3981,7 @@ function ProfileView({
         </div>
         {posts.length > 0 ? (
           <div className="masonry">
-            {posts.map((post) => (
+            {postList.visibleItems.map((post) => (
               <PostPreviewButton
                 hideAuthor
                 hideLikeCount={isOwnProfile}
@@ -3737,6 +3994,7 @@ function ProfileView({
         ) : (
           <p className="profile-empty">아직 공개된 글이 없어요.</p>
         )}
+        <LoadMoreSentinel hasMore={postList.hasMore} innerRef={postList.loadMoreRef} />
       </section>
     </section>
   );

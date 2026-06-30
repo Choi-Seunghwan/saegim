@@ -1219,15 +1219,16 @@ textarea:focus-visible {
 
 .writer-bar {
   position: absolute;
-  left: 12px;
+  left: 18px;
+  right: 84px;
   bottom: 112px;
   z-index: 8;
-  min-width: 92px;
-  max-width: calc(100% - 84px);
-  display: inline-flex;
+  min-width: 0;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 6px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 7px;
   border-radius: 999px;
   background: rgba(252, 251, 252, 0.3);
   backdrop-filter: blur(12px);
@@ -1246,6 +1247,7 @@ textarea:focus-visible {
 }
 
 .writer-bar > button:not(.writer-identity) {
+  flex: 0 0 auto;
   min-height: 23px;
   padding: 0 8px;
   background: rgba(56, 50, 63, 0.08);
@@ -1262,6 +1264,8 @@ textarea:focus-visible {
 }
 
 .writer-identity {
+  min-width: 0;
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -1271,10 +1275,12 @@ textarea:focus-visible {
 
 .writer-identity strong {
   min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .writer-identity .account-name {
-  max-width: 116px;
+  max-width: 100%;
 }
 
 .action-rail {
@@ -2500,15 +2506,17 @@ textarea:focus-visible {
 }
 
 .masonry {
-  columns: 2;
-  column-gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 13px 12px;
 }
 
 .masonry .shelf-card {
   min-height: 190px;
-  display: inline-flex;
+  display: flex;
   width: 100%;
-  margin: 0 0 13px;
+  margin: 0;
 }
 
 .masonry .shelf-card .sq {
@@ -3151,8 +3159,8 @@ textarea:focus-visible {
 
 .post-card-button {
   min-height: 190px;
-  display: inline-flex;
-  margin: 0 0 10px;
+  display: flex;
+  margin: 0;
 }
 
 .post-card-button .sq {
@@ -3489,6 +3497,16 @@ textarea:focus-visible {
 
 .profile-posts .masonry {
   padding: 0 16px;
+}
+
+.list-load-sentinel {
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 8px 22px 26px;
+  color: rgba(56, 50, 63, 0.45);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .profile-empty {
