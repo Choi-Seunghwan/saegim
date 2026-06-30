@@ -1412,6 +1412,11 @@ textarea:focus-visible {
   border-radius: 999px;
 }
 
+.action-rail .more-action .ring {
+  width: 34px;
+  height: 34px;
+}
+
 .action-rail svg {
   width: 25px;
   height: 25px;
@@ -1419,6 +1424,11 @@ textarea:focus-visible {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.action-rail .more-action svg {
+  width: 18px;
+  height: 18px;
 }
 
 .action-rail button.is-on {
@@ -3706,19 +3716,16 @@ textarea:focus-visible {
 }
 
 .guest-tab-avatar {
-  width: 31px;
-  height: 31px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: rgba(56, 50, 63, 0.08);
-  color: var(--muted);
-  box-shadow: inset 0 0 0 1px rgba(56, 50, 63, 0.08);
+  color: inherit;
 }
 
 .guest-tab-avatar svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.9;

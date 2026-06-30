@@ -479,9 +479,9 @@ function CommentIcon() {
 function MoreIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-      <circle cx="5" cy="12" r="1.9" />
-      <circle cx="12" cy="12" r="1.9" />
-      <circle cx="19" cy="12" r="1.9" />
+      <circle cx="6.5" cy="12" r="1.35" />
+      <circle cx="12" cy="12" r="1.35" />
+      <circle cx="17.5" cy="12" r="1.35" />
     </svg>
   );
 }
@@ -2565,7 +2565,7 @@ function DiscoverView({
           </span>
           <small>{formatCount(viewerState?.commentCount ?? 0)}</small>
         </button>
-        <button type="button" aria-label="더보기" onClick={() => onOpenInfo(post, activeCardIndex)}>
+        <button className="more-action" type="button" aria-label="더보기" onClick={() => onOpenInfo(post, activeCardIndex)}>
           <span className="ring">
             <MoreIcon />
           </span>
