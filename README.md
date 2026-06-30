@@ -60,11 +60,12 @@ API 기본 조회 계약:
 - `GET /accounts/:accountId` — 계정 상세 + 공개 글 목록
 - `GET /accounts/recommended`
 - `GET /accounts/following` — 현재 계정이 구독중인 계정 목록
+- `GET /editorial-pages` — 공지·이벤트·광고 소식 목록(DB 기반, MVP 시드는 공지만)
 - `POST /posts` — PostgreSQL 저장
 - `POST /posts/:postId/like` / `DELETE /posts/:postId/like`
 - `POST /posts/:postId/carve` / `DELETE /posts/:postId/carve`
 
-웹은 `NEXT_PUBLIC_API_BASE_URL`을 기준으로 위 API를 읽고, API가 꺼져 있으면 로컬 샘플 데이터로 첫 화면을 유지한다. 포착 탭은 1~N장 글을 `POST /posts`로 발행하고 성공 시 발견 피드로 이동한다.
+웹은 `NEXT_PUBLIC_API_BASE_URL`을 기준으로 위 API를 읽고, 프론트 내장 샘플 fallback은 두지 않는다. 포착 탭은 작성 중 draft를 프론트 메모리에 유지하다가 1~N장 글을 `POST /posts`로 발행하고, 성공 시 draft를 비운 뒤 발견 피드로 이동한다. 서버 시작 시 API가 MVP용 계정/글 샘플과 공지 1건을 PostgreSQL에 idempotent하게 보강한다.
 
 API의 현재 계정은 이메일 로그인 또는 Google OAuth가 발급한 세션 쿠키(`saegim_session`)로 해석한다. 개발 환경에서는 세션이 없을 때 요청 헤더 `x-saegim-account-id`로 현재 계정을 임시 전환할 수 있고, 웹은 `NEXT_PUBLIC_DEV_ACCOUNT_ID`가 있으면 이 헤더를 자동으로 붙인다. 세션도 개발 헤더도 없으면 개발 기본값 `DEV_ACCOUNT_ID`를 사용하며, 운영 환경에서는 세션이 없으면 인증 오류를 반환한다.
 

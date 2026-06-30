@@ -484,6 +484,37 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.home-empty-card {
+  min-height: 158px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 24px 22px;
+  border-radius: 22px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 16px 34px -22px rgba(60, 45, 70, 0.24);
+}
+
+.home-empty-card strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.home-empty-card p,
+.home-empty-inline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.home-empty-inline {
+  min-width: 190px;
+  padding: 18px 0;
+}
+
 .hb-viewport {
   width: 100%;
   min-width: 0;
@@ -999,6 +1030,34 @@ textarea:focus-visible {
   position: relative;
   overflow: hidden;
   touch-action: none;
+}
+
+.empty-discover {
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: linear-gradient(150deg, #f4f1f3, #e7e5ea 55%, #d8dae4);
+  color: var(--ink);
+}
+
+.empty-discover-card {
+  display: grid;
+  gap: 8px;
+  max-width: 280px;
+  text-align: center;
+}
+
+.empty-discover-card strong {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.empty-discover-card p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
 }
 
 .detail-carousel {

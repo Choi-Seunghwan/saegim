@@ -13,6 +13,7 @@ import type {
   AccountProfile,
   CardComposition,
   CreatePostInput,
+  EditorialPage,
   PostBundle,
   PostComment,
   SentenceCard,
@@ -26,6 +27,7 @@ import {
   fetchPostComments,
   fetchCurrentAccount,
   fetchDrawer,
+  fetchEditorialPages,
   fetchFeed,
   fetchFollowingAccounts,
   fetchRecommendedAccounts,
@@ -42,7 +44,6 @@ import {
   unfollowAccount,
   updateCurrentAccount
 } from "../lib/api";
-import { sampleAccounts, samplePosts } from "../lib/sample-data";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
 type EntryState = "guest" | "signed-in";
@@ -55,7 +56,6 @@ type AuthSubmitInput = {
   email: string;
   password: string;
 };
-type EditorialPageKind = "notice" | "event" | "ad";
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
 type MainReturnTab = Exclude<TabKey, "capture">;
 type CaptureToolKey = "title" | "background" | "source" | "tag";
@@ -95,19 +95,6 @@ type DetailDragState = {
   isAnimating: boolean;
 };
 type EditorialPageState = { pageId: string; origin: EditorialPageOrigin };
-type EditorialPage = {
-  id: string;
-  kind: EditorialPageKind;
-  label: string;
-  title: string;
-  date: string;
-  summary: string;
-  body: string[];
-  cta?: {
-    label: string;
-    action: "discover" | "contact";
-  };
-};
 
 const tabLabels: Record<TabKey, string> = {
   home: "홈",
@@ -124,58 +111,20 @@ const topbarCopy: Record<Exclude<TabKey, "discover">, { title: string; subtitle:
   me: { title: "나", subtitle: "내가 남긴 글과 서랍" }
 };
 
-const editorialPages: EditorialPage[] = [
-  {
-    id: "notice-mvp-progress",
-    kind: "notice",
-    label: "공지",
-    title: "새김 MVP를 다듬고 있어요",
-    date: "2026.06.29",
-    summary: "발견, 새김, 프로필, 서랍의 기본 흐름을 먼저 단단하게 만들고 있어요.",
-    body: [
-      "새김은 좋은 문장을 카드로 만들고, 발견하고, 마음에 담아 다시 보는 경험을 먼저 완성하고 있어요.",
-      "지금은 발견 피드, 좋아요와 새김, 댓글, 프로필, 서랍, Google 계정 연결을 차례대로 붙이는 단계예요.",
-      "소식 페이지는 운영자 CMS가 붙기 전까지 정적 페이지로 운영하면서 공지와 이벤트 흐름을 먼저 확인합니다."
-    ]
-  },
-  {
-    id: "event-first-sentence",
-    kind: "event",
-    label: "이벤트",
-    title: "첫 번째로 남기고 싶은 문장",
-    date: "2026.06.29",
-    summary: "나중에 첫 사용자 이벤트로 확장할 문장 수집 흐름을 준비하고 있어요.",
-    body: [
-      "처음 새기고 싶은 문장은 대개 아주 크지 않아요. 오래 남은 한 줄, 자주 떠오르는 한 문장이면 충분해요.",
-      "이 이벤트 자리는 포착과 발견의 연결을 검증하기 위한 자리로 먼저 열어 둡니다."
-    ],
-    cta: {
-      label: "발견으로 이동",
-      action: "discover"
-    }
-  },
-  {
-    id: "ad-book-connection",
-    kind: "ad",
-    label: "AD",
-    title: "출처 있는 문장을 카드로 만나는 자리",
-    date: "2026.06.29",
-    summary: "책, 연설, 글, 명언처럼 출처가 있는 문장이 새김 안에서 자연스럽게 발견되는 방식을 준비 중이에요.",
-    body: [
-      "새김의 출처 연결은 문장을 먼저 만나고, 관심이 생기면 원문이나 출처 페이지로 이어지는 조용한 흐름을 목표로 합니다.",
-      "현재는 정보 패널에 출처와 태그를 먼저 정돈해 보여주고, 원문이나 출처 페이지로 이어지는 연결은 후속 기능으로 준비하고 있어요."
-    ],
-    cta: {
-      label: "제휴 문의",
-      action: "contact"
-    }
-  }
-];
-
-const editorialHeroBackgrounds: Record<EditorialPageKind, string> = {
+const editorialHeroBackgrounds: Record<EditorialPage["kind"], string> = {
   notice: "linear-gradient(150deg,#4A4651,#38323F)",
   event: "linear-gradient(150deg,#5A5466,#3C3652)",
   ad: "linear-gradient(150deg,#6E6A74,#4A4651)"
+};
+
+const guestAccount: AccountProfile = {
+  id: "guest",
+  handle: "guest",
+  displayName: "게스트",
+  tagline: "마음에 새길 한 줄을 둘러보는 중",
+  verification: "none",
+  postCount: 0,
+  writingFriendCount: 0
 };
 
 const captureToolLabels: Record<CaptureSheetKey, string> = {
@@ -251,16 +200,6 @@ const captureAlignOptions: { value: CardComposition["align"]; label: string }[] 
   { value: "center", label: "가운데" },
   { value: "right", label: "오른쪽" }
 ];
-
-function mergeUniquePosts(primaryPosts: PostBundle[], fallbackPosts: PostBundle[]) {
-  const seenPostIds = new Set(primaryPosts.map((post) => post.post.id));
-  return [...primaryPosts, ...fallbackPosts.filter((post) => !seenPostIds.has(post.post.id))];
-}
-
-function mergeUniqueAccounts(primaryAccounts: AccountProfile[], fallbackAccounts: AccountProfile[]) {
-  const seenAccountIds = new Set(primaryAccounts.map((account) => account.id));
-  return [...primaryAccounts, ...fallbackAccounts.filter((account) => !seenAccountIds.has(account.id))];
-}
 
 function formatCount(value: number) {
   return value.toLocaleString("ko-KR");
@@ -393,97 +332,6 @@ function cardSourceLabel(card: SentenceCard) {
   if (card.source.kind === "direct") return "";
   const formatted = formatSource(card.source);
   return formatted === "직접 새김" ? "" : formatted;
-}
-
-function postWithViewerState(post: PostBundle, patch: Partial<NonNullable<PostBundle["viewerState"]>>): PostBundle {
-  const viewerState = post.viewerState ?? {
-    liked: false,
-    carved: false,
-    subscribed: false,
-    likeCount: 0,
-    commentCount: 0
-  };
-
-  return {
-    ...post,
-    viewerState: {
-      ...viewerState,
-      ...patch
-    }
-  };
-}
-
-function titleFromText(text: string) {
-  const firstLine = text.split(/\r?\n/)[0]?.trim() || "새로 새긴 글";
-  return firstLine.length > 24 ? `${firstLine.slice(0, 24)}...` : firstLine;
-}
-
-function localPostId() {
-  return `local-post-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function createLocalPostBundle(input: CreatePostInput, author: AccountProfile): PostBundle {
-  const now = new Date().toISOString();
-  const postId = localPostId();
-  const cards = input.cards.map((card, order) => {
-    const source = card.source ?? {};
-    const comp = { ...DEFAULT_CARD_COMP, ...card.comp };
-
-    return {
-      id: `${postId}-card-${order + 1}`,
-      postId,
-      order,
-      text: card.text.trim(),
-      comp,
-      source: {
-        kind: source.kind ?? "direct",
-        ...(source.author ? { author: source.author } : {}),
-        ...(source.work ? { work: source.work } : {}),
-        ...(source.url ? { url: source.url } : {})
-      },
-      tags: (card.tags ?? []).filter(Boolean).slice(0, 3),
-      embeddingStatus: "pending" as const,
-      createdAt: now
-    };
-  });
-  const firstCard = cards[0]!;
-  const title = input.title?.trim() || titleFromText(firstCard.text);
-
-  return {
-    post: {
-      id: postId,
-      title,
-      authorId: author.id,
-      coverCardId: firstCard.id,
-      cardCount: cards.length,
-      visibility: input.visibility ?? "public",
-      creationType: input.creationType ?? "original",
-      createdAt: now,
-      updatedAt: now
-    },
-    author: {
-      ...author,
-      postCount: author.postCount + 1
-    },
-    cards,
-    viewerState: {
-      liked: false,
-      carved: false,
-      subscribed: false,
-      likeCount: 0,
-      commentCount: 0
-    }
-  };
-}
-
-function accountWithProfileInput(account: AccountProfile, input: UpdateAccountInput): AccountProfile {
-  return {
-    ...account,
-    displayName: input.displayName?.trim() || account.displayName,
-    tagline: input.tagline?.trim() ?? account.tagline,
-    bio: input.bio === undefined ? (account.bio ?? "") : (input.bio ?? ""),
-    photoUrl: input.photoUrl === undefined ? (account.photoUrl ?? "") : (input.photoUrl ?? "")
-  };
 }
 
 function SearchIcon() {
@@ -691,25 +539,19 @@ export function SaegimShell() {
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [posts, setPosts] = useState<PostBundle[]>(samplePosts);
-  const [accounts, setAccounts] = useState<AccountProfile[]>(sampleAccounts);
-  const [currentAccount, setCurrentAccount] = useState<AccountProfile>(
-    sampleAccounts.find((account) => account.id === "acct-me") ?? sampleAccounts[0]!
-  );
-  const displayPostsForUi = useMemo(() => mergeUniquePosts(posts, samplePosts), [posts]);
-  const drawerFallbackPosts = useMemo(
-    () => displayPostsForUi.filter((post) => post.viewerState?.carved),
-    [displayPostsForUi]
-  );
-  const featuredPost = displayPostsForUi[0] ?? samplePosts[0]!;
+  const [posts, setPosts] = useState<PostBundle[]>([]);
+  const [accounts, setAccounts] = useState<AccountProfile[]>([]);
+  const [editorialPages, setEditorialPages] = useState<EditorialPage[]>([]);
+  const [currentAccount, setCurrentAccount] = useState<AccountProfile>(guestAccount);
+  const featuredPost = posts[0] ?? null;
   const activePost = posts.find((post) => post.post.id === activePostId) ?? featuredPost;
   const selectedProfile =
     selectedProfileId === currentAccount.id
       ? currentAccount
       : accounts.find((account) => account.id === selectedProfileId) ??
-        displayPostsForUi.find((post) => post.author.id === selectedProfileId)?.author ??
+        posts.find((post) => post.author.id === selectedProfileId)?.author ??
         currentAccount;
-  const selectedProfilePosts = displayPostsForUi.filter((post) => post.author.id === selectedProfile.id);
+  const selectedProfilePosts = posts.filter((post) => post.author.id === selectedProfile.id);
   const isOwnProfile = selectedProfile.id === currentAccount.id;
   const infoSheetPost = infoSheet ? posts.find((post) => post.post.id === infoSheet.postId) : null;
   const selectedEditorialPage = editorialPageState
@@ -736,10 +578,7 @@ export function SaegimShell() {
     .filter(Boolean)
     .join(" ");
   const topbar = activeTab === "discover" ? topbarCopy.home : topbarCopy[activeTab];
-  const activePostIndex = Math.max(
-    0,
-    posts.findIndex((post) => post.post.id === activePost.post.id)
-  );
+  const activePostIndex = activePost ? Math.max(0, posts.findIndex((post) => post.post.id === activePost.post.id)) : 0;
 
   function handlePostPublished(post: PostBundle) {
     setPosts((currentPosts) => [post, ...currentPosts.filter((item) => item.post.id !== post.post.id)]);
@@ -918,7 +757,7 @@ export function SaegimShell() {
     setDetailReturnTarget(null);
 
     if (tab === "discover") {
-      setActivePostId((currentPostId) => currentPostId ?? featuredPost.post.id);
+      setActivePostId((currentPostId) => currentPostId ?? featuredPost?.post.id ?? null);
       setActiveCardIndex(0);
     }
 
@@ -996,7 +835,7 @@ export function SaegimShell() {
       const updatedPost = post.viewerState?.carved ? await uncarvePost(post.post.id) : await carvePost(post.post.id);
       replacePost(updatedPost);
     } catch {
-      replacePost(postWithViewerState(post, { carved: !post.viewerState?.carved }));
+      // 네트워크 실패 시 현재 화면 상태를 유지한다.
     }
   }
 
@@ -1005,13 +844,7 @@ export function SaegimShell() {
       return;
     }
 
-    let updatedAccount: AccountProfile;
-
-    try {
-      updatedAccount = await updateCurrentAccount(input);
-    } catch {
-      updatedAccount = accountWithProfileInput(currentAccount, input);
-    }
+    const updatedAccount = await updateCurrentAccount(input);
 
     setCurrentAccount(updatedAccount);
     replaceAccount(updatedAccount);
@@ -1028,22 +861,7 @@ export function SaegimShell() {
       replaceAccount(updatedAccount);
       return updatedAccount;
     } catch {
-      const fallbackAccount =
-        accounts.find((account) => account.id === accountId) ??
-        displayPostsForUi.find((post) => post.author.id === accountId)?.author;
-
-      if (!fallbackAccount) {
-        return null;
-      }
-
-      const updatedAccount = {
-        ...fallbackAccount,
-        viewerState: {
-          subscribed: !subscribed
-        }
-      };
-      replaceAccount(updatedAccount);
-      return updatedAccount;
+      return null;
     }
   }
 
@@ -1163,6 +981,10 @@ export function SaegimShell() {
   }
 
   function selectCard(index: number) {
+    if (!activePost) {
+      return;
+    }
+
     setActiveCardIndex(Math.min(Math.max(index, 0), activePost.cards.length - 1));
   }
 
@@ -1195,18 +1017,15 @@ export function SaegimShell() {
 
     async function loadInitialData() {
       try {
-        const [nextPosts, nextAccounts] = await Promise.all([
+        const [nextPosts, nextAccounts, nextEditorialPages] = await Promise.all([
           fetchFeed(controller.signal),
-          fetchRecommendedAccounts(controller.signal)
+          fetchRecommendedAccounts(controller.signal),
+          fetchEditorialPages(controller.signal)
         ]);
 
-        if (nextPosts.length > 0) {
-          setPosts(nextPosts);
-        }
-
-        if (nextAccounts.length > 0) {
-          setAccounts(nextAccounts);
-        }
+        setPosts(nextPosts);
+        setAccounts(nextAccounts);
+        setEditorialPages(nextEditorialPages);
 
         if (entryState === "signed-in" && !usesLocalAuth) {
           const nextCurrentAccount = await fetchCurrentAccount(controller.signal);
@@ -1214,7 +1033,11 @@ export function SaegimShell() {
           setSelectedProfileId(nextCurrentAccount.id);
         }
       } catch {
-        // API가 아직 꺼져 있어도 프로토타입 샘플로 첫 화면을 유지한다.
+        if (!controller.signal.aborted) {
+          setPosts([]);
+          setAccounts([]);
+          setEditorialPages([]);
+        }
       }
     }
 
@@ -1223,8 +1046,13 @@ export function SaegimShell() {
   }, [entryState, usesLocalAuth]);
 
   useEffect(() => {
+    if (!activePost) {
+      setActiveCardIndex(0);
+      return;
+    }
+
     setActiveCardIndex((currentIndex) => Math.min(currentIndex, Math.max(activePost.cards.length - 1, 0)));
-  }, [activePost.cards.length, activePost.post.id]);
+  }, [activePost?.cards.length, activePost?.post.id]);
 
   const content = useMemo(() => {
     if (selectedEditorialPage) {
@@ -1232,7 +1060,15 @@ export function SaegimShell() {
         <EditorialPageView
           page={selectedEditorialPage}
           onBack={closeEditorialPage}
-          onOpenDiscover={() => openPost(featuredPost)}
+          onOpenDiscover={() => {
+            if (featuredPost) {
+              openPost(featuredPost);
+              return;
+            }
+
+            setEditorialPageState(null);
+            setActiveTab("discover");
+          }}
         />
       );
     }
@@ -1256,6 +1092,10 @@ export function SaegimShell() {
     }
 
     if (activeTab === "discover") {
+      if (!activePost) {
+        return <EmptyDiscoverView />;
+      }
+
       return (
         <DiscoverView
           activeCardIndex={activeCardIndex}
@@ -1290,7 +1130,6 @@ export function SaegimShell() {
     if (activeTab === "capture") {
       return (
         <CaptureView
-          currentAccount={currentAccount}
           onClose={() => selectTab(captureReturnTab)}
           onPublished={handlePostPublished}
         />
@@ -1328,7 +1167,6 @@ export function SaegimShell() {
       if (isViewingFollowing) {
         return (
           <FollowingView
-            fallbackAccounts={accounts}
             onBack={() => {
               setIsViewingFollowing(false);
               setIsViewingSettings(true);
@@ -1341,7 +1179,6 @@ export function SaegimShell() {
       if (isViewingDrawer) {
         return (
           <DrawerView
-            fallbackPosts={drawerFallbackPosts}
             onBack={() => {
               setIsViewingDrawer(false);
               if (drawerReturnSurface === "settings") {
@@ -1413,8 +1250,8 @@ export function SaegimShell() {
     currentAccount,
     detailReturnTarget,
     drawerReturnSurface,
-    drawerFallbackPosts,
     entryState,
+    editorialPages,
     featuredPost,
     isEditingProfile,
     isSearching,
@@ -1425,7 +1262,6 @@ export function SaegimShell() {
     isOwnProfile,
     noticePages,
     posts,
-    displayPostsForUi,
     selectedEditorialPage,
     selectedProfile,
     selectedProfilePosts
@@ -1687,28 +1523,12 @@ function SearchView({
   const [status, setStatus] = useState<"loading" | "idle">("loading");
   const [error, setError] = useState("");
   const cleanQuery = query.trim();
-  const lowerQuery = cleanQuery.toLowerCase();
-  const recentQueries = ["윤동주", "위로", "밤"];
-  const fallbackAccounts = cleanQuery
-    ? sampleAccounts.filter((account) =>
-        `${account.displayName} ${account.handle} ${account.tagline} ${account.bio ?? ""}`.toLowerCase().includes(lowerQuery)
-      )
-    : [];
-  const fallbackPosts = cleanQuery
-    ? samplePosts.filter((post) =>
-        `${post.post.title} ${post.author.displayName} ${post.cards
-          .map((card) => `${card.text} ${card.tags.join(" ")}`)
-          .join(" ")}`.toLowerCase().includes(lowerQuery)
-      )
-    : [];
-  const resultAccounts = cleanQuery ? mergeUniqueAccounts(accounts, fallbackAccounts) : accounts;
-  const resultPosts = cleanQuery ? mergeUniquePosts(posts, fallbackPosts) : posts;
-  const suggestedPosts = mergeUniquePosts(posts, samplePosts)
+  const suggestedPosts = posts
     .slice()
     .sort((a, b) => (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0))
     .slice(0, 4);
-  const visibleAccounts = segment === "posts" ? [] : resultAccounts;
-  const visiblePosts = segment === "accounts" ? [] : resultPosts;
+  const visibleAccounts = segment === "posts" ? [] : accounts;
+  const visiblePosts = segment === "accounts" ? [] : posts;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1779,20 +1599,16 @@ function SearchView({
 
       {!cleanQuery ? (
         <section className="search-suggest">
-          <div className="search-label">최근 검색</div>
-          <div className="search-chip-row">
-            {recentQueries.map((item) => (
-              <button key={item} type="button" onClick={() => setQuery(item)}>
-                {item}
-              </button>
-            ))}
-          </div>
           <div className="search-label">인기 있는 글</div>
-          <div className="masonry">
-            {suggestedPosts.map((post) => (
-              <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
-            ))}
-          </div>
+          {suggestedPosts.length > 0 ? (
+            <div className="masonry">
+              {suggestedPosts.map((post) => (
+                <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
+              ))}
+            </div>
+          ) : (
+            <p className="search-empty">아직 보여줄 글이 없어요.</p>
+          )}
         </section>
       ) : null}
 
@@ -1915,23 +1731,24 @@ function HomeView({
   onOpenProfile: (account: AccountProfile) => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
 }) {
-  const displayPosts = mergeUniquePosts(posts, samplePosts);
-  const displayAccounts = mergeUniqueAccounts(accounts, sampleAccounts).filter(
-    (account) => account.id !== currentAccountId
-  );
-  const heroPost = displayPosts[0] ?? samplePosts[0]!;
-  const heroCard = heroPost.cards[0]!;
-  const todayPosts = displayPosts.slice(0, 5);
+  const displayAccounts = accounts.filter((account) => account.id !== currentAccountId);
+  const heroPost = posts[0] ?? null;
+  const heroCard = heroPost?.cards[0] ?? null;
+  const todayPosts = posts.slice(0, 5);
   const heroItems = [
-    {
-      kind: "post" as const,
-      key: heroPost.post.id,
-      tag: "오늘 닿은 글",
-      text: heroCard.text,
-      by: `${heroPost.author.displayName} · 『${heroPost.post.title}』`,
-      style: cardSurfaceStyle(heroCard),
-      onOpen: () => onOpenPost(heroPost)
-    },
+    ...(heroPost && heroCard
+      ? [
+          {
+            kind: "post" as const,
+            key: heroPost.post.id,
+            tag: "오늘 닿은 글",
+            text: heroCard.text,
+            by: `${heroPost.author.displayName} · 『${heroPost.post.title}』`,
+            style: cardSurfaceStyle(heroCard),
+            onOpen: () => onOpenPost(heroPost)
+          }
+        ]
+      : []),
     ...editorialPages.map((page) => ({
       kind: "page" as const,
       key: page.id,
@@ -1947,10 +1764,11 @@ function HomeView({
     }))
   ];
   const [heroIndex, setHeroIndex] = useState(0);
+  const safeHeroIndex = Math.min(heroIndex, Math.max(heroItems.length - 1, 0));
 
   useEffect(() => {
     setHeroIndex(0);
-  }, [heroPost.post.id, editorialPages.length]);
+  }, [heroPost?.post.id, editorialPages.length]);
 
   useEffect(() => {
     if (heroItems.length < 2) return undefined;
@@ -1965,28 +1783,37 @@ function HomeView({
   return (
     <div className="home-view">
       <div className="hero-carousel">
-        <div className="hb-viewport">
-          <div className="hb-track" style={{ transform: `translateX(-${heroIndex * 100}%)` }}>
-            {heroItems.map((item) => (
-              <button className="hb-slide" key={item.key} type="button" onClick={item.onOpen} style={item.style}>
-                <span className="hb-tag">{item.tag}</span>
-                <p className="hb-q">{item.text}</p>
-                <span className="hb-by">{item.by}</span>
-              </button>
-            ))}
+        {heroItems.length > 0 ? (
+          <>
+            <div className="hb-viewport">
+              <div className="hb-track" style={{ transform: `translateX(-${safeHeroIndex * 100}%)` }}>
+                {heroItems.map((item) => (
+                  <button className="hb-slide" key={item.key} type="button" onClick={item.onOpen} style={item.style}>
+                    <span className="hb-tag">{item.tag}</span>
+                    <p className="hb-q">{item.text}</p>
+                    <span className="hb-by">{item.by}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="hb-dots" aria-hidden="true">
+              {heroItems.map((item, index) => (
+                <button
+                  aria-label={`${index + 1}번째 배너`}
+                  className={index === safeHeroIndex ? "is-active" : undefined}
+                  key={item.key}
+                  type="button"
+                  onClick={() => setHeroIndex(index)}
+                />
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="home-empty-card">
+            <strong>홈에 보여줄 데이터가 없어요.</strong>
+            <p>DB에 글이나 공지 데이터가 추가되면 이곳에 표시돼요.</p>
           </div>
-        </div>
-        <div className="hb-dots" aria-hidden="true">
-          {heroItems.map((item, index) => (
-            <button
-              aria-label={`${index + 1}번째 배너`}
-              className={index === heroIndex ? "is-active" : undefined}
-              key={item.key}
-              type="button"
-              onClick={() => setHeroIndex(index)}
-            />
-          ))}
-        </div>
+        )}
       </div>
 
       <section className="home-sec">
@@ -1997,46 +1824,63 @@ function HomeView({
           </button>
         </div>
         <div className="home-rail">
-          {todayPosts.map((item) => (
-            <PostPreviewButton key={item.post.id} post={item} onOpenPost={onOpenPost} />
-          ))}
+          {todayPosts.length > 0 ? (
+            todayPosts.map((item) => <PostPreviewButton key={item.post.id} post={item} onOpenPost={onOpenPost} />)
+          ) : (
+            <p className="home-empty-inline">아직 공개된 글이 없어요.</p>
+          )}
         </div>
       </section>
 
       <section className="home-sec">
         <div className="home-h">추천 글벗</div>
         <div className="home-rail account-rail">
-          {displayAccounts.map((account) => {
-            const isSubscribed = account.viewerState?.subscribed ?? false;
+          {displayAccounts.length > 0 ? (
+            displayAccounts.map((account) => {
+              const isSubscribed = account.viewerState?.subscribed ?? false;
 
-            return (
-              <article className="home-acct account-chip" key={account.id}>
-                <button className="account-chip-main" type="button" onClick={() => onOpenProfile(account)}>
-                  <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
-                  <div>
-                    <strong>
-                      <AccountName account={account} />
-                    </strong>
-                    <p>{account.tagline}</p>
-                    <small className="fol">
-                      글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
-                    </small>
-                  </div>
-                </button>
-                <button
-                  className={isSubscribed ? "is-subscribed" : undefined}
-                  type="button"
-                  aria-pressed={isSubscribed}
-                  onClick={() => onToggleFollow(account.id, isSubscribed)}
-                >
-                  {isSubscribed ? "구독중" : "구독"}
-                </button>
-              </article>
-            );
-          })}
+              return (
+                <article className="home-acct account-chip" key={account.id}>
+                  <button className="account-chip-main" type="button" onClick={() => onOpenProfile(account)}>
+                    <Avatar displayName={account.displayName} photoUrl={account.photoUrl} />
+                    <div>
+                      <strong>
+                        <AccountName account={account} />
+                      </strong>
+                      <p>{account.tagline}</p>
+                      <small className="fol">
+                        글 {formatCount(account.postCount)}개 · 글벗 {formatCount(account.writingFriendCount)}
+                      </small>
+                    </div>
+                  </button>
+                  <button
+                    className={isSubscribed ? "is-subscribed" : undefined}
+                    type="button"
+                    aria-pressed={isSubscribed}
+                    onClick={() => onToggleFollow(account.id, isSubscribed)}
+                  >
+                    {isSubscribed ? "구독중" : "구독"}
+                  </button>
+                </article>
+              );
+            })
+          ) : (
+            <p className="home-empty-inline">추천할 글벗이 아직 없어요.</p>
+          )}
         </div>
       </section>
     </div>
+  );
+}
+
+function EmptyDiscoverView() {
+  return (
+    <section className="discover-view empty-discover">
+      <div className="empty-discover-card">
+        <strong>아직 발견할 글이 없어요.</strong>
+        <p>DB에 공개 글이 추가되면 이곳에 바로 보여요.</p>
+      </div>
+    </section>
   );
 }
 
@@ -2688,11 +2532,9 @@ function CommentSheet({
 }
 
 function CaptureView({
-  currentAccount,
   onClose,
   onPublished
 }: {
-  currentAccount: AccountProfile;
   onClose: () => void;
   onPublished: (post: PostBundle) => void;
 }) {
@@ -2960,10 +2802,8 @@ function CaptureView({
       const publishedPost = await createPost(input);
       resetCaptureDrafts();
       onPublished(publishedPost);
-    } catch {
-      const fallbackPost = createLocalPostBundle(input, currentAccount);
-      resetCaptureDrafts();
-      onPublished(fallbackPost);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "발행할 수 없어요. 잠시 뒤 다시 시도해 주세요.");
     } finally {
       setStatus("idle");
       setConfirmState(null);
@@ -3378,12 +3218,11 @@ function CaptureView({
 
 function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (post: PostBundle) => void }) {
   const [sortMode, setSortMode] = useState<"popular" | "new">("popular");
-  const displayPosts = mergeUniquePosts(posts, samplePosts);
-  const heroPost = displayPosts
+  const heroPost = posts
     .slice()
-    .sort((a, b) => (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0))[0]!;
-  const heroCard = heroPost.cards[0]!;
-  const sortedPosts = displayPosts.slice().sort((a, b) => {
+    .sort((a, b) => (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0))[0] ?? null;
+  const heroCard = heroPost?.cards[0] ?? null;
+  const sortedPosts = posts.slice().sort((a, b) => {
     if (sortMode === "popular") {
       return (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0);
     }
@@ -3393,15 +3232,19 @@ function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (po
 
   return (
     <section className="shelf-view">
-      <button className="shelf-hero" type="button" onClick={() => onOpenPost(heroPost)} style={cardSurfaceStyle(heroCard)}>
-        <div className="tag">✦ 에디터 픽 · 오늘의 글</div>
-        <div className="htt">{heroPost.post.title}</div>
-        <div className="hq">{heroCard.text}</div>
-        <div className="hm">
-          {heroPost.post.cardCount}장 · ♡ {formatCount(heroPost.viewerState?.likeCount ?? 0)} ·{" "}
-          <AccountName account={heroPost.author} />
-        </div>
-      </button>
+      {heroPost && heroCard ? (
+        <button className="shelf-hero" type="button" onClick={() => onOpenPost(heroPost)} style={cardSurfaceStyle(heroCard)}>
+          <div className="tag">✦ 에디터 픽 · 오늘의 글</div>
+          <div className="htt">{heroPost.post.title}</div>
+          <div className="hq">{heroCard.text}</div>
+          <div className="hm">
+            {heroPost.post.cardCount}장 · ♡ {formatCount(heroPost.viewerState?.likeCount ?? 0)} ·{" "}
+            <AccountName account={heroPost.author} />
+          </div>
+        </button>
+      ) : (
+        <p className="drawer-empty">아직 둘러볼 글이 없어요.</p>
+      )}
       <div className="shelf-bar">
         <div className="shelf-seclabel">
           <span>글 둘러보기</span>
@@ -3499,14 +3342,18 @@ function NoticeListView({
       </div>
 
       <div className="notice-list">
-        {pages.map((page) => (
-          <button className="notice-row" key={page.id} type="button" onClick={() => onOpenPage(page)}>
-            <span>{page.label}</span>
-            <strong>{page.title}</strong>
-            <p>{page.summary}</p>
-            <small>{page.date}</small>
-          </button>
-        ))}
+        {pages.length > 0 ? (
+          pages.map((page) => (
+            <button className="notice-row" key={page.id} type="button" onClick={() => onOpenPage(page)}>
+              <span>{page.label}</span>
+              <strong>{page.title}</strong>
+              <p>{page.summary}</p>
+              <small>{page.date}</small>
+            </button>
+          ))
+        ) : (
+          <p className="drawer-empty">아직 등록된 공지가 없어요.</p>
+        )}
       </div>
     </section>
   );
@@ -3599,11 +3446,9 @@ function SettingsView({
 }
 
 function FollowingView({
-  fallbackAccounts,
   onBack,
   onOpenProfile
 }: {
-  fallbackAccounts: AccountProfile[];
   onBack: () => void;
   onOpenProfile: (account: AccountProfile) => void;
 }) {
@@ -3624,17 +3469,16 @@ function FollowingView({
         setStatus("idle");
       } catch {
         if (!controller.signal.aborted) {
-          const fallbackFollowing = fallbackAccounts.filter((account) => account.viewerState?.subscribed);
-          setFollowingAccounts(fallbackFollowing);
+          setFollowingAccounts([]);
           setStatus("idle");
-          setError("");
+          setError("구독 목록을 불러올 수 없어요.");
         }
       }
     }
 
     void loadFollowing();
     return () => controller.abort();
-  }, [fallbackAccounts]);
+  }, []);
 
   const visibleAccounts = followingAccounts.filter((account) => {
     const cleanQuery = query.trim().toLowerCase();
@@ -3687,11 +3531,9 @@ function FollowingView({
 }
 
 function DrawerView({
-  fallbackPosts,
   onBack,
   onOpenPost
 }: {
-  fallbackPosts: PostBundle[];
   onBack: () => void;
   onOpenPost: (post: PostBundle) => void;
 }) {
@@ -3713,16 +3555,16 @@ function DrawerView({
         setStatus("idle");
       } catch {
         if (!controller.signal.aborted) {
-          setDrawerPosts(fallbackPosts);
+          setDrawerPosts([]);
           setStatus("idle");
-          setError("");
+          setError("서랍을 불러올 수 없어요.");
         }
       }
     }
 
     void loadDrawer();
     return () => controller.abort();
-  }, [fallbackPosts]);
+  }, []);
 
   const visiblePosts = drawerPosts
     .filter((post) => {

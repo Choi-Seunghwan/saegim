@@ -41,6 +41,17 @@ enum OAuthProvider {
   NAVER
 }
 
+enum EditorialPageKind {
+  NOTICE
+  EVENT
+  AD
+}
+
+enum EditorialCtaAction {
+  DISCOVER
+  CONTACT
+}
+
 model Account {
   id                 String            @id @default(cuid())
   handle             String            @unique
@@ -186,4 +197,21 @@ model Comment {
 
   @@index([postId, createdAt])
   @@index([authorId])
+}
+
+model EditorialPage {
+  id          String              @id @default(cuid())
+  kind        EditorialPageKind
+  label       String
+  title       String
+  summary     String              @default("")
+  body        String[]            @default([])
+  ctaLabel    String?
+  ctaAction   EditorialCtaAction?
+  publishedAt DateTime
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([kind, isActive, publishedAt])
 }

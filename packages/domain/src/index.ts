@@ -7,6 +7,8 @@ export type VerificationState = "none" | "official";
 export type PostVisibility = "public" | "private";
 export type PostCreationType = "original" | "curation";
 export type SourceKind = "book" | "web" | "direct" | "publisher";
+export type EditorialPageKind = "notice" | "event" | "ad";
+export type EditorialPageCtaAction = "discover" | "contact";
 
 export interface CardPosition {
   xp: number;
@@ -137,6 +139,20 @@ export interface CommentMutationResult {
 export interface SearchResult {
   accounts: AccountProfile[];
   posts: PostBundle[];
+}
+
+export interface EditorialPage {
+  id: SaegimId;
+  kind: EditorialPageKind;
+  label: string;
+  title: string;
+  date: string;
+  summary: string;
+  body: string[];
+  cta?: {
+    label: string;
+    action: EditorialPageCtaAction;
+  };
 }
 
 export interface AccountDetail {

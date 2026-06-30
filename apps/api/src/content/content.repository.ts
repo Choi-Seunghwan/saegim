@@ -2,13 +2,15 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { Prisma } from "@prisma/client";
 import { CurrentAccountService } from "../auth/current-account.service.js";
 import { PrismaService } from "../database/prisma.service.js";
-import { seedAccounts, seedPostBundles } from "./seed-data.js";
+import { seedAccounts, seedEditorialPages, seedPostBundles } from "./seed-data.js";
 import type {
   AccountProfile,
   CardComposition,
   ContentSource,
   CreateCommentInput,
   CreatePostInput,
+  EditorialPage,
+  EditorialPageKind,
   PostComment,
   PostBundle,
   SearchResult,
@@ -94,8 +96,10 @@ type PostWithRelations = Prisma.PostGetPayload<{
 type CommentWithAuthor = Prisma.CommentGetPayload<{
   include: typeof commentInclude;
 }>;
+type EditorialPageRecord = Prisma.EditorialPageGetPayload<{}>;
 
 const sourceKinds: ContentSource["kind"][] = ["book", "web", "direct", "publisher"];
+const editorialPageKinds: EditorialPageKind[] = ["notice", "event", "ad"];
 const defaultCardComp: CardComposition = {
   bg: "linear-gradient(150deg,#F4F1F3,#E7E5EA 55%,#D8DAE4)",
   dim: 0,
@@ -177,6 +181,35 @@ export class ContentRepository {
         }
       });
     }
+
+    for (const page of seedEditorialPages) {
+      await this.prisma.editorialPage.upsert({
+        where: { id: page.id },
+        update: {
+          kind: this.toDbEditorialPageKind(page.kind),
+          label: page.label,
+          title: page.title,
+          summary: page.summary,
+          body: page.body,
+          ctaLabel: page.cta?.label ?? null,
+          ctaAction: page.cta ? this.toDbEditorialCtaAction(page.cta.action) : null,
+          publishedAt: new Date(page.publishedAt),
+          isActive: true
+        },
+        create: {
+          id: page.id,
+          kind: this.toDbEditorialPageKind(page.kind),
+          label: page.label,
+          title: page.title,
+          summary: page.summary,
+          body: page.body,
+          ctaLabel: page.cta?.label ?? null,
+          ctaAction: page.cta ? this.toDbEditorialCtaAction(page.cta.action) : null,
+          publishedAt: new Date(page.publishedAt),
+          isActive: true
+        }
+      });
+    }
   }
 
   async getFeed(accountIdHint?: string) {
@@ -219,6 +252,38 @@ export class ContentRepository {
 
     return {
       items: carves.map((carve) => this.toPostBundle(carve.post))
+    };
+  }
+
+  async getEditorialPages(kind?: string) {
+    const pageKind = this.normalizeEditorialPageKind(kind);
+    const pages = await this.prisma.editorialPage.findMany({
+      where: {
+        isActive: true,
+        ...(pageKind ? { kind: this.toDbEditorialPageKind(pageKind) } : {})
+      },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }]
+    });
+
+    return {
+      items: pages.map((page) => this.toEditorialPage(page))
+    };
+  }
+
+  async getEditorialPage(pageId: string) {
+    const page = await this.prisma.editorialPage.findFirst({
+      where: {
+        id: pageId,
+        isActive: true
+      }
+    });
+
+    if (!page) {
+      throw new NotFoundException("소식을 찾을 수 없어요.");
+    }
+
+    return {
+      item: this.toEditorialPage(page)
     };
   }
 
@@ -772,7 +837,6 @@ export class ContentRepository {
   }
 
   private toAccountProfile(account: AccountWithCounts | AccountWithViewer): AccountProfile {
-    const seedAccount = seedAccounts.find((item) => item.id === account.id);
     const subscribed = this.isSubscribedAccount(account);
 
     return {
@@ -781,8 +845,8 @@ export class ContentRepository {
       displayName: account.displayName,
       tagline: account.tagline,
       verification: this.fromDbVerification(account.verification),
-      postCount: Math.max(seedAccount?.postCount ?? 0, account._count.posts),
-      writingFriendCount: Math.max(seedAccount?.writingFriendCount ?? 0, account._count.followerRelations),
+      postCount: account._count.posts,
+      writingFriendCount: account._count.followerRelations,
       ...(account.photoUrl ? { photoUrl: account.photoUrl } : {}),
       ...(account.bio ? { bio: account.bio } : {}),
       ...(typeof subscribed === "boolean" ? { viewerState: { subscribed } } : {})
@@ -800,6 +864,28 @@ export class ContentRepository {
       author: this.toAccountProfile(comment.author),
       body: comment.body,
       createdAt: comment.createdAt.toISOString()
+    };
+  }
+
+  private toEditorialPage(page: EditorialPageRecord): EditorialPage {
+    const ctaAction = page.ctaAction ? this.fromDbEditorialCtaAction(page.ctaAction) : null;
+
+    return {
+      id: page.id,
+      kind: this.fromDbEditorialPageKind(page.kind),
+      label: page.label,
+      title: page.title,
+      date: this.formatEditorialDate(page.publishedAt),
+      summary: page.summary,
+      body: page.body,
+      ...(page.ctaLabel && ctaAction
+        ? {
+            cta: {
+              label: page.ctaLabel,
+              action: ctaAction
+            }
+          }
+        : {})
     };
   }
 
@@ -898,6 +984,20 @@ export class ContentRepository {
     return body;
   }
 
+  private normalizeEditorialPageKind(value?: string): EditorialPageKind | undefined {
+    const normalizedValue = value?.trim().toLowerCase();
+
+    if (!normalizedValue) {
+      return undefined;
+    }
+
+    if (!editorialPageKinds.includes(normalizedValue as EditorialPageKind)) {
+      throw new BadRequestException("소식 종류가 올바르지 않아요.");
+    }
+
+    return normalizedValue as EditorialPageKind;
+  }
+
   private normalizeRequiredText(value: unknown, label: string, maxLength: number) {
     const normalizedText = this.normalizeText(value, label, maxLength);
     if (!normalizedText) {
@@ -970,5 +1070,33 @@ export class ContentRepository {
     if (value === "READY") return "ready";
     if (value === "SKIPPED") return "skipped";
     return "pending";
+  }
+
+  private toDbEditorialPageKind(value: EditorialPageKind) {
+    if (value === "event") return "EVENT";
+    if (value === "ad") return "AD";
+    return "NOTICE";
+  }
+
+  private fromDbEditorialPageKind(value: string): EditorialPageKind {
+    if (value === "EVENT") return "event";
+    if (value === "AD") return "ad";
+    return "notice";
+  }
+
+  private toDbEditorialCtaAction(value: NonNullable<EditorialPage["cta"]>["action"]) {
+    return value === "contact" ? "CONTACT" : "DISCOVER";
+  }
+
+  private fromDbEditorialCtaAction(value: string): NonNullable<EditorialPage["cta"]>["action"] {
+    return value === "CONTACT" ? "contact" : "discover";
+  }
+
+  private formatEditorialDate(value: Date) {
+    const year = value.getUTCFullYear();
+    const month = `${value.getUTCMonth() + 1}`.padStart(2, "0");
+    const day = `${value.getUTCDate()}`.padStart(2, "0");
+
+    return `${year}.${month}.${day}`;
   }
 }

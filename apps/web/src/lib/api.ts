@@ -4,6 +4,7 @@ import type {
   CommentMutationResult,
   CreateCommentInput,
   CreatePostInput,
+  EditorialPage,
   PostBundle,
   PostComment,
   SearchResult,
@@ -109,6 +110,11 @@ export async function fetchFollowingAccounts(signal?: AbortSignal): Promise<Acco
 
 export async function fetchDrawer(signal?: AbortSignal): Promise<PostBundle[]> {
   const data = await fetchJson<ListResponse<PostBundle>>("/drawer", signal ? { signal } : {});
+  return data.items;
+}
+
+export async function fetchEditorialPages(signal?: AbortSignal): Promise<EditorialPage[]> {
+  const data = await fetchJson<ListResponse<EditorialPage>>("/editorial-pages", signal ? { signal } : {});
   return data.items;
 }
 
