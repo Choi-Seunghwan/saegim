@@ -11,6 +11,7 @@ import type {
   CreatePostInput,
   EditorialPage,
   EditorialPageKind,
+  ListPage,
   PostComment,
   PostBundle,
   SearchResult,
@@ -117,6 +118,25 @@ const defaultCardComp: CardComposition = {
   textPos: null,
   sourcePos: null
 };
+const defaultPageLimit = 8;
+const defaultAccountPageLimit = 12;
+const maxPageLimit = 24;
+
+type PageQueryOptions = {
+  cursor?: string | undefined;
+  limit?: string | number | undefined;
+};
+type SearchQueryOptions = {
+  accountCursor?: string | undefined;
+  postCursor?: string | undefined;
+  accountLimit?: string | number | undefined;
+  postLimit?: string | number | undefined;
+};
+type PageParams = {
+  cursor?: string;
+  limit: number;
+};
+type ShelfSortMode = "popular" | "latest";
 
 @Injectable()
 export class ContentRepository {
@@ -229,29 +249,37 @@ export class ContentRepository {
     });
   }
 
-  async getFeed(cookieHeader?: string) {
+  async getFeed(options?: PageQueryOptions, cookieHeader?: string) {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
-    const posts = await this.findPosts([{ createdAt: "desc" }, { id: "desc" }], currentAccountId);
 
-    return {
-      items: posts.map((post) => this.toPostBundle(post))
-    };
-  }
-
-  async getShelf(cookieHeader?: string) {
-    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
-    const posts = await this.findPosts(
-      [{ likeCountCache: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-      currentAccountId
+    return this.findPostsPage(
+      [
+        { author: { verification: "desc" } },
+        { likeCountCache: "desc" },
+        { commentCountCache: "desc" },
+        { publishedAt: "desc" },
+        { createdAt: "desc" },
+        { id: "desc" }
+      ],
+      currentAccountId,
+      options
     );
-
-    return {
-      items: posts.map((post) => this.toPostBundle(post))
-    };
   }
 
-  async getDrawer(cookieHeader?: string) {
+  async getShelf(sort?: string, options?: PageQueryOptions, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
+    const sortMode = this.normalizeShelfSort(sort);
+    const orderBy: Prisma.PostOrderByWithRelationInput[] =
+      sortMode === "latest"
+        ? [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }]
+        : [{ likeCountCache: "desc" }, { commentCountCache: "desc" }, { publishedAt: "desc" }, { id: "desc" }];
+
+    return this.findPostsPage(orderBy, currentAccountId, options);
+  }
+
+  async getDrawer(options?: PageQueryOptions, cookieHeader?: string) {
     const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
+    const page = this.normalizePageOptions(options);
     const carves = await this.prisma.carve.findMany({
       where: {
         accountId: currentAccountId,
@@ -264,12 +292,12 @@ export class ContentRepository {
           include: postIncludeForAccount(currentAccountId)
         }
       },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: page.limit + 1,
+      ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {})
     });
 
-    return {
-      items: carves.map((carve) => this.toPostBundle(carve.post))
-    };
+    return this.toRelationPostPage(carves, page.limit);
   }
 
   async getEditorialPages(kind?: string) {
@@ -304,34 +332,58 @@ export class ContentRepository {
     };
   }
 
-  async search(query: string | undefined, cookieHeader?: string): Promise<SearchResult> {
+  async search(
+    query: string | undefined,
+    options?: SearchQueryOptions,
+    cookieHeader?: string
+  ): Promise<SearchResult> {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const normalizedQuery = typeof query === "string" ? query.trim() : "";
     const accountIncludeWithViewer = accountIncludeForViewer(currentAccountId);
     const postInclude = postIncludeForAccount(currentAccountId);
     const accountExclusion = currentAccountId ? { id: { not: currentAccountId } } : {};
+    const accountPage = this.normalizePageOptions(
+      { cursor: options?.accountCursor, limit: options?.accountLimit },
+      defaultPageLimit
+    );
+    const postPage = this.normalizePageOptions(
+      { cursor: options?.postCursor, limit: options?.postLimit },
+      defaultPageLimit
+    );
+    const accountOrderBy: Prisma.AccountOrderByWithRelationInput[] = [
+      { verification: "desc" },
+      { posts: { _count: "desc" } },
+      { createdAt: "desc" },
+      { id: "desc" }
+    ];
 
     if (!normalizedQuery) {
       const [accounts, posts] = await Promise.all([
         this.prisma.account.findMany({
           where: accountExclusion,
           include: accountIncludeWithViewer,
-          orderBy: [{ verification: "desc" }, { createdAt: "asc" }],
-          take: 6
+          orderBy: accountOrderBy,
+          take: accountPage.limit + 1,
+          ...(accountPage.cursor ? { cursor: { id: accountPage.cursor }, skip: 1 } : {})
         }),
         this.prisma.post.findMany({
           where: {
             visibility: "PUBLIC"
           },
           include: postInclude,
-          orderBy: [{ likeCountCache: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-          take: 8
+          orderBy: [{ likeCountCache: "desc" }, { commentCountCache: "desc" }, { publishedAt: "desc" }, { id: "desc" }],
+          take: postPage.limit + 1,
+          ...(postPage.cursor ? { cursor: { id: postPage.cursor }, skip: 1 } : {})
         })
       ]);
+      const accountResult = this.toAccountPage(accounts, accountPage.limit);
+      const postResult = this.toPostPage(posts, postPage.limit);
 
       return {
-        accounts: accounts.map((account) => this.toAccountProfile(account)),
-        posts: posts.map((post) => this.toPostBundle(post))
+        accounts: accountResult.items,
+        posts: postResult.items,
+        accountPageInfo: accountResult.pageInfo,
+        postPageInfo: postResult.pageInfo
       };
     }
 
@@ -347,8 +399,9 @@ export class ContentRepository {
           ]
         },
         include: accountIncludeWithViewer,
-        orderBy: [{ verification: "desc" }, { createdAt: "asc" }],
-        take: 8
+        orderBy: accountOrderBy,
+        take: accountPage.limit + 1,
+        ...(accountPage.cursor ? { cursor: { id: accountPage.cursor }, skip: 1 } : {})
       }),
       this.prisma.post.findMany({
         where: {
@@ -366,13 +419,18 @@ export class ContentRepository {
         },
         include: postInclude,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: 12
+        take: postPage.limit + 1,
+        ...(postPage.cursor ? { cursor: { id: postPage.cursor }, skip: 1 } : {})
       })
     ]);
+    const accountResult = this.toAccountPage(accounts, accountPage.limit);
+    const postResult = this.toPostPage(posts, postPage.limit);
 
     return {
-      accounts: accounts.map((account) => this.toAccountProfile(account)),
-      posts: posts.map((post) => this.toPostBundle(post))
+      accounts: accountResult.items,
+      posts: postResult.items,
+      accountPageInfo: accountResult.pageInfo,
+      postPageInfo: postResult.pageInfo
     };
   }
 
@@ -606,6 +664,7 @@ export class ContentRepository {
 
   async getAccountDetail(accountId: string, cookieHeader?: string): Promise<AccountDetail> {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
+    const page = this.normalizePageOptions(undefined);
     const [account, posts] = await Promise.all([
       this.prisma.account.findUnique({
         where: { id: accountId },
@@ -617,18 +676,40 @@ export class ContentRepository {
           visibility: "PUBLIC"
         },
         include: postIncludeForAccount(currentAccountId),
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: page.limit + 1
       })
     ]);
 
     if (!account) {
       throw new NotFoundException("계정을 찾을 수 없어요.");
     }
+    const postPage = this.toPostPage(posts, page.limit);
 
     return {
       account: this.toAccountProfile(account),
-      posts: posts.map((post) => this.toPostBundle(post))
+      posts: postPage.items,
+      postPageInfo: postPage.pageInfo
     };
+  }
+
+  async getAccountPosts(accountId: string, options?: PageQueryOptions, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { id: true }
+    });
+
+    if (!account) {
+      throw new NotFoundException("계정을 찾을 수 없어요.");
+    }
+
+    return this.findPostsPage(
+      [{ createdAt: "desc" }, { id: "desc" }],
+      currentAccountId,
+      options,
+      { authorId: accountId }
+    );
   }
 
   async updateCurrentAccount(input: UpdateAccountInput, cookieHeader?: string) {
@@ -695,17 +776,24 @@ export class ContentRepository {
     return this.getAccountProfile(accountId, currentAccountId);
   }
 
-  async getRecommendedAccounts(cookieHeader?: string) {
+  async getRecommendedAccounts(options?: PageQueryOptions, cookieHeader?: string) {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
+    const page = this.normalizePageOptions(options, defaultAccountPageLimit);
     const accounts = await this.prisma.account.findMany({
       where: currentAccountId ? { id: { not: currentAccountId } } : {},
       include: accountIncludeForViewer(currentAccountId),
-      orderBy: [{ verification: "desc" }, { createdAt: "asc" }]
+      orderBy: [
+        { verification: "desc" },
+        { posts: { _count: "desc" } },
+        { followerRelations: { _count: "desc" } },
+        { createdAt: "desc" },
+        { id: "desc" }
+      ],
+      take: page.limit + 1,
+      ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {})
     });
 
-    return {
-      items: accounts.map((account) => this.toAccountProfile(account))
-    };
+    return this.toAccountPage(accounts, page.limit);
   }
 
   async getFollowingAccounts(cookieHeader?: string) {
@@ -727,14 +815,83 @@ export class ContentRepository {
     };
   }
 
-  private async findPosts(orderBy: Prisma.PostOrderByWithRelationInput[], currentAccountId?: string | null) {
-    return this.prisma.post.findMany({
+  private async findPostsPage(
+    orderBy: Prisma.PostOrderByWithRelationInput[],
+    currentAccountId?: string | null,
+    options?: PageQueryOptions,
+    where: Prisma.PostWhereInput = {}
+  ): Promise<ListPage<PostBundle>> {
+    const page = this.normalizePageOptions(options);
+    const posts = await this.prisma.post.findMany({
       where: {
+        ...where,
         visibility: "PUBLIC"
       },
       include: postIncludeForAccount(currentAccountId),
-      orderBy
+      orderBy,
+      take: page.limit + 1,
+      ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {})
     });
+
+    return this.toPostPage(posts, page.limit);
+  }
+
+  private normalizePageOptions(options?: PageQueryOptions, fallbackLimit = defaultPageLimit): PageParams {
+    const parsedLimit = Number(options?.limit ?? fallbackLimit);
+    const safeLimit = Number.isFinite(parsedLimit) ? Math.trunc(parsedLimit) : fallbackLimit;
+    const limit = Math.min(Math.max(safeLimit, 1), maxPageLimit);
+    const cursor = typeof options?.cursor === "string" && options.cursor.trim() ? options.cursor.trim() : undefined;
+
+    return {
+      limit,
+      ...(cursor ? { cursor } : {})
+    };
+  }
+
+  private normalizeShelfSort(sort?: string): ShelfSortMode {
+    return sort === "latest" ? "latest" : "popular";
+  }
+
+  private toPostPage(posts: PostWithRelations[], limit: number): ListPage<PostBundle> {
+    const items = posts.slice(0, limit);
+
+    return {
+      items: items.map((post) => this.toPostBundle(post)),
+      pageInfo: {
+        hasNextPage: posts.length > limit,
+        nextCursor: posts.length > limit ? (items.at(-1)?.id ?? null) : null,
+        limit
+      }
+    };
+  }
+
+  private toAccountPage(accounts: AccountWithViewer[], limit: number): ListPage<AccountProfile> {
+    const items = accounts.slice(0, limit);
+
+    return {
+      items: items.map((account) => this.toAccountProfile(account)),
+      pageInfo: {
+        hasNextPage: accounts.length > limit,
+        nextCursor: accounts.length > limit ? (items.at(-1)?.id ?? null) : null,
+        limit
+      }
+    };
+  }
+
+  private toRelationPostPage<T extends { id: string; post: PostWithRelations }>(
+    relations: T[],
+    limit: number
+  ): ListPage<PostBundle> {
+    const items = relations.slice(0, limit);
+
+    return {
+      items: items.map((relation) => this.toPostBundle(relation.post)),
+      pageInfo: {
+        hasNextPage: relations.length > limit,
+        nextCursor: relations.length > limit ? (items.at(-1)?.id ?? null) : null,
+        limit
+      }
+    };
   }
 
   private async findPostById(postId: string, currentAccountId?: string | null) {

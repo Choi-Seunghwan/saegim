@@ -10,16 +10,16 @@ export class ContentService implements OnModuleInit {
     await this.contentRepository.ensureSeedData();
   }
 
-  getFeed(accountIdHint?: string) {
-    return this.contentRepository.getFeed(accountIdHint);
+  getFeed(options?: { cursor?: string | undefined; limit?: string | undefined }, accountIdHint?: string) {
+    return this.contentRepository.getFeed(options, accountIdHint);
   }
 
-  getShelf(accountIdHint?: string) {
-    return this.contentRepository.getShelf(accountIdHint);
+  getShelf(sort?: string, options?: { cursor?: string | undefined; limit?: string | undefined }, accountIdHint?: string) {
+    return this.contentRepository.getShelf(sort, options, accountIdHint);
   }
 
-  getDrawer(accountIdHint?: string) {
-    return this.contentRepository.getDrawer(accountIdHint);
+  getDrawer(options?: { cursor?: string | undefined; limit?: string | undefined }, accountIdHint?: string) {
+    return this.contentRepository.getDrawer(options, accountIdHint);
   }
 
   getEditorialPages(kind?: string) {
@@ -30,8 +30,17 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getEditorialPage(pageId);
   }
 
-  search(query: string | undefined, accountIdHint?: string) {
-    return this.contentRepository.search(query, accountIdHint);
+  search(
+    query: string | undefined,
+    options?: {
+      accountCursor?: string | undefined;
+      postCursor?: string | undefined;
+      accountLimit?: string | undefined;
+      postLimit?: string | undefined;
+    },
+    accountIdHint?: string
+  ) {
+    return this.contentRepository.search(query, options, accountIdHint);
   }
 
   getPost(postId: string, accountIdHint?: string) {
@@ -74,6 +83,14 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getAccountDetail(accountId, accountIdHint);
   }
 
+  getAccountPosts(
+    accountId: string,
+    options?: { cursor?: string | undefined; limit?: string | undefined },
+    accountIdHint?: string
+  ) {
+    return this.contentRepository.getAccountPosts(accountId, options, accountIdHint);
+  }
+
   updateCurrentAccount(input: UpdateAccountInput, accountIdHint?: string) {
     return this.contentRepository.updateCurrentAccount(input, accountIdHint);
   }
@@ -86,8 +103,8 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.unfollowAccount(accountId, accountIdHint);
   }
 
-  getRecommendedAccounts(accountIdHint?: string) {
-    return this.contentRepository.getRecommendedAccounts(accountIdHint);
+  getRecommendedAccounts(options?: { cursor?: string | undefined; limit?: string | undefined }, accountIdHint?: string) {
+    return this.contentRepository.getRecommendedAccounts(options, accountIdHint);
   }
 
   getFollowingAccounts(accountIdHint?: string) {

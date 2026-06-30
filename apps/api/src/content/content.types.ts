@@ -81,6 +81,17 @@ export interface ViewerPostState {
   commentCount: number;
 }
 
+export interface PageInfo {
+  nextCursor: string | null;
+  hasNextPage: boolean;
+  limit: number;
+}
+
+export interface ListPage<T> {
+  items: T[];
+  pageInfo: PageInfo;
+}
+
 export interface PostBundle {
   post: Post;
   author: AccountProfile;
@@ -122,11 +133,14 @@ export interface PostComment {
 export interface SearchResult {
   accounts: AccountProfile[];
   posts: PostBundle[];
+  accountPageInfo: PageInfo;
+  postPageInfo: PageInfo;
 }
 
 export interface AccountDetail {
   account: AccountProfile;
   posts: PostBundle[];
+  postPageInfo: PageInfo;
 }
 
 export interface EditorialPage {

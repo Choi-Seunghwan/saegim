@@ -5,6 +5,7 @@ import type {
   CreateCommentInput,
   CreatePostInput,
   EditorialPage,
+  ListPage,
   PostBundle,
   PostComment,
   SearchResult,
@@ -15,6 +16,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
 
 interface ListResponse<T> {
   items: T[];
+  pageInfo?: ListPage<T>["pageInfo"];
 }
 
 interface ItemResponse<T> {
@@ -30,6 +32,18 @@ interface EmailAuthInput {
   email: string;
   password: string;
   displayName?: string;
+}
+
+interface CursorPageParams {
+  cursor?: string | null;
+  limit?: number;
+}
+
+interface SearchPageParams {
+  accountCursor?: string | null;
+  postCursor?: string | null;
+  accountLimit?: number;
+  postLimit?: number;
 }
 
 async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -74,6 +88,32 @@ function getApiBaseUrl() {
   return "http://127.0.0.1:4000";
 }
 
+function toListPage<T>(data: ListResponse<T>): ListPage<T> {
+  return {
+    items: data.items,
+    pageInfo: data.pageInfo ?? {
+      nextCursor: null,
+      hasNextPage: false,
+      limit: data.items.length
+    }
+  };
+}
+
+function appendCursorParams(searchParams: URLSearchParams, params?: CursorPageParams) {
+  if (params?.cursor) {
+    searchParams.set("cursor", params.cursor);
+  }
+
+  if (typeof params?.limit === "number") {
+    searchParams.set("limit", String(params.limit));
+  }
+}
+
+function makeQueryPath(path: string, searchParams: URLSearchParams) {
+  const queryString = searchParams.toString();
+  return `${path}${queryString ? `?${queryString}` : ""}`;
+}
+
 export async function signupWithEmail(input: EmailAuthInput): Promise<AccountProfile> {
   const data = await fetchJson<ItemResponse<AccountProfile>>("/auth/signup", {
     method: "POST",
@@ -100,14 +140,35 @@ export async function logoutSession(): Promise<{ ok: boolean }> {
   return fetchJson<{ ok: boolean }>("/auth/logout", { method: "POST" });
 }
 
-export async function fetchFeed(signal?: AbortSignal): Promise<PostBundle[]> {
-  const data = await fetchJson<ListResponse<PostBundle>>("/feed", signal ? { signal } : {});
-  return data.items;
+export async function fetchFeed(params?: CursorPageParams, signal?: AbortSignal): Promise<ListPage<PostBundle>> {
+  const searchParams = new URLSearchParams();
+  appendCursorParams(searchParams, params);
+  const data = await fetchJson<ListResponse<PostBundle>>(makeQueryPath("/feed", searchParams), signal ? { signal } : {});
+  return toListPage(data);
 }
 
-export async function fetchRecommendedAccounts(signal?: AbortSignal): Promise<AccountProfile[]> {
-  const data = await fetchJson<ListResponse<AccountProfile>>("/accounts/recommended", signal ? { signal } : {});
-  return data.items;
+export async function fetchShelf(
+  sort: "popular" | "latest",
+  params?: CursorPageParams,
+  signal?: AbortSignal
+): Promise<ListPage<PostBundle>> {
+  const searchParams = new URLSearchParams({ sort });
+  appendCursorParams(searchParams, params);
+  const data = await fetchJson<ListResponse<PostBundle>>(makeQueryPath("/shelf", searchParams), signal ? { signal } : {});
+  return toListPage(data);
+}
+
+export async function fetchRecommendedAccounts(
+  params?: CursorPageParams,
+  signal?: AbortSignal
+): Promise<ListPage<AccountProfile>> {
+  const searchParams = new URLSearchParams();
+  appendCursorParams(searchParams, params);
+  const data = await fetchJson<ListResponse<AccountProfile>>(
+    makeQueryPath("/accounts/recommended", searchParams),
+    signal ? { signal } : {}
+  );
+  return toListPage(data);
 }
 
 export async function fetchFollowingAccounts(signal?: AbortSignal): Promise<AccountProfile[]> {
@@ -115,9 +176,11 @@ export async function fetchFollowingAccounts(signal?: AbortSignal): Promise<Acco
   return data.items;
 }
 
-export async function fetchDrawer(signal?: AbortSignal): Promise<PostBundle[]> {
-  const data = await fetchJson<ListResponse<PostBundle>>("/drawer", signal ? { signal } : {});
-  return data.items;
+export async function fetchDrawer(params?: CursorPageParams, signal?: AbortSignal): Promise<ListPage<PostBundle>> {
+  const searchParams = new URLSearchParams();
+  appendCursorParams(searchParams, params);
+  const data = await fetchJson<ListResponse<PostBundle>>(makeQueryPath("/drawer", searchParams), signal ? { signal } : {});
+  return toListPage(data);
 }
 
 export async function fetchEditorialPages(signal?: AbortSignal): Promise<EditorialPage[]> {
@@ -125,14 +188,33 @@ export async function fetchEditorialPages(signal?: AbortSignal): Promise<Editori
   return data.items;
 }
 
-export async function fetchSearch(query: string, signal?: AbortSignal): Promise<SearchResult> {
+export async function fetchSearch(
+  query: string,
+  params?: SearchPageParams,
+  signal?: AbortSignal
+): Promise<SearchResult> {
   const searchParams = new URLSearchParams();
   if (query.trim()) {
     searchParams.set("q", query.trim());
   }
 
-  const queryString = searchParams.toString();
-  return fetchJson<SearchResult>(`/search${queryString ? `?${queryString}` : ""}`, signal ? { signal } : {});
+  if (params?.accountCursor) {
+    searchParams.set("accountCursor", params.accountCursor);
+  }
+
+  if (params?.postCursor) {
+    searchParams.set("postCursor", params.postCursor);
+  }
+
+  if (typeof params?.accountLimit === "number") {
+    searchParams.set("accountLimit", String(params.accountLimit));
+  }
+
+  if (typeof params?.postLimit === "number") {
+    searchParams.set("postLimit", String(params.postLimit));
+  }
+
+  return fetchJson<SearchResult>(makeQueryPath("/search", searchParams), signal ? { signal } : {});
 }
 
 export async function fetchCurrentAccount(signal?: AbortSignal): Promise<AccountProfile> {
@@ -142,6 +224,19 @@ export async function fetchCurrentAccount(signal?: AbortSignal): Promise<Account
 
 export async function fetchAccountDetail(accountId: string, signal?: AbortSignal): Promise<AccountDetail> {
   return fetchJson<AccountDetail>(`/accounts/${encodeURIComponent(accountId)}`, signal ? { signal } : {});
+}
+
+export async function fetchAccountPosts(
+  accountId: string,
+  params?: CursorPageParams,
+  signal?: AbortSignal
+): Promise<ListPage<PostBundle>> {
+  const searchParams = new URLSearchParams();
+  appendCursorParams(searchParams, params);
+  return fetchJson<ListPage<PostBundle>>(
+    makeQueryPath(`/accounts/${encodeURIComponent(accountId)}/posts`, searchParams),
+    signal ? { signal } : {}
+  );
 }
 
 export async function updateCurrentAccount(input: UpdateAccountInput): Promise<AccountProfile> {

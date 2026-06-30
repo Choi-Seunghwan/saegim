@@ -1,4 +1,4 @@
-import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Patch, Post as HttpPost } from "@nestjs/common";
+import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Patch, Post as HttpPost, Query } from "@nestjs/common";
 import { ContentService } from "../content.service.js";
 import type { UpdateAccountInput } from "../content.types.js";
 
@@ -20,13 +20,27 @@ export class AccountsController {
   }
 
   @Get("recommended")
-  getRecommendedAccounts(@Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getRecommendedAccounts(cookieHeader);
+  getRecommendedAccounts(
+    @Query("cursor") cursor?: string,
+    @Query("limit") limit?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.getRecommendedAccounts({ cursor, limit }, cookieHeader);
   }
 
   @Get("following")
   getFollowingAccounts(@Headers("cookie") cookieHeader?: string) {
     return this.contentService.getFollowingAccounts(cookieHeader);
+  }
+
+  @Get(":accountId/posts")
+  getAccountPosts(
+    @Param("accountId") accountId: string,
+    @Query("cursor") cursor?: string,
+    @Query("limit") limit?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.getAccountPosts(accountId, { cursor, limit }, cookieHeader);
   }
 
   @Get(":accountId")

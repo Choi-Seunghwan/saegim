@@ -16,6 +16,7 @@ import type {
   CardComposition,
   CreatePostInput,
   EditorialPage,
+  PageInfo,
   PostBundle,
   PostComment,
   SentenceCard,
@@ -26,6 +27,7 @@ import {
   createPost,
   createPostComment,
   fetchAccountDetail,
+  fetchAccountPosts,
   fetchPostComments,
   fetchCurrentAccount,
   fetchDrawer,
@@ -34,6 +36,7 @@ import {
   fetchFollowingAccounts,
   fetchRecommendedAccounts,
   fetchSearch,
+  fetchShelf,
   fetchAuthSession,
   followAccount,
   getGoogleOAuthStartUrl,
@@ -212,6 +215,11 @@ const captureAlignOptions: { value: CardComposition["align"]; label: string }[] 
 ];
 const listInitialCount = 8;
 const listLoadStep = 8;
+const emptyPageInfo: PageInfo = {
+  nextCursor: null,
+  hasNextPage: false,
+  limit: listInitialCount
+};
 
 function formatCount(value: number) {
   return value.toLocaleString("ko-KR");
@@ -294,6 +302,31 @@ function useProgressiveItems<T>(items: T[], resetKey: string, initialCount = lis
     loadMoreRef,
     visibleItems: items.slice(0, Math.min(visibleCount, items.length))
   };
+}
+
+function useServerLoadMore(hasMore: boolean, isLoading: boolean, onLoadMore: () => void) {
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !hasMore || isLoading || typeof IntersectionObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: "220px 0px" }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, isLoading, onLoadMore]);
+
+  return loadMoreRef;
 }
 
 function postListKey(posts: PostBundle[]) {
@@ -596,8 +629,8 @@ function AccountName({ account }: { account: AccountProfile }) {
 }
 
 export function SaegimShell() {
-  const [activeTab, setActiveTab] = useState<TabKey>("home");
-  const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("home");
+  const [activeTab, setActiveTab] = useState<TabKey>("discover");
+  const [captureReturnTab, setCaptureReturnTab] = useState<Exclude<TabKey, "capture">>("discover");
   const [entryState, setEntryState] = useState<EntryState>("guest");
   const [initialLoadState, setInitialLoadState] = useState<InitialLoadState>("loading");
   const [initialLoadRetryKey, setInitialLoadRetryKey] = useState(0);
@@ -619,6 +652,8 @@ export function SaegimShell() {
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [posts, setPosts] = useState<PostBundle[]>([]);
+  const [feedPageInfo, setFeedPageInfo] = useState<PageInfo>(emptyPageInfo);
+  const [isLoadingMoreFeed, setIsLoadingMoreFeed] = useState(false);
   const [accounts, setAccounts] = useState<AccountProfile[]>([]);
   const [editorialPages, setEditorialPages] = useState<EditorialPage[]>([]);
   const [currentAccount, setCurrentAccount] = useState<AccountProfile>(guestAccount);
@@ -630,7 +665,6 @@ export function SaegimShell() {
       : accounts.find((account) => account.id === selectedProfileId) ??
         posts.find((post) => post.author.id === selectedProfileId)?.author ??
         currentAccount;
-  const selectedProfilePosts = posts.filter((post) => post.author.id === selectedProfile.id);
   const isOwnProfile = selectedProfile.id === currentAccount.id;
   const infoSheetPost = infoSheet ? posts.find((post) => post.post.id === infoSheet.postId) : null;
   const selectedEditorialPage = editorialPageState
@@ -685,6 +719,24 @@ export function SaegimShell() {
 
       return [...mergedPosts, ...newPosts];
     });
+  }
+
+  async function loadMoreFeed() {
+    if (!feedPageInfo.hasNextPage || !feedPageInfo.nextCursor || isLoadingMoreFeed) {
+      return [] as PostBundle[];
+    }
+
+    try {
+      setIsLoadingMoreFeed(true);
+      const page = await fetchFeed({ cursor: feedPageInfo.nextCursor, limit: listLoadStep });
+      setFeedPageInfo(page.pageInfo);
+      mergePosts(page.items);
+      return page.items;
+    } catch {
+      return [] as PostBundle[];
+    } finally {
+      setIsLoadingMoreFeed(false);
+    }
   }
 
   function upsertAccount(account: AccountProfile) {
@@ -1139,9 +1191,23 @@ export function SaegimShell() {
     }
   }
 
-  function movePost(direction: -1 | 1) {
+  async function movePost(direction: -1 | 1) {
     const nextIndex = activePostIndex + direction;
     const nextPost = posts[nextIndex];
+
+    if (!nextPost && direction === 1) {
+      const fetchedPosts = await loadMoreFeed();
+      const firstFetchedPost = fetchedPosts[0];
+
+      if (firstFetchedPost) {
+        setActivePostId(firstFetchedPost.post.id);
+        setActiveCardIndex(0);
+        setCommentPost(null);
+        setInfoSheet(null);
+      }
+
+      return;
+    }
 
     if (!nextPost) {
       return;
@@ -1189,14 +1255,15 @@ export function SaegimShell() {
 
     async function loadInitialData() {
       try {
-        const [nextPosts, nextAccounts, nextEditorialPages] = await Promise.all([
-          fetchFeed(controller.signal),
-          fetchRecommendedAccounts(controller.signal),
+        const [nextPostPage, nextAccountPage, nextEditorialPages] = await Promise.all([
+          fetchFeed({ limit: listInitialCount }, controller.signal),
+          fetchRecommendedAccounts({ limit: 12 }, controller.signal),
           fetchEditorialPages(controller.signal)
         ]);
 
-        setPosts(nextPosts);
-        setAccounts(nextAccounts);
+        setPosts(nextPostPage.items);
+        setFeedPageInfo(nextPostPage.pageInfo);
+        setAccounts(nextAccountPage.items);
         setEditorialPages(nextEditorialPages);
 
         if (entryState === "signed-in") {
@@ -1215,6 +1282,7 @@ export function SaegimShell() {
       } catch {
         if (!controller.signal.aborted) {
           setPosts([]);
+          setFeedPageInfo(emptyPageInfo);
           setAccounts([]);
           setEditorialPages([]);
           setInitialLoadState("error");
@@ -1316,7 +1384,7 @@ export function SaegimShell() {
         />
       );
     }
-    if (activeTab === "shelf") return <ShelfView posts={posts} onOpenPost={openPost} />;
+    if (activeTab === "shelf") return <ShelfView onOpenPost={openPost} />;
     if (activeTab === "me") {
       if (isViewingSettings) {
         return (
@@ -1404,7 +1472,6 @@ export function SaegimShell() {
             }
           }}
           onToggleFollow={handleToggleFollow}
-          posts={selectedProfilePosts}
         />
       );
     }
@@ -1433,8 +1500,10 @@ export function SaegimShell() {
     drawerReturnSurface,
     entryState,
     editorialPages,
+    feedPageInfo,
     featuredPost,
     isEditingProfile,
+    isLoadingMoreFeed,
     isSearching,
     isViewingDrawer,
     isViewingFollowing,
@@ -1444,8 +1513,7 @@ export function SaegimShell() {
     noticePages,
     posts,
     selectedEditorialPage,
-    selectedProfile,
-    selectedProfilePosts
+    selectedProfile
   ]);
 
   return (
@@ -1770,21 +1838,76 @@ function SearchView({
   const [segment, setSegment] = useState<"all" | "accounts" | "posts">("all");
   const [accounts, setAccounts] = useState<AccountProfile[]>([]);
   const [posts, setPosts] = useState<PostBundle[]>([]);
+  const [accountPageInfo, setAccountPageInfo] = useState<PageInfo>(emptyPageInfo);
+  const [postPageInfo, setPostPageInfo] = useState<PageInfo>(emptyPageInfo);
   const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [loadingMoreAccounts, setLoadingMoreAccounts] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [error, setError] = useState("");
   const cleanQuery = query.trim();
-  const popularPosts = posts
-    .slice()
-    .sort((a, b) => (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0))
-    .slice();
+  const popularPosts = posts;
   const visibleAccounts = segment === "posts" ? [] : accounts;
   const visiblePosts = segment === "accounts" ? [] : posts;
-  const popularList = useProgressiveItems(popularPosts, `popular:${postListKey(popularPosts)}`, 4);
-  const accountList = useProgressiveItems(
-    visibleAccounts,
-    `search-accounts:${segment}:${cleanQuery}:${accountListKey(visibleAccounts)}`
+
+  async function loadMoreSearchAccounts() {
+    if (!accountPageInfo.hasNextPage || !accountPageInfo.nextCursor || loadingMoreAccounts) {
+      return;
+    }
+
+    try {
+      setLoadingMoreAccounts(true);
+      const result = await fetchSearch(
+        cleanQuery,
+        { accountCursor: accountPageInfo.nextCursor, accountLimit: listLoadStep },
+        undefined
+      );
+      setAccounts((currentAccounts) => {
+        const accountIds = new Set(currentAccounts.map((account) => account.id));
+        return [...currentAccounts, ...result.accounts.filter((account) => !accountIds.has(account.id))];
+      });
+      setAccountPageInfo(result.accountPageInfo);
+    } catch {
+      // 추가 검색 실패 시 기존 결과를 유지한다.
+    } finally {
+      setLoadingMoreAccounts(false);
+    }
+  }
+
+  async function loadMoreSearchPosts() {
+    if (!postPageInfo.hasNextPage || !postPageInfo.nextCursor || loadingMorePosts) {
+      return;
+    }
+
+    try {
+      setLoadingMorePosts(true);
+      const result = await fetchSearch(cleanQuery, { postCursor: postPageInfo.nextCursor, postLimit: listLoadStep }, undefined);
+      setPosts((currentPosts) => {
+        const postIds = new Set(currentPosts.map((post) => post.post.id));
+        return [...currentPosts, ...result.posts.filter((post) => !postIds.has(post.post.id))];
+      });
+      setPostPageInfo(result.postPageInfo);
+    } catch {
+      // 추가 검색 실패 시 기존 결과를 유지한다.
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  }
+
+  const popularLoadMoreRef = useServerLoadMore(
+    !cleanQuery && postPageInfo.hasNextPage,
+    loadingMorePosts,
+    loadMoreSearchPosts
   );
-  const postList = useProgressiveItems(visiblePosts, `search-posts:${segment}:${cleanQuery}:${postListKey(visiblePosts)}`);
+  const accountLoadMoreRef = useServerLoadMore(
+    cleanQuery.length > 0 && visibleAccounts.length > 0 && accountPageInfo.hasNextPage,
+    loadingMoreAccounts,
+    loadMoreSearchAccounts
+  );
+  const postLoadMoreRef = useServerLoadMore(
+    cleanQuery.length > 0 && visiblePosts.length > 0 && postPageInfo.hasNextPage,
+    loadingMorePosts,
+    loadMoreSearchPosts
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1793,12 +1916,22 @@ function SearchView({
       try {
         setStatus("loading");
         setError("");
-        const result = await fetchSearch(query, controller.signal);
+        const result = await fetchSearch(
+          query,
+          { accountLimit: listInitialCount, postLimit: listInitialCount },
+          controller.signal
+        );
         setAccounts(result.accounts);
         setPosts(result.posts);
+        setAccountPageInfo(result.accountPageInfo);
+        setPostPageInfo(result.postPageInfo);
         setStatus("idle");
       } catch {
         if (!controller.signal.aborted) {
+          setAccounts([]);
+          setPosts([]);
+          setAccountPageInfo(emptyPageInfo);
+          setPostPageInfo(emptyPageInfo);
           setStatus("idle");
           setError("검색 결과를 불러올 수 없어요.");
         }
@@ -1858,14 +1991,14 @@ function SearchView({
           <div className="search-label">인기 있는 글</div>
           {popularPosts.length > 0 ? (
             <div className="masonry">
-              {popularList.visibleItems.map((post) => (
+              {popularPosts.map((post) => (
                 <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
               ))}
             </div>
           ) : (
             <p className="search-empty">아직 보여줄 글이 없어요.</p>
           )}
-          <LoadMoreSentinel hasMore={popularList.hasMore} innerRef={popularList.loadMoreRef} />
+          <LoadMoreSentinel hasMore={postPageInfo.hasNextPage} innerRef={popularLoadMoreRef} />
         </section>
       ) : null}
 
@@ -1873,11 +2006,11 @@ function SearchView({
         <section className="search-section">
           <h2>계정</h2>
           <div className="search-account-list">
-            {accountList.visibleItems.map((account) => (
+            {visibleAccounts.map((account) => (
               <AccountResultButton account={account} key={account.id} onOpenProfile={onOpenProfile} />
             ))}
           </div>
-          <LoadMoreSentinel hasMore={accountList.hasMore} innerRef={accountList.loadMoreRef} />
+          <LoadMoreSentinel hasMore={accountPageInfo.hasNextPage} innerRef={accountLoadMoreRef} />
         </section>
       ) : null}
 
@@ -1885,11 +2018,11 @@ function SearchView({
         <section className="search-section">
           <h2>글</h2>
           <div className="masonry">
-            {postList.visibleItems.map((post) => (
+            {visiblePosts.map((post) => (
               <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
             ))}
           </div>
-          <LoadMoreSentinel hasMore={postList.hasMore} innerRef={postList.loadMoreRef} />
+          <LoadMoreSentinel hasMore={postPageInfo.hasNextPage} innerRef={postLoadMoreRef} />
         </section>
       ) : null}
 
@@ -3546,20 +3679,62 @@ function CaptureView({
   );
 }
 
-function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (post: PostBundle) => void }) {
+function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
   const [sortMode, setSortMode] = useState<"popular" | "new">("popular");
-  const heroPost = posts
-    .slice()
-    .sort((a, b) => (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0))[0] ?? null;
+  const [posts, setPosts] = useState<PostBundle[]>([]);
+  const [pageInfo, setPageInfo] = useState<PageInfo>(emptyPageInfo);
+  const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
+  const serverSortMode = sortMode === "popular" ? "popular" : "latest";
+  const heroPost = posts[0] ?? null;
   const heroCard = heroPost?.cards[0] ?? null;
-  const sortedPosts = posts.slice().sort((a, b) => {
-    if (sortMode === "popular") {
-      return (b.viewerState?.likeCount ?? 0) - (a.viewerState?.likeCount ?? 0);
+  const loadMoreRef = useServerLoadMore(pageInfo.hasNextPage, loadingMore, loadMoreShelfPosts);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadShelf() {
+      try {
+        setStatus("loading");
+        setError("");
+        const page = await fetchShelf(serverSortMode, { limit: listInitialCount }, controller.signal);
+        setPosts(page.items);
+        setPageInfo(page.pageInfo);
+        setStatus("idle");
+      } catch {
+        if (!controller.signal.aborted) {
+          setPosts([]);
+          setPageInfo(emptyPageInfo);
+          setStatus("idle");
+          setError("둘러보기 글을 불러올 수 없어요.");
+        }
+      }
     }
 
-    return Date.parse(b.post.createdAt) - Date.parse(a.post.createdAt);
-  });
-  const postList = useProgressiveItems(sortedPosts, `shelf:${sortMode}:${postListKey(sortedPosts)}`);
+    void loadShelf();
+    return () => controller.abort();
+  }, [serverSortMode]);
+
+  async function loadMoreShelfPosts() {
+    if (!pageInfo.hasNextPage || !pageInfo.nextCursor || loadingMore) {
+      return;
+    }
+
+    try {
+      setLoadingMore(true);
+      const page = await fetchShelf(serverSortMode, { cursor: pageInfo.nextCursor, limit: listLoadStep });
+      setPosts((currentPosts) => {
+        const postIds = new Set(currentPosts.map((post) => post.post.id));
+        return [...currentPosts, ...page.items.filter((post) => !postIds.has(post.post.id))];
+      });
+      setPageInfo(page.pageInfo);
+    } catch {
+      // 추가 로딩 실패 시 현재 목록을 유지한다.
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   return (
     <section className="shelf-view">
@@ -3573,6 +3748,10 @@ function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (po
             <AccountName account={heroPost.author} />
           </div>
         </button>
+      ) : status === "loading" ? (
+        <p className="drawer-empty">불러오는 중</p>
+      ) : error ? (
+        <p className="drawer-empty">{error}</p>
       ) : (
         <p className="drawer-empty">아직 둘러볼 글이 없어요.</p>
       )}
@@ -3598,11 +3777,11 @@ function ShelfView({ posts, onOpenPost }: { posts: PostBundle[]; onOpenPost: (po
         </div>
       </div>
       <div className="shelf-grid masonry">
-        {postList.visibleItems.map((post) => (
+        {posts.map((post) => (
           <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
         ))}
       </div>
-      <LoadMoreSentinel hasMore={postList.hasMore} innerRef={postList.loadMoreRef} />
+      <LoadMoreSentinel hasMore={pageInfo.hasNextPage} innerRef={loadMoreRef} />
     </section>
   );
 }
@@ -3878,10 +4057,12 @@ function DrawerView({
   onOpenPost: (post: PostBundle) => void;
 }) {
   const [drawerPosts, setDrawerPosts] = useState<PostBundle[]>([]);
+  const [pageInfo, setPageInfo] = useState<PageInfo>(emptyPageInfo);
   const [query, setQuery] = useState("");
-  const [sortMode, setSortMode] = useState<"recent" | "author">("recent");
   const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const loadMoreRef = useServerLoadMore(pageInfo.hasNextPage, loadingMore, loadMoreDrawerPosts);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -3890,12 +4071,14 @@ function DrawerView({
       try {
         setStatus("loading");
         setError("");
-        const nextPosts = await fetchDrawer(controller.signal);
-        setDrawerPosts(nextPosts);
+        const page = await fetchDrawer({ limit: listInitialCount }, controller.signal);
+        setDrawerPosts(page.items);
+        setPageInfo(page.pageInfo);
         setStatus("idle");
       } catch {
         if (!controller.signal.aborted) {
           setDrawerPosts([]);
+          setPageInfo(emptyPageInfo);
           setStatus("idle");
           setError("서랍을 불러올 수 없어요.");
         }
@@ -3906,23 +4089,34 @@ function DrawerView({
     return () => controller.abort();
   }, []);
 
-  const visiblePosts = drawerPosts
-    .filter((post) => {
-      const cleanQuery = query.trim().toLowerCase();
-      if (!cleanQuery) return true;
+  async function loadMoreDrawerPosts() {
+    if (!pageInfo.hasNextPage || !pageInfo.nextCursor || loadingMore) {
+      return;
+    }
 
-      return `${post.post.title} ${post.author.displayName} ${post.cards.map((card) => card.text).join(" ")}`
-        .toLowerCase()
-        .includes(cleanQuery);
-    })
-    .sort((a, b) => {
-      if (sortMode === "author") {
-        return a.author.displayName.localeCompare(b.author.displayName, "ko");
-      }
+    try {
+      setLoadingMore(true);
+      const page = await fetchDrawer({ cursor: pageInfo.nextCursor, limit: listLoadStep });
+      setDrawerPosts((currentPosts) => {
+        const postIds = new Set(currentPosts.map((post) => post.post.id));
+        return [...currentPosts, ...page.items.filter((post) => !postIds.has(post.post.id))];
+      });
+      setPageInfo(page.pageInfo);
+    } catch {
+      // 추가 로딩 실패 시 현재 서랍을 유지한다.
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
-      return Date.parse(b.post.updatedAt) - Date.parse(a.post.updatedAt);
-    });
-  const postList = useProgressiveItems(visiblePosts, `drawer:${sortMode}:${query.trim()}:${postListKey(visiblePosts)}`);
+  const visiblePosts = drawerPosts.filter((post) => {
+    const cleanQuery = query.trim().toLowerCase();
+    if (!cleanQuery) return true;
+
+    return `${post.post.title} ${post.author.displayName} ${post.cards.map((card) => card.text).join(" ")}`
+      .toLowerCase()
+      .includes(cleanQuery);
+  });
 
   return (
     <section className="drawer-view">
@@ -3946,22 +4140,6 @@ function DrawerView({
             value={query}
           />
         </label>
-        <div className="drawer-sort" aria-label="서랍 정렬">
-          <button
-            className={sortMode === "recent" ? "is-active" : undefined}
-            type="button"
-            onClick={() => setSortMode("recent")}
-          >
-            최신
-          </button>
-          <button
-            className={sortMode === "author" ? "is-active" : undefined}
-            type="button"
-            onClick={() => setSortMode("author")}
-          >
-            작가
-          </button>
-        </div>
       </div>
 
       {status === "loading" ? <p className="drawer-empty">불러오는 중</p> : null}
@@ -3974,12 +4152,12 @@ function DrawerView({
       {error ? <p className="drawer-empty">{error}</p> : null}
       {visiblePosts.length > 0 ? (
         <div className="masonry">
-          {postList.visibleItems.map((post) => (
+          {visiblePosts.map((post) => (
             <PostPreviewButton key={post.post.id} post={post} onOpenPost={onOpenPost} />
           ))}
         </div>
       ) : null}
-      <LoadMoreSentinel hasMore={postList.hasMore} innerRef={postList.loadMoreRef} />
+      <LoadMoreSentinel hasMore={!query.trim() && pageInfo.hasNextPage} innerRef={loadMoreRef} />
     </section>
   );
 }
@@ -3992,8 +4170,7 @@ function ProfileView({
   onOpenDrawer,
   onOpenPost,
   onOpenSettings,
-  onToggleFollow,
-  posts
+  onToggleFollow
 }: {
   account: AccountProfile;
   isOwnProfile: boolean;
@@ -4003,11 +4180,60 @@ function ProfileView({
   onOpenPost: (post: PostBundle) => void;
   onOpenSettings: () => void;
   onToggleFollow: (accountId: string, subscribed: boolean) => void;
-  posts: PostBundle[];
 }) {
   const isSubscribed = account.viewerState?.subscribed ?? false;
   const shelfTitle = isOwnProfile ? "내 글" : `${account.displayName}의 글`;
-  const postList = useProgressiveItems(posts, `profile:${account.id}:${postListKey(posts)}`);
+  const [profilePosts, setProfilePosts] = useState<PostBundle[]>([]);
+  const [pageInfo, setPageInfo] = useState<PageInfo>(emptyPageInfo);
+  const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
+  const loadMoreRef = useServerLoadMore(pageInfo.hasNextPage, loadingMore, loadMoreProfilePosts);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadProfilePosts() {
+      try {
+        setStatus("loading");
+        setError("");
+        const page = await fetchAccountPosts(account.id, { limit: listInitialCount }, controller.signal);
+        setProfilePosts(page.items);
+        setPageInfo(page.pageInfo);
+        setStatus("idle");
+      } catch {
+        if (!controller.signal.aborted) {
+          setProfilePosts([]);
+          setPageInfo(emptyPageInfo);
+          setStatus("idle");
+          setError("글 목록을 불러올 수 없어요.");
+        }
+      }
+    }
+
+    void loadProfilePosts();
+    return () => controller.abort();
+  }, [account.id]);
+
+  async function loadMoreProfilePosts() {
+    if (!pageInfo.hasNextPage || !pageInfo.nextCursor || loadingMore) {
+      return;
+    }
+
+    try {
+      setLoadingMore(true);
+      const page = await fetchAccountPosts(account.id, { cursor: pageInfo.nextCursor, limit: listLoadStep });
+      setProfilePosts((currentPosts) => {
+        const postIds = new Set(currentPosts.map((post) => post.post.id));
+        return [...currentPosts, ...page.items.filter((post) => !postIds.has(post.post.id))];
+      });
+      setPageInfo(page.pageInfo);
+    } catch {
+      // 추가 로딩 실패 시 현재 글 목록을 유지한다.
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   return (
     <section className="profile-view">
@@ -4063,11 +4289,13 @@ function ProfileView({
       <section className="profile-posts">
         <div className="profile-shelf-head">
           <h2>{shelfTitle}</h2>
-          <span>글 {formatCount(posts.length)}</span>
+          <span>글 {formatCount(account.postCount)}</span>
         </div>
-        {posts.length > 0 ? (
+        {status === "loading" ? <p className="profile-empty">불러오는 중</p> : null}
+        {error ? <p className="profile-empty">{error}</p> : null}
+        {status !== "loading" && !error && profilePosts.length > 0 ? (
           <div className="masonry">
-            {postList.visibleItems.map((post) => (
+            {profilePosts.map((post) => (
               <PostPreviewButton
                 hideAuthor
                 hideLikeCount={isOwnProfile}
@@ -4077,10 +4305,11 @@ function ProfileView({
               />
             ))}
           </div>
-        ) : (
+        ) : null}
+        {status !== "loading" && !error && profilePosts.length === 0 ? (
           <p className="profile-empty">아직 공개된 글이 없어요.</p>
-        )}
-        <LoadMoreSentinel hasMore={postList.hasMore} innerRef={postList.loadMoreRef} />
+        ) : null}
+        <LoadMoreSentinel hasMore={pageInfo.hasNextPage} innerRef={loadMoreRef} />
       </section>
     </section>
   );

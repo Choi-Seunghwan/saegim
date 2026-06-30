@@ -7,23 +7,35 @@ export class PostsController {
   constructor(private readonly contentService: ContentService) {}
 
   @Get("feed")
-  getFeed(@Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getFeed(cookieHeader);
+  getFeed(@Query("cursor") cursor?: string, @Query("limit") limit?: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getFeed({ cursor, limit }, cookieHeader);
   }
 
   @Get("shelf")
-  getShelf(@Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getShelf(cookieHeader);
+  getShelf(
+    @Query("sort") sort?: string,
+    @Query("cursor") cursor?: string,
+    @Query("limit") limit?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.getShelf(sort, { cursor, limit }, cookieHeader);
   }
 
   @Get("drawer")
-  getDrawer(@Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getDrawer(cookieHeader);
+  getDrawer(@Query("cursor") cursor?: string, @Query("limit") limit?: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getDrawer({ cursor, limit }, cookieHeader);
   }
 
   @Get("search")
-  search(@Query("q") query?: string, @Headers("cookie") cookieHeader?: string) {
-    return this.contentService.search(query, cookieHeader);
+  search(
+    @Query("q") query?: string,
+    @Query("accountCursor") accountCursor?: string,
+    @Query("postCursor") postCursor?: string,
+    @Query("accountLimit") accountLimit?: string,
+    @Query("postLimit") postLimit?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.search(query, { accountCursor, postCursor, accountLimit, postLimit }, cookieHeader);
   }
 
   @Get("posts/:postId")
