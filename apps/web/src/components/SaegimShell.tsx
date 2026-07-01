@@ -47,6 +47,7 @@ import {
   fetchRecommendedAccounts,
   fetchSearch,
   fetchShelf,
+  fetchShelfEditorPick,
   fetchAuthSession,
   followAccount,
   getGoogleOAuthStartUrl,
@@ -6247,18 +6248,43 @@ function CaptureView({
 function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
   const [sortMode, setSortMode] = useState<"popular" | "new">("popular");
   const [posts, setPosts] = useState<PostBundle[]>([]);
+  const [editorPick, setEditorPick] = useState<PostBundle | null>(null);
   const [pageInfo, setPageInfo] = useState<PageInfo>(emptyPageInfo);
   const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [pickStatus, setPickStatus] = useState<"loading" | "idle">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const serverSortMode = sortMode === "popular" ? "popular" : "latest";
-  const heroPost = posts[0] ?? null;
+  const heroPost = editorPick;
   const heroCard = heroPost?.cards[0] ?? null;
   const loadMoreRef = useServerLoadMore(
     pageInfo.hasNextPage,
     loadingMore,
     loadMoreShelfPosts,
   );
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadEditorPick() {
+      try {
+        setPickStatus("loading");
+        const item = await fetchShelfEditorPick(controller.signal);
+        setEditorPick(item);
+      } catch {
+        if (!controller.signal.aborted) {
+          setEditorPick(null);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setPickStatus("idle");
+        }
+      }
+    }
+
+    void loadEditorPick();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -6334,6 +6360,8 @@ function ShelfView({ onOpenPost }: { onOpenPost: (post: PostBundle) => void }) {
           </div>
         </button>
       ) : status === "loading" ? (
+        <p className="drawer-empty">불러오는 중</p>
+      ) : pickStatus === "loading" ? (
         <p className="drawer-empty">불러오는 중</p>
       ) : error ? (
         <p className="drawer-empty">{error}</p>

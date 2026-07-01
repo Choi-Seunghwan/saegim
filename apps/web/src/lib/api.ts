@@ -216,6 +216,11 @@ export async function fetchShelf(
   return toListPage(data);
 }
 
+export async function fetchShelfEditorPick(signal?: AbortSignal): Promise<PostBundle | null> {
+  const data = await fetchJson<ItemResponse<PostBundle | null>>("/shelf/editor-pick", signal ? { signal } : {});
+  return data.item;
+}
+
 export async function fetchRecommendedAccounts(
   params?: CursorPageParams,
   signal?: AbortSignal

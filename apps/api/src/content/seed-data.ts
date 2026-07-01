@@ -91,8 +91,8 @@ interface SeedEditorialPage {
 interface SeedPostPlacement {
   id: string;
   postId: string;
-  surface: "home";
-  slot: "hero" | "today-rail";
+  surface: "home" | "shelf";
+  slot: "hero" | "today-rail" | "editor-pick";
   priority: number;
 }
 
@@ -441,8 +441,8 @@ export const seedPostPlacements: SeedPostPlacement[] = [
     priority: 0
   },
   {
-    id: "placement-home-today-sunset",
-    postId: "post-sunset-1",
+    id: "placement-home-today-dawn",
+    postId: "post-dawn-1",
     surface: "home",
     slot: "today-rail",
     priority: 0
@@ -453,6 +453,13 @@ export const seedPostPlacements: SeedPostPlacement[] = [
     surface: "home",
     slot: "today-rail",
     priority: 10
+  },
+  {
+    id: "placement-shelf-editor-pick-dawn",
+    postId: "post-dawn-1",
+    surface: "shelf",
+    slot: "editor-pick",
+    priority: 0
   }
 ];
 

@@ -47,6 +47,10 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getShelf(sort, options, accountIdHint);
   }
 
+  getShelfEditorPick(accountIdHint?: string) {
+    return this.contentRepository.getShelfEditorPick(accountIdHint);
+  }
+
   getDrawer(options?: { cursor?: string | undefined; limit?: string | undefined }, accountIdHint?: string) {
     return this.contentRepository.getDrawer(options, accountIdHint);
   }

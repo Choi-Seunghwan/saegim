@@ -24,11 +24,13 @@ enum PostCreationType {
 
 enum PostPlacementSurface {
   HOME
+  SHELF
 }
 
 enum PostPlacementSlot {
   HERO
   TODAY_RAIL
+  EDITOR_PICK
 }
 
 enum SourceKind {

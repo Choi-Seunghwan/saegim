@@ -31,6 +31,11 @@ export class PostsController {
     return this.contentService.getShelf(sort, { cursor, limit }, cookieHeader);
   }
 
+  @Get("shelf/editor-pick")
+  getShelfEditorPick(@Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getShelfEditorPick(cookieHeader);
+  }
+
   @Get("drawer")
   getDrawer(@Query("cursor") cursor?: string, @Query("limit") limit?: string, @Headers("cookie") cookieHeader?: string) {
     return this.contentService.getDrawer({ cursor, limit }, cookieHeader);

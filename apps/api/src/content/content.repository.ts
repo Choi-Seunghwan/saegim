@@ -156,6 +156,8 @@ type PageParams = {
 };
 type ShelfSortMode = "popular" | "latest";
 type HomePostSlot = "hero" | "today-rail";
+type PostPlacementSurfaceValue = "home" | "shelf";
+type PostPlacementSlotValue = HomePostSlot | "editor-pick";
 
 @Injectable()
 export class ContentRepository {
@@ -361,12 +363,27 @@ export class ContentRepository {
   async getHomePosts(options?: HomePostsQueryOptions, cookieHeader?: string) {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const page = this.normalizePageOptions(options);
-    const slot = this.toDbPostPlacementSlot(this.normalizeHomePostSlot(options?.slot));
+    return this.getPlacedPosts("home", this.normalizeHomePostSlot(options?.slot), page, currentAccountId);
+  }
+
+  async getShelfEditorPick(cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
+    const page = { limit: 1 };
+    const placedPosts = await this.getPlacedPosts("shelf", "editor-pick", page, currentAccountId);
+    return { item: placedPosts.items[0] ?? null };
+  }
+
+  private async getPlacedPosts(
+    surface: PostPlacementSurfaceValue,
+    slot: PostPlacementSlotValue,
+    page: Pick<PageParams, "cursor" | "limit">,
+    currentAccountId?: string | null
+  ) {
     const now = new Date();
     const placements = await this.prisma.postPlacement.findMany({
       where: {
-        surface: "HOME",
-        slot,
+        surface: this.toDbPostPlacementSurface(surface),
+        slot: this.toDbPostPlacementSlot(slot),
         isActive: true,
         post: {
           visibility: "PUBLIC"
@@ -1517,11 +1534,12 @@ export class ContentRepository {
     return value === "ORIGINAL" ? "original" : "curation";
   }
 
-  private toDbPostPlacementSurface(_value: "home"): "HOME" {
-    return "HOME";
+  private toDbPostPlacementSurface(value: PostPlacementSurfaceValue): "HOME" | "SHELF" {
+    return value === "shelf" ? "SHELF" : "HOME";
   }
 
-  private toDbPostPlacementSlot(value: HomePostSlot): "HERO" | "TODAY_RAIL" {
+  private toDbPostPlacementSlot(value: PostPlacementSlotValue): "HERO" | "TODAY_RAIL" | "EDITOR_PICK" {
+    if (value === "editor-pick") return "EDITOR_PICK";
     return value === "hero" ? "HERO" : "TODAY_RAIL";
   }
 

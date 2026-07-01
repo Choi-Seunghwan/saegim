@@ -2,7 +2,8 @@
 -- 목적:
 -- 1. 새김 편집부 공식 계정을 보강하거나, 없으면 운영 계정을 생성한다.
 -- 2. 확정한 6개 큐레이션 글과 각 2장의 카드를 삽입/갱신한다.
--- 3. 여러 번 실행해도 같은 id의 글/장은 갱신된다.
+-- 3. 홈 배너, 오늘 닿은 글, 둘러보기 에디터 픽 운영 슬롯을 지정한다.
+-- 4. 여러 번 실행해도 같은 id의 글/장/배치는 갱신된다.
 --
 -- 저작권 메모:
 -- - 별 헤는 밤은 저작권 보호기간이 만료된 윤동주 원문 발췌 기준.
@@ -429,6 +430,135 @@ BEGIN
     tags = EXCLUDED.tags,
     "embeddingStatus" = EXCLUDED."embeddingStatus",
     embedding = EXCLUDED.embedding,
+    "updatedAt" = now_at;
+
+  UPDATE "PostPlacement"
+  SET
+    "isActive" = false,
+    "updatedAt" = now_at
+  WHERE surface = 'HOME'::"PostPlacementSurface"
+    AND slot IN ('HERO'::"PostPlacementSlot", 'TODAY_RAIL'::"PostPlacementSlot");
+
+  UPDATE "PostPlacement"
+  SET
+    "isActive" = false,
+    "updatedAt" = now_at
+  WHERE surface = 'SHELF'::"PostPlacementSurface"
+    AND slot = 'EDITOR_PICK'::"PostPlacementSlot";
+
+  INSERT INTO "PostPlacement" (
+    id,
+    "postId",
+    surface,
+    slot,
+    priority,
+    "startsAt",
+    "endsAt",
+    "isActive",
+    "createdAt",
+    "updatedAt"
+  )
+  SELECT
+    'placement-home-hero-bedtime-line',
+    p.id,
+    'HOME'::"PostPlacementSurface",
+    'HERO'::"PostPlacementSlot",
+    0,
+    NULL::timestamptz,
+    NULL::timestamptz,
+    true,
+    now_at,
+    now_at
+  FROM "Post" p
+  WHERE p.title = '잠들기 전 마지막 줄'
+    AND p.visibility = 'PUBLIC'::"PostVisibility"
+  ORDER BY p."publishedAt" DESC NULLS LAST, p."createdAt" DESC
+  LIMIT 1
+  ON CONFLICT ("postId", surface, slot) DO UPDATE
+  SET
+    priority = EXCLUDED.priority,
+    "startsAt" = EXCLUDED."startsAt",
+    "endsAt" = EXCLUDED."endsAt",
+    "isActive" = EXCLUDED."isActive",
+    "updatedAt" = now_at;
+
+  WITH today_posts AS (
+    SELECT
+      p.id,
+      row_number() OVER (
+        ORDER BY p."publishedAt" DESC NULLS LAST, p."createdAt" DESC, p.id DESC
+      ) - 1 AS priority
+    FROM "Post" p
+    WHERE p."authorId" = editor_account_id
+      AND p.visibility = 'PUBLIC'::"PostVisibility"
+  )
+  INSERT INTO "PostPlacement" (
+    id,
+    "postId",
+    surface,
+    slot,
+    priority,
+    "startsAt",
+    "endsAt",
+    "isActive",
+    "createdAt",
+    "updatedAt"
+  )
+  SELECT
+    'placement-home-today-editorial-' || id,
+    id,
+    'HOME'::"PostPlacementSurface",
+    'TODAY_RAIL'::"PostPlacementSlot",
+    priority,
+    NULL::timestamptz,
+    NULL::timestamptz,
+    true,
+    now_at,
+    now_at
+  FROM today_posts
+  ON CONFLICT ("postId", surface, slot) DO UPDATE
+  SET
+    priority = EXCLUDED.priority,
+    "startsAt" = EXCLUDED."startsAt",
+    "endsAt" = EXCLUDED."endsAt",
+    "isActive" = EXCLUDED."isActive",
+    "updatedAt" = now_at;
+
+  INSERT INTO "PostPlacement" (
+    id,
+    "postId",
+    surface,
+    slot,
+    priority,
+    "startsAt",
+    "endsAt",
+    "isActive",
+    "createdAt",
+    "updatedAt"
+  )
+  SELECT
+    'placement-shelf-editor-pick-counting-stars',
+    p.id,
+    'SHELF'::"PostPlacementSurface",
+    'EDITOR_PICK'::"PostPlacementSlot",
+    0,
+    NULL::timestamptz,
+    NULL::timestamptz,
+    true,
+    now_at,
+    now_at
+  FROM "Post" p
+  WHERE p."authorId" = editor_account_id
+    AND p.title = '별 헤는 밤'
+    AND p.visibility = 'PUBLIC'::"PostVisibility"
+  ORDER BY p."publishedAt" DESC NULLS LAST, p."createdAt" DESC
+  LIMIT 1
+  ON CONFLICT ("postId", surface, slot) DO UPDATE
+  SET
+    priority = EXCLUDED.priority,
+    "startsAt" = EXCLUDED."startsAt",
+    "endsAt" = EXCLUDED."endsAt",
+    "isActive" = EXCLUDED."isActive",
     "updatedAt" = now_at;
 END $$;
 
