@@ -49,6 +49,7 @@ ghcr.io/choi-seunghwan/saegim-api:main
 웹 이미지는 빌드 시점에 아래 값을 포함한다.
 
 ```text
+NEXT_PUBLIC_SITE_URL=https://saegim.chuz.dev
 NEXT_PUBLIC_API_BASE_URL=https://api-saegim.chuz.dev
 NEXT_PUBLIC_MIXPANEL_*
 ```

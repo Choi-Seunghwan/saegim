@@ -14,6 +14,7 @@
 
 ```text
 NODE_ENV
+NEXT_PUBLIC_SITE_URL
 NEXT_PUBLIC_API_BASE_URL
 NEXT_PUBLIC_MIXPANEL_TOKEN
 NEXT_PUBLIC_MIXPANEL_ENABLED
@@ -37,6 +38,7 @@ AWS_SECRET_ACCESS_KEY
 ```
 
 `NEXT_PUBLIC_API_BASE_URL`을 비워두면 웹은 현재 브라우저 호스트 기준으로 `:4000` API를 사용한다.
+`NEXT_PUBLIC_SITE_URL`은 SEO canonical URL과 OpenGraph 이미지 URL의 기준이 된다.
 
 ## GitHub Repository Variables
 
@@ -49,6 +51,8 @@ GitHub repo -> Settings -> Secrets and variables -> Actions -> Variables
 운영 웹 이미지 빌드에 사용한다. `NEXT_PUBLIC_*` 값은 Next.js 번들에 포함되므로 런타임 Secret이 아니라 빌드 변수로 관리한다.
 
 ```text
+NEXT_PUBLIC_SITE_URL=https://saegim.chuz.dev
+NEXT_PUBLIC_API_BASE_URL=https://api-saegim.chuz.dev
 NEXT_PUBLIC_MIXPANEL_TOKEN
 NEXT_PUBLIC_MIXPANEL_ENABLED=true
 NEXT_PUBLIC_MIXPANEL_DEBUG=false
