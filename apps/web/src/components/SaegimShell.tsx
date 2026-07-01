@@ -438,9 +438,10 @@ const captureImageAcceptedTypes = new Set([
   "image/webp",
   "image/avif",
 ]);
-const captureImageMaxBytes = 5 * 1024 * 1024;
+const imageUploadMaxBytes = 10 * 1024 * 1024;
+const captureImageMaxBytes = imageUploadMaxBytes;
 const maxCaptureDraftCards = 10;
-const profilePhotoMaxBytes = 5 * 1024 * 1024;
+const profilePhotoMaxBytes = imageUploadMaxBytes;
 const profilePhotoSize = 512;
 const captureFontOptions: { id: CardComposition["font"]; label: string }[] = [
   { id: "gothic", label: "고딕" },
@@ -5202,7 +5203,7 @@ function CaptureView({
     }
 
     if (file.size > captureImageMaxBytes) {
-      setError("지금 미리보기는 5MB 이하 이미지만 받아요.");
+      setError("지금 미리보기는 10MB 이하 이미지만 받아요.");
       return;
     }
 
@@ -6043,7 +6044,7 @@ function CaptureView({
                       ) : null}
                     </div>
                     <p className="capture-image-hint">
-                      권장 9:16 · 1080×1920 이상 · 현재 미리보기 5MB 이하
+                      권장 9:16 · 1080×1920 이상 · 현재 미리보기 10MB 이하
                     </p>
                     {activeBgImage ? (
                       <div className="capture-image-editor">
@@ -7139,7 +7140,7 @@ function ProfileEditView({
     }
 
     if (file.size > profilePhotoMaxBytes) {
-      setError("프로필 사진은 5MB 이하 이미지만 올릴 수 있어요.");
+      setError("프로필 사진은 10MB 이하 이미지만 올릴 수 있어요.");
       return;
     }
 

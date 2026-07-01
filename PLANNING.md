@@ -220,6 +220,7 @@
 
 ## 진행 로그
 
+- 2026-07-01 — **이미지 업로드 상한 10MB 조정**: Next 웹의 카드 배경 이미지와 프로필 사진 선택 제한을 5MB에서 10MB로 올렸다. 카드 배경 이미지는 현재 S3 직접 업로드 전까지 data URL로 API에 실리므로, 10MB 파일의 base64 인코딩 여유를 고려해 Nest API JSON/urlencoded 요청 본문 한도도 16MB로 넓혔다.
 - 2026-07-01 — **카드 출처 글자색 문장색 동기화**: 카드 위에 노출되는 출처 텍스트가 문장 글자색보다 흐리게 보이지 않도록 Next 웹 상세/포착 화면과 단일 HTML 앱·에디터의 출처 텍스트를 `textColor`/`--cv-text` 기준으로 맞추고 별도 투명도 처리를 제거했다.
 - 2026-07-01 — **홈 큐레이션 운영 슬롯 분리**: `오늘 닿은 글`과 홈 배너의 글 노출 기준을 글 성격(`creationType=CURATION`)에서 운영 배치 속성(`PostPlacement`)으로 분리했다. `surface=HOME`, `slot=HERO/TODAY_RAIL`, `priority`, `startsAt/endsAt`, `isActive`로 홈 노출을 조정하고, `creationType`은 창작/큐레이션이라는 글 자체의 성격만 나타내도록 기본값을 `ORIGINAL`로 정리했다. Next 웹은 배너 글과 레일 글을 각각 `GET /home/posts?slot=hero`, `GET /home/posts?slot=today-rail`로 따로 읽는다.
 - 2026-07-01 — **정보 패널 출처 표시 단순화**: Next 웹 카드 상세 ⋯ 정보 패널의 출처 영역에서 `책`·`웹`·`출판사`·`직접 입력` 같은 출처 유형 보조 라벨을 제거했다. 출처명·저자로 조합한 출처 한 줄만 보이고, 출처가 없으면 `직접 새김` 같은 fallback 문구 없이 빈 값으로 둔다. 단일 HTML 프로토타입도 같은 표시 기준으로 맞췄다.
