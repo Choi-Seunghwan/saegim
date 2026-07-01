@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ContentRepository } from "./content.repository.js";
-import type { CreateCommentInput, CreatePostInput, UpdateAccountInput } from "./content.types.js";
+import type { CreateCommentInput, CreatePostInput, UpdateAccountInput, UpdatePostInput } from "./content.types.js";
 
 function parseBooleanEnv(value: string | undefined) {
   if (!value) return undefined;
@@ -103,6 +103,14 @@ export class ContentService implements OnModuleInit {
 
   createPost(input: CreatePostInput, accountIdHint?: string) {
     return this.contentRepository.createPost(input, accountIdHint);
+  }
+
+  updatePost(postId: string, input: UpdatePostInput, accountIdHint?: string) {
+    return this.contentRepository.updatePost(postId, input, accountIdHint);
+  }
+
+  deletePost(postId: string, accountIdHint?: string) {
+    return this.contentRepository.deletePost(postId, accountIdHint);
   }
 
   getCurrentAccount(accountIdHint?: string) {

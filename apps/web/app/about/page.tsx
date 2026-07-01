@@ -45,6 +45,8 @@ export default function AboutPage() {
     operatingSystem: "Web",
     url: absoluteUrl("/about"),
     description: siteDescription,
+    privacyPolicy: absoluteUrl("/privacy"),
+    termsOfService: absoluteUrl("/terms"),
     offers: {
       "@type": "Offer",
       price: "0",
@@ -92,6 +94,11 @@ export default function AboutPage() {
         <Link className="public-primary-link" href="/">
           새김 앱 열기
         </Link>
+
+        <nav className="public-legal-links" aria-label="새김 정책 문서">
+          <Link href="/privacy">개인정보 처리방침</Link>
+          <Link href="/terms">이용약관</Link>
+        </nav>
       </article>
       <script
         type="application/ld+json"

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { CurrentAccountService } from "../auth/current-account.service.js";
 import { createRandomPublicHandle, isEmailDerivedHandle } from "../auth/public-handle.js";
@@ -19,7 +19,8 @@ import type {
   PublicSeoIndex,
   SearchResult,
   AccountDetail,
-  UpdateAccountInput
+  UpdateAccountInput,
+  UpdatePostInput
 } from "./content.types.js";
 
 const accountInclude = Prisma.validator<Prisma.AccountInclude>()({
@@ -604,6 +605,85 @@ export class ContentRepository {
     });
 
     return this.getPost(post.id, cookieHeader);
+  }
+
+  async updatePost(postId: string, input: UpdatePostInput, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
+    const cardsInput = this.normalizeCards(input);
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true, visibility: true }
+    });
+
+    if (!post) {
+      throw new NotFoundException("글을 찾을 수 없어요.");
+    }
+
+    if (post.authorId !== currentAccountId) {
+      throw new ForbiddenException("내가 작성한 글만 수정할 수 있어요.");
+    }
+
+    const firstCard = cardsInput[0]!;
+    const title = input.title?.trim() || this.titleFromText(firstCard.text);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.card.deleteMany({
+        where: { postId }
+      });
+
+      await tx.post.update({
+        where: { id: postId },
+        data: {
+          title,
+          visibility: input.visibility
+            ? this.toDbVisibility(input.visibility)
+            : post.visibility,
+          cards: {
+            create: cardsInput.map((card, order) => {
+              const source = this.normalizeSource(card.source);
+
+              return {
+                order,
+                text: card.text,
+                comp: this.normalizeComposition(card.comp) as unknown as Prisma.InputJsonValue,
+                sourceKind: this.toDbSourceKind(source.kind),
+                ...(source.author ? { sourceAuthor: source.author } : {}),
+                ...(source.work ? { sourceWork: source.work } : {}),
+                ...(source.url ? { sourceUrl: source.url } : {}),
+                tags: this.normalizeTags(card.tags)
+              };
+            })
+          }
+        }
+      });
+    });
+
+    return this.getPost(postId, cookieHeader);
+  }
+
+  async deletePost(postId: string, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getCurrentAccountId(cookieHeader);
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true }
+    });
+
+    if (!post) {
+      throw new NotFoundException("글을 찾을 수 없어요.");
+    }
+
+    if (post.authorId !== currentAccountId) {
+      throw new ForbiddenException("내가 작성한 글만 삭제할 수 있어요.");
+    }
+
+    await this.prisma.post.delete({
+      where: { id: postId }
+    });
+
+    return {
+      ok: true,
+      postId
+    };
   }
 
   async likePost(postId: string, cookieHeader?: string) {

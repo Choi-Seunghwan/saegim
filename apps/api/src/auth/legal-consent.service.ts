@@ -24,6 +24,15 @@ interface RawAgreementInput {
 
 @Injectable()
 export class LegalConsentService {
+  currentRequiredAgreement(): LegalAgreementInput {
+    return {
+      terms: true,
+      privacy: true,
+      termsVersion: currentLegalVersions.terms,
+      privacyVersion: currentLegalVersions.privacy
+    };
+  }
+
   validateRequiredAgreement(input: unknown): LegalAgreementInput {
     const agreement = this.asAgreementObject(input);
 

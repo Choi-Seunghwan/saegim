@@ -8,13 +8,13 @@ export const size = {
 
 export const contentType = "image/png";
 
-type PostOgImageProps = {
+type PublicPostOgImageProps = {
   params: Promise<{
     postId: string;
   }>;
 };
 
-export default async function PostOpenGraphImage({ params }: PostOgImageProps) {
+export default async function PostOpenGraphImage({ params }: PublicPostOgImageProps) {
   const { postId } = await params;
   const post = await fetchPublicPost(postId);
   const card = post.cards[0];

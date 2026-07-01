@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException
+} from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { pbkdf2Sync, randomBytes, timingSafeEqual } from "node:crypto";
 import type { AccountProfile } from "../content/content.types.js";
@@ -20,6 +26,7 @@ const passwordIterations = 120_000;
 const passwordKeyLength = 32;
 const passwordDigest = "sha256";
 const legacyDefaultTagline = "한 줄을 곁에 두는 사람";
+const duplicateEmailMessage = "이미 가입된 이메일이에요. 로그인 또는 Google로 계속하기를 이용해 주세요.";
 const accountInclude = Prisma.validator<Prisma.AccountInclude>()({
   _count: {
     select: {
@@ -42,69 +49,132 @@ export class EmailAuthService {
 
   async signup(input: EmailSignupInput) {
     const email = this.normalizeEmail(input.email);
-    const password = this.normalizePassword(input.password);
+    const password = this.normalizeSignupPassword(input.password);
     const displayName = this.normalizeDisplayName(input.displayName);
     const agreement = this.legalConsentService.validateRequiredAgreement(input.agreements);
 
-    const existingAccount = await this.prisma.account.findUnique({
-      where: { email },
-      select: { id: true }
-    });
-    const existingCredential = await this.prisma.emailCredential.findUnique({
-      where: { email },
-      select: { id: true }
-    });
+    let existingAccount: { id: string } | null;
+    let existingCredential: { id: string } | null;
 
-    if (existingAccount || existingCredential) {
-      throw new ConflictException("이미 가입된 이메일이에요.");
+    try {
+      [existingAccount, existingCredential] = await Promise.all([
+        this.prisma.account.findUnique({
+          where: { email },
+          select: { id: true }
+        }),
+        this.prisma.emailCredential.findUnique({
+          where: { email },
+          select: { id: true }
+        })
+      ]);
+    } catch (error) {
+      this.handleAuthSchemaError(error, "가입");
     }
 
-    const handle = await this.createUniqueHandle();
-    const account = await this.prisma.$transaction(async (transaction) => {
-      const createdAccount = await transaction.account.create({
-        data: {
-          email,
-          handle,
-          displayName,
-          emailCredential: {
-            create: {
+    if (existingAccount || existingCredential) {
+      throw new ConflictException(duplicateEmailMessage);
+    }
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const handle = await this.createUniqueHandle();
+
+      try {
+        const account = await this.prisma.$transaction(async (transaction) => {
+          const createdAccount = await transaction.account.create({
+            data: {
               email,
-              passwordHash: this.hashPassword(password)
-            }
-          }
-        },
-        include: accountInclude
-      });
+              handle,
+              displayName,
+              emailCredential: {
+                create: {
+                  email,
+                  passwordHash: this.hashPassword(password)
+                }
+              }
+            },
+            include: accountInclude
+          });
 
-      await transaction.accountConsent.createMany({
-        data: this.legalConsentService.makeConsentCreateManyInput(
-          createdAccount.id,
-          agreement,
-          "EMAIL_SIGNUP"
-        ),
-        skipDuplicates: true
-      });
+          await transaction.accountConsent.createMany({
+            data: this.legalConsentService.makeConsentCreateManyInput(
+              createdAccount.id,
+              agreement,
+              "EMAIL_SIGNUP"
+            ),
+            skipDuplicates: true
+          });
 
-      return createdAccount;
-    });
+          return createdAccount;
+        });
 
-    return {
-      accountId: account.id,
-      item: this.toAccountProfile(account)
-    };
+        return {
+          accountId: account.id,
+          item: this.toAccountProfile(account)
+        };
+      } catch (error) {
+        if (this.isUniqueConflict(error, "handle")) {
+          continue;
+        }
+
+        this.handleSignupPersistenceError(error);
+      }
+    }
+
+    throw new ServiceUnavailableException("계정 주소를 만드는 중이에요. 잠시 후 다시 시도해 주세요.");
+  }
+
+  private handleSignupPersistenceError(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (this.isUniqueConflict(error, "email")) {
+        throw new ConflictException(duplicateEmailMessage);
+      }
+
+      if (error.code === "P2021") {
+        throw new ServiceUnavailableException(
+          "가입 준비가 아직 완료되지 않았어요. 잠시 후 다시 시도해 주세요."
+        );
+      }
+    }
+
+    throw error;
+  }
+
+  private isUniqueConflict(error: unknown, field: "email" | "handle") {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+      return false;
+    }
+
+    const target = error.meta?.target;
+    if (Array.isArray(target)) {
+      return target.some((value) => typeof value === "string" && value.toLowerCase() === field);
+    }
+
+    if (typeof target === "string") {
+      return target.toLowerCase().includes(field);
+    }
+
+    return false;
   }
 
   async login(input: EmailAuthInput) {
     const email = this.normalizeEmail(input.email);
-    const password = this.normalizePassword(input.password);
-    const credential = await this.prisma.emailCredential.findUnique({
-      where: { email },
-      include: {
-        account: {
-          include: accountInclude
+    const password = this.normalizeLoginPassword(input.password);
+    let credential: (Prisma.EmailCredentialGetPayload<{
+      include: { account: { include: typeof accountInclude } };
+    }>) | null;
+
+    try {
+      credential = await this.prisma.emailCredential.findUnique({
+        where: { email },
+        include: {
+          account: {
+            include: accountInclude
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      this.handleAuthSchemaError(error, "로그인");
+    }
 
     if (!credential || !this.verifyPassword(password, credential.passwordHash)) {
       throw new UnauthorizedException("이메일 또는 비밀번호를 확인해 주세요.");
@@ -129,7 +199,17 @@ export class EmailAuthService {
     return email;
   }
 
-  private normalizePassword(value: unknown) {
+  private handleAuthSchemaError(error: unknown, actionLabel: "가입" | "로그인"): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+      throw new ServiceUnavailableException(
+        `${actionLabel} 준비가 아직 완료되지 않았어요. 잠시 후 다시 시도해 주세요.`
+      );
+    }
+
+    throw error;
+  }
+
+  private normalizeSignupPassword(value: unknown) {
     if (typeof value !== "string") {
       throw new BadRequestException("비밀번호를 입력해 주세요.");
     }
@@ -137,6 +217,19 @@ export class EmailAuthService {
     const password = value.trim();
     if (password.length < 8 || password.length > 120 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
       throw new BadRequestException("비밀번호는 8자 이상, 영문과 숫자를 함께 입력해 주세요.");
+    }
+
+    return password;
+  }
+
+  private normalizeLoginPassword(value: unknown) {
+    if (typeof value !== "string" || !value.trim()) {
+      throw new BadRequestException("비밀번호를 입력해 주세요.");
+    }
+
+    const password = value.trim();
+    if (password.length > 120) {
+      throw new UnauthorizedException("이메일 또는 비밀번호를 확인해 주세요.");
     }
 
     return password;

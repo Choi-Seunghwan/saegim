@@ -136,24 +136,30 @@ function cardSourceLabel(card: SentenceCard) {
   return formatted === "직접 새김" ? "" : formatted;
 }
 
-export function PublicWebShell({ children }: { children: ReactNode }) {
+export function PublicWebShell({
+  appHref = "/",
+  children,
+}: {
+  appHref?: string;
+  children: ReactNode;
+}) {
   return (
     <main className="public-web-shell">
       <div className="public-web-page">
-        <PublicHeader />
+        <PublicHeader appHref={appHref} />
         {children}
       </div>
     </main>
   );
 }
 
-export function PublicHeader() {
+export function PublicHeader({ appHref = "/" }: { appHref?: string }) {
   return (
     <header className="public-header">
       <Link className="public-wordmark" href="/" aria-label="새김 홈">
         새김
       </Link>
-      <Link className="public-open-link" href="/">
+      <Link className="public-open-link" href={appHref}>
         앱 열기
       </Link>
     </header>

@@ -123,6 +123,12 @@ export interface CreatePostInput {
   }>;
 }
 
+export interface UpdatePostInput {
+  title?: string;
+  visibility?: PostVisibility;
+  cards: CreatePostInput["cards"];
+}
+
 export interface UpdateAccountInput {
   displayName?: string;
   tagline?: string;

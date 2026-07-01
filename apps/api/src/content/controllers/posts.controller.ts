@@ -1,6 +1,6 @@
-import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Post as HttpPost, Query } from "@nestjs/common";
+import { Body, Controller, Delete as HttpDelete, Get, Headers, Param, Patch, Post as HttpPost, Query } from "@nestjs/common";
 import { ContentService } from "../content.service.js";
-import type { CreateCommentInput, CreatePostInput } from "../content.types.js";
+import type { CreateCommentInput, CreatePostInput, UpdatePostInput } from "../content.types.js";
 
 @Controller()
 export class PostsController {
@@ -85,5 +85,19 @@ export class PostsController {
   @HttpPost("posts")
   createPost(@Body() input: CreatePostInput, @Headers("cookie") cookieHeader?: string) {
     return this.contentService.createPost(input, cookieHeader);
+  }
+
+  @Patch("posts/:postId")
+  updatePost(
+    @Param("postId") postId: string,
+    @Body() input: UpdatePostInput,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.updatePost(postId, input, cookieHeader);
+  }
+
+  @HttpDelete("posts/:postId")
+  deletePost(@Param("postId") postId: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.deletePost(postId, cookieHeader);
   }
 }

@@ -30,11 +30,13 @@ import type {
   PostComment,
   SentenceCard,
   UpdateAccountInput,
+  UpdatePostInput,
 } from "@saegim/domain";
 import {
   carvePost,
   createPost,
   createPostComment,
+  deletePost,
   fetchAccountDetail,
   fetchAccountPosts,
   fetchPostComments,
@@ -59,6 +61,7 @@ import {
   unlikePost,
   unfollowAccount,
   updateCurrentAccount,
+  updatePost,
 } from "../lib/api";
 import {
   identifyAnalyticsAccount,
@@ -735,6 +738,41 @@ function createCaptureDraftCard(baseComp?: CardComposition): CaptureDraftCard {
   };
 }
 
+function cloneCaptureDraftComp(comp: CardComposition): CardComposition {
+  return {
+    ...DEFAULT_CARD_COMP,
+    ...comp,
+    textPos: comp.textPos ?? null,
+    sourcePos: comp.sourcePos ?? null,
+    bgImage: comp.bgImage ? { ...comp.bgImage } : null,
+  };
+}
+
+function createCaptureDraftFromPost(post: PostBundle) {
+  const firstCard = post.cards[0];
+  const uniqueTags = new Set<string>();
+
+  post.cards.forEach((card) => {
+    card.tags.forEach((tag) => {
+      const cleanTag = tag.trim();
+      if (cleanTag) {
+        uniqueTags.add(cleanTag);
+      }
+    });
+  });
+
+  return {
+    cards: post.cards.map((card) => ({
+      text: card.text,
+      comp: cloneCaptureDraftComp(card.comp),
+    })),
+    sourceAuthor: firstCard?.source.author ?? "",
+    sourceWork: firstCard?.source.work ?? "",
+    tags: [...uniqueTags].slice(0, 3).join(", "),
+    title: post.post.title,
+  };
+}
+
 function isSameBackgroundOption(
   option: (typeof captureBackgroundOptions)[number],
   comp: CardComposition,
@@ -1080,6 +1118,12 @@ export function SaegimShell() {
     useState<EditorialPageState | null>(null);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [infoSheet, setInfoSheet] = useState<InfoSheetState | null>(null);
+  const [editingPost, setEditingPost] = useState<PostBundle | null>(null);
+  const [deleteTargetPost, setDeleteTargetPost] =
+    useState<PostBundle | null>(null);
+  const [deletePostStatus, setDeletePostStatus] =
+    useState<"idle" | "submitting">("idle");
+  const [deletePostError, setDeletePostError] = useState("");
   const [detailReturnTarget, setDetailReturnTarget] =
     useState<DetailReturnTarget | null>(null);
   const [profileReturnTarget, setProfileReturnTarget] =
@@ -1106,7 +1150,7 @@ export function SaegimShell() {
       : (accounts.find((account) => account.id === selectedProfileId) ??
         posts.find((post) => post.author.id === selectedProfileId)?.author ??
         currentAccount);
-  const isOwnProfile = selectedProfile.id === currentAccount.id;
+  const isOwnProfile = isSignedIn() && selectedProfile.id === currentAccount.id;
   const infoSheetPost = infoSheet
     ? posts.find((post) => post.post.id === infoSheet.postId)
     : null;
@@ -1224,10 +1268,12 @@ export function SaegimShell() {
 
     if (activeTab === "capture") {
       return {
-        key: `capture:${captureReturnTab}`,
+        key: `capture:${captureReturnTab}:${editingPost?.post.id ?? "new"}`,
         name: "Capture",
         properties: {
           ...baseProperties,
+          mode: editingPost ? "edit" : "create",
+          post_id: editingPost?.post.id ?? null,
           return_tab: captureReturnTab,
         },
       };
@@ -1308,6 +1354,7 @@ export function SaegimShell() {
     currentAccount.id,
     detailReturnTarget?.surface,
     drawerReturnSurface,
+    editingPost,
     editorialPageState?.origin,
     editorialPages.length,
     entryState,
@@ -1365,6 +1412,8 @@ export function SaegimShell() {
   }
 
   function handlePostPublished(post: PostBundle) {
+    const alreadyPresent = posts.some((item) => item.post.id === post.post.id);
+
     trackSaegimEvent(
       "Post Published",
       makePostAnalyticsProperties(post, { surface: "capture" }),
@@ -1381,6 +1430,39 @@ export function SaegimShell() {
     setEditorialPageState(null);
     setInfoSheet(null);
     setActiveTab("discover");
+
+    if (!alreadyPresent) {
+      setAccounts((currentAccounts) =>
+        currentAccounts.map((account) =>
+          account.id === post.author.id
+            ? { ...account, postCount: account.postCount + 1 }
+            : account,
+        ),
+      );
+      setCurrentAccount((account) =>
+        account.id === post.author.id
+          ? { ...account, postCount: account.postCount + 1 }
+          : account,
+      );
+    }
+  }
+
+  function handlePostUpdated(post: PostBundle) {
+    trackSaegimEvent(
+      "Post Updated",
+      makePostAnalyticsProperties(post, { surface: "capture" }),
+    );
+    replacePost(post);
+    setActivePostId(post.post.id);
+    setActiveCardIndex(0);
+    setEditingPost(null);
+    setIsSearching(false);
+    setIsViewingNoticeList(false);
+    setIsViewingFollowing(false);
+    setEditorialPageState(null);
+    setCommentPost(null);
+    setInfoSheet(null);
+    setActiveTab("discover");
   }
 
   function replacePost(post: PostBundle) {
@@ -1392,6 +1474,51 @@ export function SaegimShell() {
     );
     setCommentPost((currentPost) =>
       currentPost?.post.id === post.post.id ? post : currentPost,
+    );
+    setEditingPost((currentPost) =>
+      currentPost?.post.id === post.post.id ? post : currentPost,
+    );
+  }
+
+  function removePostFromState(post: PostBundle) {
+    const postId = post.post.id;
+    const currentPostIndex = posts.findIndex((item) => item.post.id === postId);
+    const remainingPosts = posts.filter((item) => item.post.id !== postId);
+    const nextActivePost =
+      remainingPosts[currentPostIndex] ??
+      remainingPosts[Math.max(0, currentPostIndex - 1)] ??
+      null;
+
+    setPosts(remainingPosts);
+    setHomePosts((currentPosts) =>
+      currentPosts.filter((item) => item.post.id !== postId),
+    );
+    setCommentPost((currentPost) =>
+      currentPost?.post.id === postId ? null : currentPost,
+    );
+    setInfoSheet((currentSheet) =>
+      currentSheet?.postId === postId ? null : currentSheet,
+    );
+    setEditingPost((currentPost) =>
+      currentPost?.post.id === postId ? null : currentPost,
+    );
+
+    if (activePostId === postId) {
+      setActivePostId(nextActivePost?.post.id ?? null);
+      setActiveCardIndex(0);
+    }
+
+    setAccounts((currentAccounts) =>
+      currentAccounts.map((account) =>
+        account.id === post.author.id
+          ? { ...account, postCount: Math.max(0, account.postCount - 1) }
+          : account,
+      ),
+    );
+    setCurrentAccount((account) =>
+      account.id === post.author.id
+        ? { ...account, postCount: Math.max(0, account.postCount - 1) }
+        : account,
     );
   }
 
@@ -1520,6 +1647,30 @@ export function SaegimShell() {
     return false;
   }
 
+  function resetProtectedAccountSurfaces() {
+    setIsSearching(false);
+    setIsEditingProfile(false);
+    setIsViewingDrawer(false);
+    setDrawerReturnSurface("profile");
+    setIsViewingFollowing(false);
+    setIsViewingSettings(false);
+    setIsViewingNoticeList(false);
+    setLegalDocumentKind(null);
+    setEditorialPageState(null);
+    setCommentPost(null);
+    setInfoSheet(null);
+    setDetailReturnTarget(null);
+    setProfileReturnTarget(null);
+    setSelectedProfileId(null);
+  }
+
+  function redirectGuestToHome(intent: AuthSheetIntent = "profile") {
+    resetProtectedAccountSurfaces();
+    setActiveTab("home");
+    openAuthSheet(intent);
+    writeAppRouteToHistory({ surface: "tab", tab: "home" }, "replace");
+  }
+
   function retryInitialLoad() {
     setInitialLoadState("loading");
     setInitialLoadRetryKey((currentKey) => currentKey + 1);
@@ -1560,6 +1711,7 @@ export function SaegimShell() {
 
     if (intent === "capture") {
       setCaptureReturnTab(activeTab === "capture" ? "home" : activeTab);
+      setEditingPost(null);
       setIsSearching(false);
       setIsEditingProfile(false);
       setIsViewingDrawer(false);
@@ -1608,6 +1760,9 @@ export function SaegimShell() {
     setEditorialPageState(null);
     setCommentPost(null);
     setInfoSheet(null);
+    setEditingPost(null);
+    setDeleteTargetPost(null);
+    setDeletePostError("");
     setDetailReturnTarget(null);
     setProfileReturnTarget(null);
     setCurrentAccount(guestAccount);
@@ -1617,6 +1772,16 @@ export function SaegimShell() {
   }
 
   function activateTab(tab: TabKey) {
+    if (tab === "capture" && !isSignedIn()) {
+      redirectGuestToHome("capture");
+      return;
+    }
+
+    if (tab === "me" && !isSignedIn()) {
+      redirectGuestToHome("profile");
+      return;
+    }
+
     setActiveTab(tab);
     setIsSearching(false);
     setIsViewingNoticeList(false);
@@ -1625,6 +1790,10 @@ export function SaegimShell() {
     setInfoSheet(null);
     setDetailReturnTarget(null);
     setProfileReturnTarget(null);
+
+    if (tab !== "capture") {
+      setEditingPost(null);
+    }
 
     if (tab === "discover") {
       setActivePostId(
@@ -1647,17 +1816,20 @@ export function SaegimShell() {
 
   function activateTabFromUrl(tab: TabKey) {
     if (tab === "capture" && !isSignedIn()) {
-      openAuthSheet("capture");
+      redirectGuestToHome("capture");
       return;
     }
 
     if (tab === "me" && !isSignedIn()) {
-      openAuthSheet("profile");
+      redirectGuestToHome("profile");
       return;
     }
 
     if (tab === "capture" && activeTab !== "capture") {
       setCaptureReturnTab(activeTab);
+    }
+    if (tab === "capture") {
+      setEditingPost(null);
     }
 
     activateTab(tab);
@@ -1773,6 +1945,10 @@ export function SaegimShell() {
     route: AppRoute;
     state?: AppRouteHistoryState;
   } {
+    if (!isSignedIn() && (activeTab === "capture" || activeTab === "me")) {
+      return { route: { surface: "tab", tab: "home" } };
+    }
+
     if (activeTab === "discover" && activePost && detailReturnTarget) {
       return {
         route: { surface: "post", postId: activePost.post.id },
@@ -1801,26 +1977,31 @@ export function SaegimShell() {
   }
 
   function selectTab(tab: TabKey) {
-    if (tab === "capture" && !requireSignedIn("capture")) {
+    if (tab === "capture" && !isSignedIn()) {
+      redirectGuestToHome("capture");
       return;
     }
 
-    if (tab === "me" && !requireSignedIn("profile")) {
+    if (tab === "me" && !isSignedIn()) {
+      redirectGuestToHome("profile");
       return;
     }
 
     if (tab === "capture" && activeTab !== "capture") {
       setCaptureReturnTab(activeTab);
     }
+    if (tab === "capture") {
+      setEditingPost(null);
+    }
     activateTab(tab);
   }
 
-  function startGoogleOAuth(agreements: LegalAgreementInput) {
+  function startGoogleOAuth() {
     trackSaegimEvent("Login Started", {
       auth_intent: authSheetIntent ?? "default",
       method: "google",
     });
-    window.location.assign(getGoogleOAuthStartUrl(agreements));
+    window.location.assign(getGoogleOAuthStartUrl());
   }
 
   function openEditorialPage(page: EditorialPage, origin: EditorialPageOrigin) {
@@ -1936,6 +2117,79 @@ export function SaegimShell() {
       return updatedAccount;
     } catch {
       return null;
+    }
+  }
+
+  function openPostEditor(post: PostBundle) {
+    if (!requireSignedIn("capture")) {
+      return;
+    }
+
+    if (post.author.id !== currentAccount.id) {
+      return;
+    }
+
+    trackSaegimEvent(
+      "Post Edit Opened",
+      makePostAnalyticsProperties(post, {
+        source_surface: currentAnalyticsSurface(),
+      }),
+    );
+    setCaptureReturnTab(activeTab === "capture" ? "discover" : activeTab);
+    setEditingPost(post);
+    setCommentPost(null);
+    setInfoSheet(null);
+    setIsSearching(false);
+    setIsEditingProfile(false);
+    setIsViewingDrawer(false);
+    setDrawerReturnSurface("profile");
+    setIsViewingFollowing(false);
+    setIsViewingSettings(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
+    setDetailReturnTarget(null);
+    setProfileReturnTarget(null);
+    setActiveTab("capture");
+  }
+
+  function requestPostDelete(post: PostBundle) {
+    if (!requireSignedIn()) {
+      return;
+    }
+
+    if (post.author.id !== currentAccount.id) {
+      return;
+    }
+
+    setDeleteTargetPost(post);
+    setDeletePostError("");
+    setInfoSheet(null);
+    setCommentPost(null);
+  }
+
+  async function confirmPostDelete() {
+    if (!deleteTargetPost || deletePostStatus === "submitting") {
+      return;
+    }
+
+    try {
+      setDeletePostStatus("submitting");
+      setDeletePostError("");
+      await deletePost(deleteTargetPost.post.id);
+      trackSaegimEvent(
+        "Post Deleted",
+        makePostAnalyticsProperties(deleteTargetPost),
+      );
+      removePostFromState(deleteTargetPost);
+      setDeleteTargetPost(null);
+    } catch (error) {
+      setDeletePostError(
+        error instanceof Error
+          ? error.message
+          : "글을 삭제할 수 없어요. 잠시 뒤 다시 시도해 주세요.",
+      );
+    } finally {
+      setDeletePostStatus("idle");
     }
   }
 
@@ -2261,6 +2515,9 @@ export function SaegimShell() {
             setCurrentAccount(guestAccount);
             setSelectedProfileId(null);
             setEntryState("guest");
+            setActiveTab("home");
+            resetProtectedAccountSurfaces();
+            writeAppRouteToHistory({ surface: "tab", tab: "home" }, "replace");
           }
         }
 
@@ -2304,9 +2561,30 @@ export function SaegimShell() {
     if (initialRoute) {
       const routeState = readRouteHistoryState();
       activateAppRouteFromUrl(initialRoute, routeState);
+      if (
+        initialRoute.surface === "tab" &&
+        !isSignedIn() &&
+        (initialRoute.tab === "capture" || initialRoute.tab === "me")
+      ) {
+        return;
+      }
       writeAppRouteToHistory(initialRoute, "replace", routeState);
     }
   }, [entryState, initialLoadState]);
+
+  useEffect(() => {
+    if (
+      initialLoadState !== "ready" ||
+      isSignedIn() ||
+      (activeTab !== "capture" && activeTab !== "me")
+    ) {
+      return;
+    }
+
+    resetProtectedAccountSurfaces();
+    setActiveTab("home");
+    writeAppRouteToHistory({ surface: "tab", tab: "home" }, "replace");
+  }, [activeTab, entryState, initialLoadState]);
 
   useEffect(() => {
     if (
@@ -2484,15 +2762,28 @@ export function SaegimShell() {
       );
     }
     if (activeTab === "capture") {
+      if (!isSignedIn()) {
+        return null;
+      }
+
       return (
         <CaptureView
-          onClose={() => selectTab(captureReturnTab)}
+          editingPost={editingPost}
+          onClose={() => {
+            setEditingPost(null);
+            selectTab(captureReturnTab);
+          }}
           onPublished={handlePostPublished}
+          onUpdated={handlePostUpdated}
         />
       );
     }
     if (activeTab === "shelf") return <ShelfView onOpenPost={openPost} />;
     if (activeTab === "me") {
+      if (!isSignedIn()) {
+        return null;
+      }
+
       if (isViewingSettings) {
         return (
           <SettingsView
@@ -2606,6 +2897,7 @@ export function SaegimShell() {
     currentAccount,
     detailReturnTarget,
     drawerReturnSurface,
+    editingPost,
     entryState,
     editorialPages,
     feedPageInfo,
@@ -2680,8 +2972,28 @@ export function SaegimShell() {
 
         {infoSheet && infoSheetPost ? (
           <PostInfoSheet
+            canManage={
+              isSignedIn() && infoSheetPost.author.id === currentAccount.id
+            }
             onClose={() => setInfoSheet(null)}
+            onDelete={() => requestPostDelete(infoSheetPost)}
+            onEdit={() => openPostEditor(infoSheetPost)}
             post={infoSheetPost}
+          />
+        ) : null}
+
+        {deleteTargetPost ? (
+          <PostDeleteConfirm
+            error={deletePostError}
+            isSubmitting={deletePostStatus === "submitting"}
+            onCancel={() => {
+              if (deletePostStatus !== "submitting") {
+                setDeleteTargetPost(null);
+                setDeletePostError("");
+              }
+            }}
+            onConfirm={confirmPostDelete}
+            post={deleteTargetPost}
           />
         ) : null}
 
@@ -2800,7 +3112,7 @@ function AuthSheet({
   initialMode: AuthMode;
   onClose: () => void;
   onEnter: (input: AuthSubmitInput) => Promise<void>;
-  onGoogleLogin: (agreements: LegalAgreementInput) => void;
+  onGoogleLogin: () => void;
 }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [displayName, setDisplayName] = useState("");
@@ -2867,9 +3179,7 @@ function AuthSheet({
         ...(isSignup ? { agreements: currentAgreement } : {}),
       });
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "로그인을 다시 시도해 주세요.",
-      );
+      setSubmitError(getAuthSubmitErrorMessage(error, isSignup));
     } finally {
       setIsSubmitting(false);
     }
@@ -2877,13 +3187,7 @@ function AuthSheet({
 
   function handleGoogleLogin() {
     setSubmitError("");
-
-    if (!agreed) {
-      setSubmitError("Google로 계속하려면 필수 약관 동의가 필요해요.");
-      return;
-    }
-
-    onGoogleLogin(currentAgreement);
+    onGoogleLogin();
   }
 
   const agreementText = (
@@ -2971,28 +3275,16 @@ function AuthSheet({
           </button>
         </form>
 
-        {!isSignup ? (
-          <>
-            <div className="auth-div">
-              <span>또는</span>
-            </div>
-            <label className="auth-agree auth-agree-oauth">
-              <input
-                checked={agreed}
-                onChange={(event) => setAgreed(event.target.checked)}
-                type="checkbox"
-              />
-              {agreementText}
-            </label>
-            <button
-              className="auth-social google"
-              type="button"
-              onClick={handleGoogleLogin}
-            >
-              Google로 계속하기
-            </button>
-          </>
-        ) : null}
+        <div className="auth-div">
+          <span>또는</span>
+        </div>
+        <button
+          className="auth-social google"
+          type="button"
+          onClick={handleGoogleLogin}
+        >
+          Google로 계속하기
+        </button>
 
         <div className="auth-alt">
           {isSignup ? "이미 계정이 있으신가요?" : "아직 계정이 없으신가요?"}{" "}
@@ -3022,6 +3314,23 @@ function isValidSignupPassword(password: string) {
     /[A-Za-z]/.test(password) &&
     /\d/.test(password)
   );
+}
+
+function getAuthSubmitErrorMessage(error: unknown, isSignup: boolean) {
+  const fallback = isSignup
+    ? "지금 가입을 완료하지 못했어요. 잠시 후 다시 시도해 주세요."
+    : "로그인을 다시 시도해 주세요.";
+
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const message = error.message.trim();
+  if (!message || message === "Internal server error") {
+    return fallback;
+  }
+
+  return message;
 }
 
 function SearchView({
@@ -4298,10 +4607,16 @@ function DetailCardSurface({
 }
 
 function PostInfoSheet({
+  canManage,
   onClose,
+  onDelete,
+  onEdit,
   post,
 }: {
+  canManage: boolean;
   onClose: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
   post: PostBundle;
 }) {
   const card = post.cards[0]!;
@@ -4457,8 +4772,88 @@ function PostInfoSheet({
             )}
           </div>
         </div>
+        {canManage ? (
+          <div className="info-actions" aria-label="내 글 관리">
+            <button type="button" onClick={onEdit}>
+              <span>
+                <PencilIcon />
+              </span>
+              수정
+            </button>
+            <button className="is-danger" type="button" onClick={onDelete}>
+              <span>
+                <TrashIcon />
+              </span>
+              삭제
+            </button>
+          </div>
+        ) : null}
       </section>
     </>
+  );
+}
+
+function PostDeleteConfirm({
+  error,
+  isSubmitting,
+  onCancel,
+  onConfirm,
+  post,
+}: {
+  error: string;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  post: PostBundle;
+}) {
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isSubmitting) {
+        onCancel();
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isSubmitting, onCancel]);
+
+  return (
+    <div className="app-confirm" role="presentation">
+      <button
+        className="app-confirm-backdrop"
+        type="button"
+        aria-label="삭제 확인 닫기"
+        onClick={onCancel}
+        disabled={isSubmitting}
+      />
+      <section
+        className="app-confirm-box"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="postDeleteConfirmTitle"
+        aria-describedby="postDeleteConfirmDesc"
+      >
+        <h3 id="postDeleteConfirmTitle">이 글을 삭제할까요?</h3>
+        <p id="postDeleteConfirmDesc">
+          {post.post.title} 글과 장, 댓글, 좋아요, 새김 기록이 함께 사라져요.
+          되돌릴 수 없어요.
+        </p>
+        {error ? <p className="app-confirm-error">{error}</p> : null}
+        <div className="app-confirm-actions">
+          <button type="button" onClick={onCancel} disabled={isSubmitting}>
+            취소
+          </button>
+          <button
+            className="is-primary is-danger"
+            type="button"
+            onClick={onConfirm}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "삭제 중" : "삭제"}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -4600,23 +4995,35 @@ function CommentSheet({
 }
 
 function CaptureView({
+  editingPost,
   onClose,
   onPublished,
+  onUpdated,
 }: {
+  editingPost?: PostBundle | null;
   onClose: () => void;
   onPublished: (post: PostBundle) => void;
+  onUpdated: (post: PostBundle) => void;
 }) {
+  const initialDraft = editingPost
+    ? createCaptureDraftFromPost(editingPost)
+    : null;
+  const isEditMode = Boolean(editingPost);
   const [cards, setCards] = useState<CaptureDraftCard[]>(() => [
-    createCaptureDraftCard(),
+    ...(initialDraft?.cards.length
+      ? initialDraft.cards
+      : [createCaptureDraftCard()]),
   ]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
   const [selectedTool, setSelectedTool] = useState<CaptureSheetKey | null>(
     null,
   );
-  const [title, setTitle] = useState("");
-  const [sourceAuthor, setSourceAuthor] = useState("");
-  const [sourceWork, setSourceWork] = useState("");
-  const [tags, setTags] = useState("");
+  const [title, setTitle] = useState(initialDraft?.title ?? "");
+  const [sourceAuthor, setSourceAuthor] = useState(
+    initialDraft?.sourceAuthor ?? "",
+  );
+  const [sourceWork, setSourceWork] = useState(initialDraft?.sourceWork ?? "");
+  const [tags, setTags] = useState(initialDraft?.tags ?? "");
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState("");
   const [confirmState, setConfirmState] = useState<CaptureConfirmState | null>(
@@ -4667,6 +5074,27 @@ function CaptureView({
     cards.some((card) => card.text.trim().length > 0) &&
     status !== "submitting";
   const canAddDraftCard = cards.length < maxCaptureDraftCards;
+
+  useEffect(() => {
+    if (!editingPost) {
+      return;
+    }
+
+    const nextDraft = createCaptureDraftFromPost(editingPost);
+    setCards(
+      nextDraft.cards.length > 0
+        ? nextDraft.cards
+        : [createCaptureDraftCard()],
+    );
+    setActiveDraftIndex(0);
+    setTitle(nextDraft.title);
+    setSourceAuthor(nextDraft.sourceAuthor);
+    setSourceWork(nextDraft.sourceWork);
+    setTags(nextDraft.tags);
+    setSelectedTool(null);
+    setError("");
+    setConfirmState(null);
+  }, [editingPost?.post.id]);
 
   useEffect(() => {
     const textarea = textAreaRef.current;
@@ -5072,18 +5500,30 @@ function CaptureView({
     return { input, cardCount: cleanCards.length, skippedEmptyCardCount };
   }
 
-  async function publishPost(input: CreatePostInput) {
+  async function savePost(input: CreatePostInput) {
     try {
       setStatus("submitting");
       setError("");
-      const publishedPost = await createPost(input);
-      resetCaptureDrafts();
-      onPublished(publishedPost);
+      if (editingPost) {
+        const updateInput: UpdatePostInput = {
+          ...(input.title ? { title: input.title } : {}),
+          ...(input.visibility ? { visibility: input.visibility } : {}),
+          cards: input.cards,
+        };
+        const updatedPost = await updatePost(editingPost.post.id, updateInput);
+        onUpdated(updatedPost);
+      } else {
+        const publishedPost = await createPost(input);
+        resetCaptureDrafts();
+        onPublished(publishedPost);
+      }
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : "발행할 수 없어요. 잠시 뒤 다시 시도해 주세요.",
+          : isEditMode
+            ? "저장할 수 없어요. 잠시 뒤 다시 시도해 주세요."
+            : "발행할 수 없어요. 잠시 뒤 다시 시도해 주세요.",
       );
     } finally {
       setStatus("idle");
@@ -5101,7 +5541,7 @@ function CaptureView({
       return;
     }
 
-    void publishPost(confirmState.input);
+    void savePost(confirmState.input);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -5130,12 +5570,23 @@ function CaptureView({
           ok: "삭제",
         }
       : {
-          title: "이 글을 발행할까요?",
+          title: isEditMode ? "수정한 내용을 저장할까요?" : "이 글을 발행할까요?",
           desc:
             confirmState.skippedEmptyCardCount > 0
-              ? `${confirmState.cardCount}장으로 발견 피드에 올릴게요. 빈 장 ${confirmState.skippedEmptyCardCount}장은 제외돼요.`
-              : `${confirmState.cardCount}장으로 발견 피드에 올릴게요.`,
-          ok: status === "submitting" ? "발행 중" : "발행",
+              ? isEditMode
+                ? `${confirmState.cardCount}장으로 다시 저장할게요. 빈 장 ${confirmState.skippedEmptyCardCount}장은 제외돼요.`
+                : `${confirmState.cardCount}장으로 발견 피드에 올릴게요. 빈 장 ${confirmState.skippedEmptyCardCount}장은 제외돼요.`
+              : isEditMode
+                ? `${confirmState.cardCount}장으로 다시 저장할게요.`
+                : `${confirmState.cardCount}장으로 발견 피드에 올릴게요.`,
+          ok:
+            status === "submitting"
+              ? isEditMode
+                ? "저장 중"
+                : "발행 중"
+              : isEditMode
+                ? "저장"
+                : "발행",
         }
     : null;
 
@@ -5157,7 +5608,13 @@ function CaptureView({
             type="submit"
             disabled={!canPublish}
           >
-            {status === "submitting" ? "발행 중" : "발행"}
+            {status === "submitting"
+              ? isEditMode
+                ? "저장 중"
+                : "발행 중"
+              : isEditMode
+                ? "저장"
+                : "발행"}
           </button>
         </div>
 

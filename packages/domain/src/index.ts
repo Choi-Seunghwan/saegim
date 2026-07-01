@@ -277,6 +277,12 @@ export interface CreatePostInput {
   cards: CreateSentenceCardInput[];
 }
 
+export interface UpdatePostInput {
+  title?: string;
+  visibility?: PostVisibility;
+  cards: CreateSentenceCardInput[];
+}
+
 export interface UpdateAccountInput {
   displayName?: string;
   tagline?: string;

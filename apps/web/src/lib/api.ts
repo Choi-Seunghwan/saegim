@@ -10,7 +10,8 @@ import type {
   PostBundle,
   PostComment,
   SearchResult,
-  UpdateAccountInput
+  UpdateAccountInput,
+  UpdatePostInput
 } from "@saegim/domain";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
@@ -52,11 +53,16 @@ async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    credentials: "include",
-    ...init,
-    headers
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      credentials: "include",
+      ...init,
+      headers
+    });
+  } catch {
+    throw new Error("서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.");
+  }
 
   if (!response.ok) {
     let message = `새김 API 요청 실패: ${response.status}`;
@@ -72,10 +78,21 @@ async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
       // JSON 오류 본문이 아니면 기본 상태 메시지를 사용한다.
     }
 
-    throw new Error(message);
+    throw new Error(toDisplayApiErrorMessage(response.status, message));
   }
 
   return response.json() as Promise<T>;
+}
+
+function toDisplayApiErrorMessage(status: number, message: string) {
+  const cleanMessage = message.trim();
+  if (status >= 500) {
+    return cleanMessage && cleanMessage !== "Internal server error"
+      ? cleanMessage
+      : "일시적으로 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.";
+  }
+
+  return cleanMessage || `새김 요청을 완료하지 못했어요. (${status})`;
 }
 
 function getApiBaseUrl() {
@@ -274,17 +291,8 @@ export async function unfollowAccount(accountId: string): Promise<AccountProfile
   return data.item;
 }
 
-export function getGoogleOAuthStartUrl(agreements?: LegalAgreementInput) {
-  const url = new URL(`${getApiBaseUrl()}/auth/google`);
-
-  if (agreements) {
-    url.searchParams.set("terms", String(agreements.terms));
-    url.searchParams.set("privacy", String(agreements.privacy));
-    url.searchParams.set("termsVersion", agreements.termsVersion);
-    url.searchParams.set("privacyVersion", agreements.privacyVersion);
-  }
-
-  return url.toString();
+export function getGoogleOAuthStartUrl() {
+  return `${getApiBaseUrl()}/auth/google`;
 }
 
 export async function createPost(input: CreatePostInput): Promise<PostBundle> {
@@ -292,6 +300,20 @@ export async function createPost(input: CreatePostInput): Promise<PostBundle> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input)
+  });
+}
+
+export async function updatePost(postId: string, input: UpdatePostInput): Promise<PostBundle> {
+  return fetchJson<PostBundle>(`/posts/${encodeURIComponent(postId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+}
+
+export async function deletePost(postId: string): Promise<{ ok: boolean; postId: string }> {
+  return fetchJson<{ ok: boolean; postId: string }>(`/posts/${encodeURIComponent(postId)}`, {
+    method: "DELETE"
   });
 }
 

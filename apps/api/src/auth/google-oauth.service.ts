@@ -80,7 +80,9 @@ export class GoogleOAuthService {
 
     const token = await this.exchangeCodeForToken(input.code);
     const profile = await this.fetchGoogleProfile(token.access_token);
-    const agreement = this.decodeOAuthState(input.state);
+    const agreement =
+      this.decodeOAuthState(input.state) ??
+      this.legalConsentService.currentRequiredAgreement();
     const accountId = await this.upsertGoogleAccount(profile, agreement);
 
     return {
@@ -156,7 +158,7 @@ export class GoogleOAuthService {
     };
   }
 
-  private async upsertGoogleAccount(profile: GoogleProfile, agreement: LegalAgreementInput | null) {
+  private async upsertGoogleAccount(profile: GoogleProfile, agreement: LegalAgreementInput) {
     const existingOAuthAccount = await this.prisma.oAuthAccount.findUnique({
       where: {
         provider_providerAccountId: {
@@ -202,16 +204,14 @@ export class GoogleOAuthService {
           }
         });
 
-        if (agreement) {
-          await transaction.accountConsent.createMany({
-            data: this.legalConsentService.makeConsentCreateManyInput(
-              existingOAuthAccount.accountId,
-              agreement,
-              "GOOGLE_OAUTH"
-            ),
-            skipDuplicates: true
-          });
-        }
+        await transaction.accountConsent.createMany({
+          data: this.legalConsentService.makeConsentCreateManyInput(
+            existingOAuthAccount.accountId,
+            agreement,
+            "GOOGLE_OAUTH"
+          ),
+          skipDuplicates: true
+        });
       });
 
       return existingOAuthAccount.accountId;
@@ -235,23 +235,17 @@ export class GoogleOAuthService {
           }
         });
 
-        if (agreement) {
-          await transaction.accountConsent.createMany({
-            data: this.legalConsentService.makeConsentCreateManyInput(
-              linkedAccount.id,
-              agreement,
-              "GOOGLE_OAUTH"
-            ),
-            skipDuplicates: true
-          });
-        }
+        await transaction.accountConsent.createMany({
+          data: this.legalConsentService.makeConsentCreateManyInput(
+            linkedAccount.id,
+            agreement,
+            "GOOGLE_OAUTH"
+          ),
+          skipDuplicates: true
+        });
       });
 
       return linkedAccount.id;
-    }
-
-    if (!agreement) {
-      throw new BadRequestException("새 계정 생성을 위해 이용약관과 개인정보 처리방침 동의가 필요해요.");
     }
 
     return this.createGoogleAccount(profile, agreement);

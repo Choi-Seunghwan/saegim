@@ -26,6 +26,10 @@ export function normalizeSeoText(value: string, maxLength = 150) {
 }
 
 export function publicPostPath(postId: string) {
+  return `/p/${encodeURIComponent(postId)}`;
+}
+
+export function appPostPath(postId: string) {
   return `/posts/${encodeURIComponent(postId)}`;
 }
 

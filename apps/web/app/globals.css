@@ -1794,6 +1794,47 @@ textarea:focus-visible {
   color: var(--ink);
 }
 
+.info-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.info-actions button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.07);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.info-actions button.is-danger {
+  color: #8d3e45;
+}
+
+.info-actions span {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.info-actions svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .comment-list {
   min-height: 120px;
   overflow: auto;
@@ -2328,6 +2369,92 @@ textarea:focus-visible {
 }
 
 .capture-confirm-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.app-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.app-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 24, 32, 0.42);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+
+.app-confirm-box {
+  position: relative;
+  z-index: 1;
+  width: min(304px, 86%);
+  display: grid;
+  gap: 0;
+  padding: 22px 20px 16px;
+  border-radius: 20px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 30px 60px -22px rgba(22, 18, 26, 0.62);
+}
+
+.app-confirm-box h3,
+.app-confirm-box p {
+  margin: 0;
+  text-align: center;
+}
+
+.app-confirm-box h3 {
+  font-size: 16.5px;
+  font-weight: 900;
+}
+
+.app-confirm-box p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.app-confirm-error {
+  color: #8d3e45 !important;
+  font-weight: 800 !important;
+}
+
+.app-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.app-confirm-actions button {
+  min-height: 42px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.07);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.app-confirm-actions button.is-primary {
+  background: var(--ink-strong);
+  color: #fff;
+}
+
+.app-confirm-actions button.is-danger {
+  background: #8d3e45;
+}
+
+.app-confirm-backdrop:disabled,
+.app-confirm-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.52;
 }
@@ -4488,6 +4615,21 @@ textarea:focus-visible {
 
 .public-editorial-page .public-primary-link {
   width: fit-content;
+}
+
+.public-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 2px;
+}
+
+.public-legal-links a {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 @media (max-width: 520px) {
