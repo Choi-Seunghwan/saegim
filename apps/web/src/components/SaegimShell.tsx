@@ -1148,6 +1148,7 @@ export function SaegimShell() {
         posts.find((post) => post.author.id === selectedProfileId)?.author ??
         currentAccount);
   const isOwnProfile = isSignedIn() && selectedProfile.id === currentAccount.id;
+  const isViewingOtherProfile = selectedProfile.id !== currentAccount.id;
   const canUseSignedInAccount =
     !isSignedIn() || currentAccount.id !== guestAccount.id;
   const canApplyAppRoute =
@@ -1948,7 +1949,11 @@ export function SaegimShell() {
     route: AppRoute;
     state?: AppRouteHistoryState;
   } {
-    if (!isSignedIn() && (activeTab === "capture" || activeTab === "me")) {
+    if (
+      !isSignedIn() &&
+      (activeTab === "capture" ||
+        (activeTab === "me" && !isViewingOtherProfile))
+    ) {
       return { route: { surface: "tab", tab: "home" } };
     }
 
@@ -2594,7 +2599,8 @@ export function SaegimShell() {
     if (
       !canApplyAppRoute ||
       isSignedIn() ||
-      (activeTab !== "capture" && activeTab !== "me")
+      (activeTab !== "capture" &&
+        (activeTab !== "me" || isViewingOtherProfile))
     ) {
       return;
     }
@@ -2602,7 +2608,7 @@ export function SaegimShell() {
     resetProtectedAccountSurfaces();
     setActiveTab("home");
     writeAppRouteToHistory({ surface: "tab", tab: "home" }, "replace");
-  }, [activeTab, canApplyAppRoute, entryState]);
+  }, [activeTab, canApplyAppRoute, entryState, isViewingOtherProfile]);
 
   useEffect(() => {
     if (!canApplyAppRoute || !hasAppliedInitialUrlTabRef.current) {
@@ -2624,6 +2630,7 @@ export function SaegimShell() {
     canApplyAppRoute,
     isEditingProfile,
     isOwnProfile,
+    isViewingOtherProfile,
     isSearching,
     isViewingDrawer,
     isViewingFollowing,
@@ -2795,7 +2802,20 @@ export function SaegimShell() {
     }
     if (activeTab === "shelf") return <ShelfView onOpenPost={openPost} />;
     if (activeTab === "me") {
-      if (!isSignedIn() || currentAccount.id === guestAccount.id) {
+      const isGuestProfileViewer =
+        !isSignedIn() || currentAccount.id === guestAccount.id;
+
+      if (isGuestProfileViewer && !isViewingOtherProfile) {
+        return null;
+      }
+
+      if (
+        isGuestProfileViewer &&
+        (isViewingSettings ||
+          isViewingFollowing ||
+          isViewingDrawer ||
+          isEditingProfile)
+      ) {
         return null;
       }
 
@@ -2923,6 +2943,7 @@ export function SaegimShell() {
     isSearching,
     isViewingDrawer,
     isViewingFollowing,
+    isViewingOtherProfile,
     isViewingNoticeList,
     isViewingSettings,
     isOwnProfile,
