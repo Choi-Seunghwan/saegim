@@ -22,6 +22,15 @@ enum PostCreationType {
   CURATION
 }
 
+enum PostPlacementSurface {
+  HOME
+}
+
+enum PostPlacementSlot {
+  HERO
+  TODAY_RAIL
+}
+
 enum SourceKind {
   BOOK
   WEB
@@ -133,7 +142,7 @@ model Post {
   authorId          String
   author            Account          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   visibility        PostVisibility   @default(PUBLIC)
-  creationType      PostCreationType @default(CURATION)
+  creationType      PostCreationType @default(ORIGINAL)
   likeCountCache    Int              @default(0)
   commentCountCache Int              @default(0)
   publishedAt       DateTime?
@@ -143,9 +152,28 @@ model Post {
   likes             Like[]
   carves            Carve[]
   comments          Comment[]
+  placements        PostPlacement[]
 
   @@index([authorId, createdAt])
   @@index([visibility, publishedAt])
+}
+
+model PostPlacement {
+  id        String               @id @default(cuid())
+  postId    String
+  post      Post                 @relation(fields: [postId], references: [id], onDelete: Cascade)
+  surface   PostPlacementSurface
+  slot      PostPlacementSlot
+  priority  Int                  @default(0)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isActive  Boolean              @default(true)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@unique([postId, surface, slot])
+  @@index([surface, slot, isActive, priority])
+  @@index([postId])
 }
 
 model Card {

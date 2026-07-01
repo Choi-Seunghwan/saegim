@@ -1128,6 +1128,7 @@ export function SaegimShell() {
     null,
   );
   const [posts, setPosts] = useState<PostBundle[]>([]);
+  const [homeHeroPost, setHomeHeroPost] = useState<PostBundle | null>(null);
   const [homePosts, setHomePosts] = useState<PostBundle[]>([]);
   const [feedPageInfo, setFeedPageInfo] = useState<PageInfo>(emptyPageInfo);
   const [isLoadingMoreFeed, setIsLoadingMoreFeed] = useState(false);
@@ -2499,17 +2500,20 @@ export function SaegimShell() {
       try {
         const [
           nextPostPage,
+          nextHomeHeroPostPage,
           nextHomePostPage,
           nextAccountPage,
           nextEditorialPages,
         ] = await Promise.all([
           fetchFeed({ limit: listInitialCount }, controller.signal),
-          fetchHomePosts({ limit: 5 }, controller.signal),
+          fetchHomePosts({ limit: 1, slot: "hero" }, controller.signal),
+          fetchHomePosts({ limit: 5, slot: "today-rail" }, controller.signal),
           fetchRecommendedAccounts({ limit: 12 }, controller.signal),
           fetchEditorialPages(controller.signal),
         ]);
 
         setPosts(nextPostPage.items);
+        setHomeHeroPost(nextHomeHeroPostPage.items[0] ?? null);
         setHomePosts(nextHomePostPage.items);
         setFeedPageInfo(nextPostPage.pageInfo);
         setAccounts(nextAccountPage.items);
@@ -2536,6 +2540,7 @@ export function SaegimShell() {
       } catch {
         if (!controller.signal.aborted) {
           setPosts([]);
+          setHomeHeroPost(null);
           setHomePosts([]);
           setFeedPageInfo(emptyPageInfo);
           setAccounts([]);
@@ -2884,6 +2889,7 @@ export function SaegimShell() {
     }
     return (
       <HomeView
+        homeHeroPost={homeHeroPost}
         homePosts={homePosts}
         accounts={accounts}
         currentAccountId={currentAccount.id}
@@ -2921,6 +2927,7 @@ export function SaegimShell() {
     legalDocumentKind,
     noticePages,
     homePosts,
+    homeHeroPost,
     posts,
     selectedEditorialPage,
     selectedProfile,
@@ -3700,6 +3707,7 @@ function PostPreviewButton({
 }
 
 function HomeView({
+  homeHeroPost,
   homePosts,
   accounts,
   currentAccountId,
@@ -3710,6 +3718,7 @@ function HomeView({
   onOpenProfile,
   onToggleFollow,
 }: {
+  homeHeroPost: PostBundle | null;
   homePosts: PostBundle[];
   accounts: AccountProfile[];
   currentAccountId: string;
@@ -3723,7 +3732,7 @@ function HomeView({
   const displayAccounts = accounts.filter(
     (account) => account.id !== currentAccountId,
   );
-  const heroPost = homePosts[0] ?? null;
+  const heroPost = homeHeroPost;
   const heroCard = heroPost?.cards[0] ?? null;
   const todayPosts = homePosts.slice(0, 5);
   const heroItems = [

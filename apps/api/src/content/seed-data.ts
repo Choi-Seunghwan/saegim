@@ -88,6 +88,14 @@ interface SeedEditorialPage {
   };
 }
 
+interface SeedPostPlacement {
+  id: string;
+  postId: string;
+  surface: "home";
+  slot: "hero" | "today-rail";
+  priority: number;
+}
+
 const cardGradientPresets = {
   night: "linear-gradient(150deg,#3C3652,#241F38)",
   fog: "linear-gradient(150deg,#F4F1F3,#E7E5EA 55%,#D8DAE4)",
@@ -421,6 +429,30 @@ export const seedPostBundles: PostBundle[] = [
       likeCount: 1588,
       commentCount: 21
     }
+  }
+];
+
+export const seedPostPlacements: SeedPostPlacement[] = [
+  {
+    id: "placement-home-hero-dawn",
+    postId: "post-dawn-1",
+    surface: "home",
+    slot: "hero",
+    priority: 0
+  },
+  {
+    id: "placement-home-today-sunset",
+    postId: "post-sunset-1",
+    surface: "home",
+    slot: "today-rail",
+    priority: 0
+  },
+  {
+    id: "placement-home-today-apricot",
+    postId: "post-apricot-1",
+    surface: "home",
+    slot: "today-rail",
+    priority: 10
   }
 ];
 

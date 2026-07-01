@@ -36,7 +36,10 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getFeed(options, accountIdHint);
   }
 
-  getHomePosts(options?: { cursor?: string | undefined; limit?: string | undefined }, accountIdHint?: string) {
+  getHomePosts(
+    options?: { cursor?: string | undefined; limit?: string | undefined; slot?: string | undefined },
+    accountIdHint?: string
+  ) {
     return this.contentRepository.getHomePosts(options, accountIdHint);
   }
 

@@ -42,6 +42,10 @@ interface CursorPageParams {
   limit?: number;
 }
 
+interface HomePostPageParams extends CursorPageParams {
+  slot?: "hero" | "today-rail";
+}
+
 interface SearchPageParams {
   accountCursor?: string | null;
   postCursor?: string | null;
@@ -190,9 +194,10 @@ export async function fetchFeed(params?: CursorPageParams, signal?: AbortSignal)
   return toListPage(data);
 }
 
-export async function fetchHomePosts(params?: CursorPageParams, signal?: AbortSignal): Promise<ListPage<PostBundle>> {
+export async function fetchHomePosts(params?: HomePostPageParams, signal?: AbortSignal): Promise<ListPage<PostBundle>> {
   const searchParams = new URLSearchParams();
   appendCursorParams(searchParams, params);
+  if (params?.slot) searchParams.set("slot", params.slot);
   const data = await fetchJson<ListResponse<PostBundle>>(
     makeQueryPath("/home/posts", searchParams),
     signal ? { signal } : {}

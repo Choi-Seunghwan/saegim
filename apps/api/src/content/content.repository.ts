@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { CurrentAccountService } from "../auth/current-account.service.js";
 import { createRandomPublicHandle, isEmailDerivedHandle } from "../auth/public-handle.js";
 import { PrismaService } from "../database/prisma.service.js";
-import { seedAccounts, seedEditorialPages, seedPostBundles } from "./seed-data.js";
+import { seedAccounts, seedEditorialPages, seedPostBundles, seedPostPlacements } from "./seed-data.js";
 import type {
   AccountProfile,
   CardBackgroundImage,
@@ -138,6 +138,9 @@ type PageQueryOptions = {
   cursor?: string | undefined;
   limit?: string | number | undefined;
 };
+type HomePostsQueryOptions = PageQueryOptions & {
+  slot?: string | undefined;
+};
 type SearchQueryOptions = {
   accountCursor?: string | undefined;
   postCursor?: string | undefined;
@@ -152,6 +155,7 @@ type PageParams = {
   limit: number;
 };
 type ShelfSortMode = "popular" | "latest";
+type HomePostSlot = "hero" | "today-rail";
 
 @Injectable()
 export class ContentRepository {
@@ -226,6 +230,34 @@ export class ContentRepository {
               createdAt: new Date(card.createdAt)
             }))
           }
+        }
+      });
+    }
+
+    for (const placement of seedPostPlacements) {
+      await this.prisma.postPlacement.upsert({
+        where: {
+          postId_surface_slot: {
+            postId: placement.postId,
+            surface: this.toDbPostPlacementSurface(placement.surface),
+            slot: this.toDbPostPlacementSlot(placement.slot)
+          }
+        },
+        update: {
+          priority: placement.priority,
+          startsAt: null,
+          endsAt: null,
+          isActive: true
+        },
+        create: {
+          id: placement.id,
+          postId: placement.postId,
+          surface: this.toDbPostPlacementSurface(placement.surface),
+          slot: this.toDbPostPlacementSlot(placement.slot),
+          priority: placement.priority,
+          startsAt: null,
+          endsAt: null,
+          isActive: true
         }
       });
     }
@@ -326,15 +358,39 @@ export class ContentRepository {
     );
   }
 
-  async getHomePosts(options?: PageQueryOptions, cookieHeader?: string) {
+  async getHomePosts(options?: HomePostsQueryOptions, cookieHeader?: string) {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
+    const page = this.normalizePageOptions(options);
+    const slot = this.toDbPostPlacementSlot(this.normalizeHomePostSlot(options?.slot));
+    const now = new Date();
+    const placements = await this.prisma.postPlacement.findMany({
+      where: {
+        surface: "HOME",
+        slot,
+        isActive: true,
+        post: {
+          visibility: "PUBLIC"
+        },
+        AND: [
+          {
+            OR: [{ startsAt: null }, { startsAt: { lte: now } }]
+          },
+          {
+            OR: [{ endsAt: null }, { endsAt: { gt: now } }]
+          }
+        ]
+      },
+      include: {
+        post: {
+          include: postIncludeForAccount(currentAccountId)
+        }
+      },
+      orderBy: [{ priority: "asc" }, { createdAt: "desc" }, { id: "desc" }],
+      take: page.limit + 1,
+      ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {})
+    });
 
-    return this.findPostsPage(
-      [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-      currentAccountId,
-      options,
-      { creationType: "CURATION" }
-    );
+    return this.toRelationPostPage(placements, page.limit);
   }
 
   async getShelf(sort?: string, options?: PageQueryOptions, cookieHeader?: string) {
@@ -1053,6 +1109,10 @@ export class ContentRepository {
     return sort === "latest" ? "latest" : "popular";
   }
 
+  private normalizeHomePostSlot(slot?: string): HomePostSlot {
+    return slot === "hero" ? "hero" : "today-rail";
+  }
+
   private toPostPage(posts: PostWithRelations[], limit: number): ListPage<PostBundle> {
     const items = posts.slice(0, limit);
 
@@ -1455,6 +1515,14 @@ export class ContentRepository {
 
   private fromDbCreationType(value: string): PostBundle["post"]["creationType"] {
     return value === "ORIGINAL" ? "original" : "curation";
+  }
+
+  private toDbPostPlacementSurface(_value: "home"): "HOME" {
+    return "HOME";
+  }
+
+  private toDbPostPlacementSlot(value: HomePostSlot): "HERO" | "TODAY_RAIL" {
+    return value === "hero" ? "HERO" : "TODAY_RAIL";
   }
 
   private toDbSourceKind(value: ContentSource["kind"]) {

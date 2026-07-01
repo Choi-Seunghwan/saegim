@@ -12,8 +12,13 @@ export class PostsController {
   }
 
   @Get("home/posts")
-  getHomePosts(@Query("cursor") cursor?: string, @Query("limit") limit?: string, @Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getHomePosts({ cursor, limit }, cookieHeader);
+  getHomePosts(
+    @Query("cursor") cursor?: string,
+    @Query("limit") limit?: string,
+    @Query("slot") slot?: string,
+    @Headers("cookie") cookieHeader?: string
+  ) {
+    return this.contentService.getHomePosts({ cursor, limit, slot }, cookieHeader);
   }
 
   @Get("shelf")
