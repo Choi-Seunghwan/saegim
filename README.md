@@ -71,9 +71,9 @@ API 기본 조회 계약:
 
 API의 현재 계정은 이메일 로그인 또는 Google OAuth가 발급한 세션 쿠키(`saegim_session`)로만 해석한다. 세션이 없으면 홈·발견·둘러보기·검색·타인 프로필 같은 공개 조회는 게스트 상태로 동작하고, 내 프로필·내 서랍·구독 목록·발행·좋아요·새김·댓글·구독·프로필 수정 같은 계정 필요 API는 인증 오류를 반환한다.
 
-Mixpanel은 `NEXT_PUBLIC_MIXPANEL_TOKEN`과 `NEXT_PUBLIC_MIXPANEL_ENABLED=true`가 있을 때만 브라우저에서 활성화된다. 기본 이벤트는 화면 상태 기반 `Page Viewed`/Mixpanel pageview와 가입·로그인·로그아웃·글 발행·글 열기·프로필 열기·좋아요·새김·구독·댓글·검색 열기·정보 패널 열기다. 문장 본문, 댓글 본문, 검색어, 제목, 출처명 같은 사용자 입력 텍스트는 이벤트 속성으로 보내지 않고 카드 수·태그 수·댓글 길이·이미지 배경 여부 같은 집계용 값만 보낸다. EU 리전이나 프록시를 쓰면 `NEXT_PUBLIC_MIXPANEL_API_HOST`를 추가한다.
+Mixpanel은 `NEXT_PUBLIC_MIXPANEL_TOKEN`과 `NEXT_PUBLIC_MIXPANEL_ENABLED=true`가 있을 때만 브라우저에서 활성화된다. 기본 이벤트는 화면 상태 기반 `Page Viewed`/Mixpanel pageview와 가입·로그인·로그아웃·글 발행·글 열기·프로필 열기·좋아요·새김·구독·댓글·검색 열기·정보 패널 열기다. 문장 본문, 댓글 본문, 검색어, 제목, 출처명 같은 사용자 입력 텍스트는 이벤트 속성으로 보내지 않고 카드 수·태그 수·댓글 길이·이미지 배경 여부 같은 집계용 값만 보낸다. EU 리전이나 프록시를 쓰면 `NEXT_PUBLIC_MIXPANEL_API_HOST`를 추가한다. 운영에서는 GitHub repository variables로 `NEXT_PUBLIC_*` 값을 넣고 웹 이미지를 빌드한다.
 
-이미지 업로드를 S3로 연결할 때는 `.env.example`의 업로드 섹션을 채운다. 기본 AWS S3는 `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `SAEGIM_S3_BUCKET`, `SAEGIM_S3_PUBLIC_BASE_URL`이 필요하다. NCP Object Storage 같은 S3 호환 저장소는 여기에 `SAEGIM_S3_ENDPOINT`와 필요 시 `SAEGIM_S3_FORCE_PATH_STYLE=true`를 추가한다.
+이미지 업로드를 S3로 연결할 때는 `.env.example`의 업로드 섹션을 채운다. 기본 AWS S3는 `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `SAEGIM_UPLOADS_BUCKET`, `SAEGIM_UPLOADS_CDN_BASE_URL`이 필요하다.
 
 Prisma 스키마 확인:
 
