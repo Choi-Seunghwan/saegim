@@ -8,10 +8,10 @@ data:
   NODE_ENV: production
   API_HOST: 0.0.0.0
   API_PORT: "4000"
-  WEB_ORIGIN: https://saegim.chuz.dev,https://web.saegim.chuz.dev
+  WEB_ORIGIN: https://saegim.chuz.dev
   SAEGIM_COOKIE_SECURE: "true"
-  GOOGLE_OAUTH_CALLBACK_URL: https://api.saegim.chuz.dev/auth/google/callback
-  GOOGLE_OAUTH_SUCCESS_REDIRECT_URL: https://web.saegim.chuz.dev
+  GOOGLE_OAUTH_CALLBACK_URL: https://api-saegim.chuz.dev/auth/google/callback
+  GOOGLE_OAUTH_SUCCESS_REDIRECT_URL: https://saegim.chuz.dev
   AWS_REGION: ap-northeast-2
   SAEGIM_UPLOADS_BUCKET: saegim-uploads-prod
   SAEGIM_UPLOADS_CDN_BASE_URL: https://cdn.saegim.chuz.dev
