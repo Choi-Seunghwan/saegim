@@ -172,13 +172,7 @@ export class GoogleOAuthService {
     });
 
     if (existingOAuthAccount) {
-      const updateData: { displayName?: string; photoUrl?: string; email?: string } = {};
-      if (profile.name) {
-        updateData.displayName = profile.name;
-      }
-      if (profile.picture) {
-        updateData.photoUrl = profile.picture;
-      }
+      const updateData: { email?: string } = {};
       if (
         profile.email &&
         profile.emailVerified &&
