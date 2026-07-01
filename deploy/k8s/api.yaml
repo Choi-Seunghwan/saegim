@@ -40,7 +40,7 @@ spec:
           imagePullPolicy: Always
           command:
             - node
-            - node_modules/prisma/build/index.js
+            - apps/api/node_modules/prisma/build/index.js
             - db
             - push
             - --schema
