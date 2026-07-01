@@ -20,6 +20,7 @@
   --font-round: "Gowun Dodum", Pretendard, sans-serif;
   --font-pen: "Nanum Pen Script", "Gowun Dodum", cursive;
   --font-black: "Black Han Sans", Pretendard, sans-serif;
+  --card-text-max-width: 90%;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -30,12 +31,13 @@
 
 html,
 body {
-  height: 100%;
+  min-height: 100%;
   margin: 0;
   background: var(--mist);
   color: var(--ink);
   font-family: var(--font-ui);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   word-break: keep-all;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -66,9 +68,11 @@ textarea:focus-visible {
 }
 
 .app-shell {
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   display: grid;
-  place-items: center;
+  place-items: start center;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -642,7 +646,7 @@ textarea:focus-visible {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: 158px;
+  min-height: 196px;
   position: relative;
   display: flex;
   flex: 0 0 100%;
@@ -684,11 +688,11 @@ textarea:focus-visible {
   margin: 11px 0 0;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   font-family: var(--font-card);
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 700;
-  line-height: 1.5;
+  line-height: 1.42;
   overflow-wrap: anywhere;
   text-align: left;
   white-space: pre-line;
@@ -1140,6 +1144,36 @@ textarea:focus-visible {
   position: relative;
   overflow: hidden;
   touch-action: none;
+}
+
+.pull-refresh-hint {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  z-index: 12;
+  min-width: 126px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: rgba(252, 251, 252, 0.62);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -10px) scale(0.96);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 26px -18px rgba(35, 29, 42, 0.48);
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+}
+
+.pull-refresh-hint.is-visible {
+  opacity: 1;
+}
+
+.pull-refresh-hint.is-ready {
+  transform: translate(-50%, 10px) scale(1);
 }
 
 .empty-discover {
@@ -1597,7 +1631,7 @@ textarea:focus-visible {
   left: 50%;
   top: 45%;
   width: max-content;
-  max-width: 90%;
+  max-width: var(--card-text-max-width);
   margin: 0;
   color: var(--cv-text);
   line-height: 1.5;
@@ -2056,12 +2090,28 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
+.capture-text-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content;
+  max-width: var(--card-text-max-width);
+  margin: 0;
+  line-height: 1.5;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: pre-wrap;
+  word-break: keep-all;
+}
+
 .capture-textbox {
   position: absolute;
   z-index: 2;
-  width: min(78%, 320px);
-  max-width: 90%;
-  padding: 4px 4px;
+  width: var(--card-text-max-width);
+  max-width: var(--card-text-max-width);
+  padding: 0;
   border-radius: 16px;
   cursor: grab;
   pointer-events: auto;
@@ -2093,7 +2143,7 @@ textarea:focus-visible {
   outline: 0;
   background: transparent;
   color: inherit;
-  padding: 8px 6px;
+  padding: 0;
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: keep-all;
@@ -4634,6 +4684,8 @@ textarea:focus-visible {
 
 @media (max-width: 520px) {
   .app-shell {
+    height: 100dvh;
+    min-height: 100dvh;
     padding: 0;
   }
 

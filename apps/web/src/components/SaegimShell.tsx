@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   ChangeEvent as ReactChangeEvent,
   CSSProperties,
@@ -444,6 +444,8 @@ const captureImageMaxBytes = imageUploadMaxBytes;
 const maxCaptureDraftCards = 10;
 const profilePhotoMaxBytes = imageUploadMaxBytes;
 const profilePhotoSize = 512;
+const pullRefreshThreshold = 88;
+const pullRefreshMaxDistance = 114;
 const captureFontOptions: { id: CardComposition["font"]; label: string }[] = [
   { id: "gothic", label: "고딕" },
   { id: "serif", label: "명조" },
@@ -1148,6 +1150,7 @@ export function SaegimShell() {
         posts.find((post) => post.author.id === selectedProfileId)?.author ??
         currentAccount);
   const isOwnProfile = isSignedIn() && selectedProfile.id === currentAccount.id;
+  const isViewingOtherProfile = selectedProfile.id !== currentAccount.id;
   const canUseSignedInAccount =
     !isSignedIn() || currentAccount.id !== guestAccount.id;
   const canApplyAppRoute =
@@ -1948,7 +1951,11 @@ export function SaegimShell() {
     route: AppRoute;
     state?: AppRouteHistoryState;
   } {
-    if (!isSignedIn() && (activeTab === "capture" || activeTab === "me")) {
+    if (
+      !isSignedIn() &&
+      (activeTab === "capture" ||
+        (activeTab === "me" && !isViewingOtherProfile))
+    ) {
       return { route: { surface: "tab", tab: "home" } };
     }
 
@@ -2594,7 +2601,8 @@ export function SaegimShell() {
     if (
       !canApplyAppRoute ||
       isSignedIn() ||
-      (activeTab !== "capture" && activeTab !== "me")
+      (activeTab !== "capture" &&
+        (activeTab !== "me" || isViewingOtherProfile))
     ) {
       return;
     }
@@ -2602,7 +2610,7 @@ export function SaegimShell() {
     resetProtectedAccountSurfaces();
     setActiveTab("home");
     writeAppRouteToHistory({ surface: "tab", tab: "home" }, "replace");
-  }, [activeTab, canApplyAppRoute, entryState]);
+  }, [activeTab, canApplyAppRoute, entryState, isViewingOtherProfile]);
 
   useEffect(() => {
     if (!canApplyAppRoute || !hasAppliedInitialUrlTabRef.current) {
@@ -2624,6 +2632,7 @@ export function SaegimShell() {
     canApplyAppRoute,
     isEditingProfile,
     isOwnProfile,
+    isViewingOtherProfile,
     isSearching,
     isViewingDrawer,
     isViewingFollowing,
@@ -2795,7 +2804,20 @@ export function SaegimShell() {
     }
     if (activeTab === "shelf") return <ShelfView onOpenPost={openPost} />;
     if (activeTab === "me") {
-      if (!isSignedIn() || currentAccount.id === guestAccount.id) {
+      const isGuestProfileViewer =
+        !isSignedIn() || currentAccount.id === guestAccount.id;
+
+      if (isGuestProfileViewer && !isViewingOtherProfile) {
+        return null;
+      }
+
+      if (
+        isGuestProfileViewer &&
+        (isViewingSettings ||
+          isViewingFollowing ||
+          isViewingDrawer ||
+          isEditingProfile)
+      ) {
         return null;
       }
 
@@ -2923,6 +2945,7 @@ export function SaegimShell() {
     isSearching,
     isViewingDrawer,
     isViewingFollowing,
+    isViewingOtherProfile,
     isViewingNoticeList,
     isViewingSettings,
     isOwnProfile,
@@ -3972,7 +3995,10 @@ function DiscoverView({
   const [isChromeHidden, setIsChromeHidden] = useState(false);
   const [showDiscoverHint, setShowDiscoverHint] = useState(false);
   const [dragState, setDragState] = useState<DetailDragState | null>(null);
+  const [pullRefreshDistance, setPullRefreshDistance] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const activeDragAxis = dragState?.axis;
+  const isPullRefreshReady = pullRefreshDistance >= pullRefreshThreshold;
   const discoverViewClassName = [
     "discover-view",
     isChromeHidden ? "is-chrome-hidden" : "",
@@ -3986,6 +4012,18 @@ function DiscoverView({
   const dragTrackClassName = dragState?.isAnimating
     ? "detail-carousel-track is-animating"
     : "detail-carousel-track";
+  const pullRefreshHintClassName = [
+    "pull-refresh-hint",
+    pullRefreshDistance > 0 ? "is-visible" : "",
+    isPullRefreshReady || isPullRefreshing ? "is-ready" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const pullRefreshLabel = isPullRefreshing
+    ? "새로고침 중"
+    : isPullRefreshReady
+      ? "놓으면 새로고침"
+      : "조금 더 당기기";
 
   function clearDragResetTimer() {
     if (dragResetTimerRef.current) {
@@ -4091,6 +4129,8 @@ function DiscoverView({
     clearDragResetTimer();
     pointerStartRef.current = { x: event.clientX, y: event.clientY };
     hasPointerMovedRef.current = false;
+    setPullRefreshDistance(0);
+    setIsPullRefreshing(false);
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({ x: 0, y: 0, axis: null, isAnimating: false });
   }
@@ -4129,6 +4169,24 @@ function DiscoverView({
     }
 
     const canMove = (dy < 0 && hasNextPost) || (dy > 0 && hasPreviousPost);
+
+    if (dy > 0 && !hasPreviousPost) {
+      setPullRefreshDistance(
+        clampNumber(dy * 0.62, 0, pullRefreshMaxDistance),
+      );
+      setDragState({
+        x: 0,
+        y: dy * 0.16,
+        axis: "y",
+        isAnimating: false,
+      });
+      return;
+    }
+
+    if (pullRefreshDistance > 0) {
+      setPullRefreshDistance(0);
+    }
+
     setDragState({
       x: 0,
       y: canMove ? dy : dy * 0.24,
@@ -4158,11 +4216,14 @@ function DiscoverView({
 
     if (isDetailChromeTarget(target)) {
       setDragState(null);
+      setPullRefreshDistance(0);
       return;
     }
 
-    const dx = currentDragState.x || event.clientX - start.x;
-    const dy = currentDragState.y || event.clientY - start.y;
+    const rawDx = event.clientX - start.x;
+    const rawDy = event.clientY - start.y;
+    const dx = currentDragState.x || rawDx;
+    const dy = currentDragState.y || rawDy;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     const movedDistance = Math.max(absX, absY);
@@ -4186,6 +4247,22 @@ function DiscoverView({
         : event.currentTarget.clientHeight * 0.16,
       96,
     );
+
+    if (axis === "y" && rawDy > 0 && !hasPreviousPost) {
+      const finalPullDistance = Math.max(
+        pullRefreshDistance,
+        clampNumber(rawDy * 0.62, 0, pullRefreshMaxDistance),
+      );
+
+      if (finalPullDistance >= pullRefreshThreshold) {
+        setIsPullRefreshing(true);
+        setPullRefreshDistance(pullRefreshMaxDistance);
+        window.location.reload();
+        return;
+      }
+
+      setPullRefreshDistance(0);
+    }
 
     if (axis === "y" && absY > threshold) {
       const direction = dy < 0 ? 1 : -1;
@@ -4226,6 +4303,7 @@ function DiscoverView({
     }
 
     setDragState({ x: 0, y: 0, axis, isAnimating: true });
+    setPullRefreshDistance(0);
     dragResetTimerRef.current = window.setTimeout(() => {
       setDragState(null);
       dragResetTimerRef.current = null;
@@ -4243,12 +4321,14 @@ function DiscoverView({
 
   useEffect(() => {
     setDragState(null);
+    setPullRefreshDistance(0);
     pointerStartRef.current = null;
   }, [activeCardIndex, post.post.id]);
 
   function handlePointerCancel() {
     pointerStartRef.current = null;
     hasPointerMovedRef.current = false;
+    setPullRefreshDistance(0);
     suppressNextChromeToggle();
     if (dragState) {
       setDragState({ x: 0, y: 0, axis: dragState.axis, isAnimating: true });
@@ -4418,6 +4498,11 @@ function DiscoverView({
       {showDiscoverHint && !isChromeHidden ? (
         <div className="discover-gesture-hint" role="status">
           위아래로 글, 좌우로 장을 넘겨요
+        </div>
+      ) : null}
+      {pullRefreshDistance > 0 || isPullRefreshing ? (
+        <div className={pullRefreshHintClassName} role="status">
+          {pullRefreshLabel}
         </div>
       ) : null}
       <div className="feed-controls" aria-label="글 이동">
@@ -5049,8 +5134,12 @@ function CaptureView({
   );
   const [captureDragTarget, setCaptureDragTarget] =
     useState<CaptureDragTarget | null>(null);
+  const [captureTextBoxWidth, setCaptureTextBoxWidth] = useState<number | null>(
+    null,
+  );
   const stageRef = useRef<HTMLDivElement | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const textMeasureRef = useRef<HTMLParagraphElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const captureDragRef = useRef<CapturePointerDrag | null>(null);
   const imageCropDragRef = useRef<CaptureImageCropDrag | null>(null);
@@ -5074,6 +5163,7 @@ function CaptureView({
   const captureTextBoxStyle = {
     left: `${activeComp.textPos?.xp ?? 50}%`,
     top: `${activeComp.textPos?.yp ?? 45}%`,
+    ...(captureTextBoxWidth ? { width: `${captureTextBoxWidth}px` } : {}),
   } as CSSProperties;
   const captureSourceChipStyle = activeComp.sourcePos
     ? ({
@@ -5118,6 +5208,31 @@ function CaptureView({
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [activeSentence, activeComp.size, activeDraftIndex]);
+
+  useLayoutEffect(() => {
+    const measure = textMeasureRef.current;
+    const stage = stageRef.current;
+    if (!measure || !stage) return;
+
+    const stageWidth = stage.getBoundingClientRect().width;
+    const maxWidth = Math.max(stageWidth * 0.9, 1);
+    const minWidth = Math.min(44, maxWidth);
+    const measuredWidth = Math.ceil(measure.getBoundingClientRect().width);
+    const nextWidth = clampNumber(measuredWidth || minWidth, minWidth, maxWidth);
+
+    setCaptureTextBoxWidth((currentWidth) =>
+      currentWidth !== null && Math.abs(currentWidth - nextWidth) < 0.5
+        ? currentWidth
+        : nextWidth,
+    );
+  }, [
+    activeComp.align,
+    activeComp.font,
+    activeComp.size,
+    activeComp.weight,
+    activeDraftIndex,
+    activeSentence,
+  ]);
 
   useEffect(() => {
     if (!confirmState) return;
@@ -5660,6 +5775,14 @@ function CaptureView({
           <div className="capture-title-chip">{title.trim()}</div>
         ) : null}
         <div className="sentence-card editable capture-card">
+          <p
+            aria-hidden="true"
+            className="capture-text-measure"
+            ref={textMeasureRef}
+            style={cardTextStyle(activeComp)}
+          >
+            {activeSentence || "문장을 적어 보세요"}
+          </p>
           <div
             className={`capture-textbox ${captureDragTarget === "text" ? "is-dragging" : ""}`}
             style={captureTextBoxStyle}
