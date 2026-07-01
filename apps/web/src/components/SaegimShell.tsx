@@ -51,6 +51,13 @@ import {
   unfollowAccount,
   updateCurrentAccount,
 } from "../lib/api";
+import {
+  identifyAnalyticsAccount,
+  resetAnalyticsIdentity,
+  trackAnalyticsEvent,
+  trackAnalyticsPageView,
+  type AnalyticsProperties,
+} from "../lib/analytics";
 
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
 type EntryState = "guest" | "signed-in";
@@ -124,6 +131,11 @@ type DetailDragState = {
   isAnimating: boolean;
 };
 type EditorialPageState = { pageId: string; origin: EditorialPageOrigin };
+type AnalyticsViewState = {
+  key: string;
+  name: string;
+  properties: AnalyticsProperties;
+};
 
 const tabLabels: Record<TabKey, string> = {
   home: "홈",
@@ -158,6 +170,51 @@ const guestAccount: AccountProfile = {
   postCount: 0,
   writingFriendCount: 0,
 };
+const discoverGestureHintStorageKey = "saegim_discover_gesture_hint_seen_v1";
+
+function makePostAnalyticsProperties(
+  post: PostBundle,
+  properties: AnalyticsProperties = {},
+): AnalyticsProperties {
+  const uniqueTags = new Set<string>();
+  post.cards.forEach((card) => {
+    card.tags.forEach((tag) => uniqueTags.add(tag));
+  });
+
+  return {
+    author_id: post.author.id,
+    card_count: post.post.cardCount,
+    comment_count: post.viewerState?.commentCount ?? null,
+    creation_type: post.post.creationType,
+    has_image_background: post.cards.some((card) =>
+      Boolean(card.comp.bgImage?.url || card.comp.bgImage?.objectKey),
+    ),
+    has_source_detail: post.cards.some((card) =>
+      Boolean(card.source.author || card.source.work || card.source.url),
+    ),
+    like_count: post.viewerState?.likeCount ?? null,
+    loaded_card_count: post.cards.length,
+    post_id: post.post.id,
+    tag_count: uniqueTags.size,
+    viewer_carved: post.viewerState?.carved ?? null,
+    viewer_liked: post.viewerState?.liked ?? null,
+    visibility: post.post.visibility,
+    ...properties,
+  };
+}
+
+function makeAccountAnalyticsProperties(
+  account: AccountProfile,
+  prefix: string,
+): AnalyticsProperties {
+  return {
+    [`${prefix}_account_id`]: account.id,
+    [`${prefix}_handle`]: account.handle,
+    [`${prefix}_post_count`]: account.postCount,
+    [`${prefix}_verification`]: account.verification,
+    [`${prefix}_writing_friend_count`]: account.writingFriendCount,
+  };
+}
 
 const captureToolLabels: Record<CaptureSheetKey, string> = {
   text: "문구",
@@ -937,8 +994,211 @@ export function SaegimShell() {
         posts.findIndex((post) => post.post.id === activePost.post.id),
       )
     : 0;
+  const lastTrackedPageViewKeyRef = useRef<string | null>(null);
+  const analyticsView = useMemo<AnalyticsViewState>(() => {
+    const baseProperties: AnalyticsProperties = {
+      active_tab: activeTab,
+      current_account_id:
+        currentAccount.id === guestAccount.id ? null : currentAccount.id,
+      entry_state: entryState,
+      signed_in: entryState === "signed-in",
+    };
+
+    if (selectedEditorialPage) {
+      return {
+        key: `editorial:${selectedEditorialPage.id}:${editorialPageState?.origin ?? "unknown"}`,
+        name: "Editorial Page",
+        properties: {
+          ...baseProperties,
+          editorial_page_id: selectedEditorialPage.id,
+          editorial_page_kind: selectedEditorialPage.kind,
+          origin: editorialPageState?.origin ?? "unknown",
+        },
+      };
+    }
+
+    if (isViewingNoticeList) {
+      return {
+        key: "notice-list",
+        name: "Notice List",
+        properties: {
+          ...baseProperties,
+          notice_count: noticePages.length,
+        },
+      };
+    }
+
+    if (isSearching) {
+      return {
+        key: `search:${activeTab}`,
+        name: "Search",
+        properties: {
+          ...baseProperties,
+          origin_tab: activeTab,
+        },
+      };
+    }
+
+    if (activeTab === "discover") {
+      return {
+        key: `discover:${activePost?.post.id ?? "empty"}:${activeCardIndex}:${detailReturnTarget?.surface ?? "main"}`,
+        name: activePost ? "Discover" : "Discover Empty",
+        properties: {
+          ...baseProperties,
+          active_card_index: activeCardIndex,
+          card_number: activeCardIndex + 1,
+          detail_origin: detailReturnTarget?.surface ?? "main",
+          post_index: activePostIndex,
+          ...(activePost
+            ? makePostAnalyticsProperties(activePost)
+            : { post_id: null }),
+        },
+      };
+    }
+
+    if (activeTab === "capture") {
+      return {
+        key: `capture:${captureReturnTab}`,
+        name: "Capture",
+        properties: {
+          ...baseProperties,
+          return_tab: captureReturnTab,
+        },
+      };
+    }
+
+    if (activeTab === "shelf") {
+      return {
+        key: "shelf",
+        name: "Shelf",
+        properties: baseProperties,
+      };
+    }
+
+    if (activeTab === "me") {
+      if (isViewingSettings) {
+        return {
+          key: "settings",
+          name: "Settings",
+          properties: baseProperties,
+        };
+      }
+
+      if (isViewingFollowing) {
+        return {
+          key: "following",
+          name: "Following",
+          properties: baseProperties,
+        };
+      }
+
+      if (isViewingDrawer) {
+        return {
+          key: `drawer:${drawerReturnSurface}`,
+          name: "Drawer",
+          properties: {
+            ...baseProperties,
+            return_surface: drawerReturnSurface,
+          },
+        };
+      }
+
+      if (isEditingProfile) {
+        return {
+          key: "profile-edit",
+          name: "Profile Edit",
+          properties: baseProperties,
+        };
+      }
+
+      return {
+        key: `profile:${selectedProfile.id}:${isOwnProfile ? "own" : "other"}`,
+        name: "Profile",
+        properties: {
+          ...baseProperties,
+          is_own_profile: isOwnProfile,
+          ...makeAccountAnalyticsProperties(selectedProfile, "profile"),
+        },
+      };
+    }
+
+    return {
+      key: "home",
+      name: "Home",
+      properties: {
+        ...baseProperties,
+        editorial_page_count: editorialPages.length,
+        post_count: posts.length,
+        recommended_account_count: accounts.length,
+      },
+    };
+  }, [
+    accounts.length,
+    activeCardIndex,
+    activePost,
+    activePostIndex,
+    activeTab,
+    captureReturnTab,
+    currentAccount.id,
+    detailReturnTarget?.surface,
+    drawerReturnSurface,
+    editorialPageState?.origin,
+    editorialPages.length,
+    entryState,
+    isEditingProfile,
+    isOwnProfile,
+    isSearching,
+    isViewingDrawer,
+    isViewingFollowing,
+    isViewingNoticeList,
+    isViewingSettings,
+    noticePages.length,
+    posts.length,
+    selectedEditorialPage,
+    selectedProfile,
+  ]);
+
+  function currentAnalyticsSurface() {
+    if (selectedEditorialPage) return "editorial";
+    if (isViewingNoticeList) return "notice_list";
+    if (isSearching) return "search";
+    if (activeTab === "discover") return "discover";
+    if (activeTab === "capture") return "capture";
+    if (activeTab === "shelf") return "shelf";
+    if (activeTab === "me" && isViewingSettings) return "settings";
+    if (activeTab === "me" && isViewingFollowing) return "following";
+    if (activeTab === "me" && isViewingDrawer) return "drawer";
+    if (activeTab === "me" && isEditingProfile) return "profile_edit";
+    if (activeTab === "me") return "profile";
+    return "home";
+  }
+
+  function makeSessionAnalyticsProperties(): AnalyticsProperties {
+    return {
+      active_tab: activeTab,
+      current_account_id:
+        currentAccount.id === guestAccount.id ? null : currentAccount.id,
+      entry_state: entryState,
+      signed_in: isSignedIn(),
+      surface: currentAnalyticsSurface(),
+    };
+  }
+
+  function trackSaegimEvent(
+    eventName: string,
+    properties: AnalyticsProperties = {},
+  ) {
+    trackAnalyticsEvent(eventName, {
+      ...makeSessionAnalyticsProperties(),
+      ...properties,
+    });
+  }
 
   function handlePostPublished(post: PostBundle) {
+    trackSaegimEvent(
+      "Post Published",
+      makePostAnalyticsProperties(post, { surface: "capture" }),
+    );
     setPosts((currentPosts) => [
       post,
       ...currentPosts.filter((item) => item.post.id !== post.post.id),
@@ -1050,6 +1310,10 @@ export function SaegimShell() {
     intent: AuthSheetIntent = "default",
     mode: AuthMode = "login",
   ) {
+    trackSaegimEvent("Auth Sheet Opened", {
+      auth_intent: intent,
+      auth_mode: mode,
+    });
     setCommentPost(null);
     setInfoSheet(null);
     setAuthSheetInitialMode(mode);
@@ -1089,6 +1353,18 @@ export function SaegimShell() {
     setEntryState("signed-in");
     setSelectedProfileId(nextAccount.id);
     setAuthSheetIntent(null);
+    identifyAnalyticsAccount(nextAccount);
+    trackAnalyticsEvent(
+      input.mode === "signup" ? "Sign Up Completed" : "Login Completed",
+      {
+        ...makeSessionAnalyticsProperties(),
+        account_id: nextAccount.id,
+        auth_intent: intent ?? "default",
+        entry_state: "signed-in",
+        method: "email",
+        signed_in: true,
+      },
+    );
 
     if (intent === "capture") {
       setCaptureReturnTab(activeTab === "capture" ? "home" : activeTab);
@@ -1126,7 +1402,9 @@ export function SaegimShell() {
   }
 
   function leaveApp() {
+    trackSaegimEvent("Logout Completed");
     void logoutSession().catch(() => undefined);
+    resetAnalyticsIdentity();
     setActiveTab("home");
     setIsSearching(false);
     setIsEditingProfile(false);
@@ -1186,6 +1464,10 @@ export function SaegimShell() {
   }
 
   function startGoogleOAuth() {
+    trackSaegimEvent("Login Started", {
+      auth_intent: authSheetIntent ?? "default",
+      method: "google",
+    });
     window.location.assign(getGoogleOAuthStartUrl());
   }
 
@@ -1232,10 +1514,15 @@ export function SaegimShell() {
     }
 
     try {
+      const nextLiked = !post.viewerState?.liked;
       const updatedPost = post.viewerState?.liked
         ? await unlikePost(post.post.id)
         : await likePost(post.post.id);
       replacePost(updatedPost);
+      trackSaegimEvent(
+        nextLiked ? "Post Liked" : "Post Unliked",
+        makePostAnalyticsProperties(updatedPost),
+      );
     } catch {
       // 네트워크 실패 시 현재 화면 상태를 유지한다.
     }
@@ -1247,10 +1534,15 @@ export function SaegimShell() {
     }
 
     try {
+      const nextCarved = !post.viewerState?.carved;
       const updatedPost = post.viewerState?.carved
         ? await uncarvePost(post.post.id)
         : await carvePost(post.post.id);
       replacePost(updatedPost);
+      trackSaegimEvent(
+        nextCarved ? "Post Carved" : "Post Uncarved",
+        makePostAnalyticsProperties(updatedPost),
+      );
     } catch {
       // 네트워크 실패 시 현재 화면 상태를 유지한다.
     }
@@ -1266,6 +1558,13 @@ export function SaegimShell() {
     setCurrentAccount(updatedAccount);
     replaceAccount(updatedAccount);
     setIsEditingProfile(false);
+    identifyAnalyticsAccount(updatedAccount);
+    trackSaegimEvent("Profile Updated", {
+      account_id: updatedAccount.id,
+      has_bio: Boolean(updatedAccount.bio?.trim()),
+      has_photo: Boolean(updatedAccount.photoUrl),
+      has_tagline: Boolean(updatedAccount.tagline.trim()),
+    });
   }
 
   async function handleToggleFollow(accountId: string, subscribed: boolean) {
@@ -1278,6 +1577,10 @@ export function SaegimShell() {
         ? await unfollowAccount(accountId)
         : await followAccount(accountId);
       replaceAccount(updatedAccount);
+      trackSaegimEvent(subscribed ? "Account Unfollowed" : "Account Followed", {
+        subscribed: !subscribed,
+        ...makeAccountAnalyticsProperties(updatedAccount, "target"),
+      });
       return updatedAccount;
     } catch {
       return null;
@@ -1285,6 +1588,7 @@ export function SaegimShell() {
   }
 
   function openPost(post: PostBundle) {
+    const sourceSurface = currentAnalyticsSurface();
     const returnTarget: DetailReturnTarget | null = isViewingDrawer
       ? { surface: "drawer" }
       : isSearching
@@ -1296,6 +1600,12 @@ export function SaegimShell() {
           ? { surface: "tab", tab: activeTab }
           : null;
 
+    trackSaegimEvent(
+      "Post Opened",
+      makePostAnalyticsProperties(post, {
+        source_surface: sourceSurface,
+      }),
+    );
     setPosts((currentPosts) => {
       const exists = currentPosts.some((item) => item.post.id === post.post.id);
 
@@ -1438,6 +1748,12 @@ export function SaegimShell() {
   }
 
   async function openProfile(account: AccountProfile) {
+    trackSaegimEvent("Profile Opened", {
+      is_own_profile: account.id === currentAccount.id,
+      source_surface: currentAnalyticsSurface(),
+      ...makeAccountAnalyticsProperties(account, "profile"),
+    });
+
     if (account.id === currentAccount.id && !isSignedIn()) {
       setSelectedProfileId(currentAccount.id);
       setIsSearching(false);
@@ -1517,7 +1833,30 @@ export function SaegimShell() {
     );
   }
 
-  function openInfoSheet(post: PostBundle) {
+  function openComments(post: PostBundle) {
+    if (!requireSignedIn()) {
+      return;
+    }
+
+    trackSaegimEvent(
+      "Comments Opened",
+      makePostAnalyticsProperties(post, {
+        active_card_index: activeCardIndex,
+        card_number: activeCardIndex + 1,
+      }),
+    );
+    setInfoSheet(null);
+    setCommentPost(post);
+  }
+
+  function openInfoSheet(post: PostBundle, cardIndex = activeCardIndex) {
+    trackSaegimEvent(
+      "Post Info Opened",
+      makePostAnalyticsProperties(post, {
+        active_card_index: cardIndex,
+        card_number: cardIndex + 1,
+      }),
+    );
     setCommentPost(null);
     setInfoSheet({ postId: post.post.id });
   }
@@ -1598,6 +1937,40 @@ export function SaegimShell() {
     );
   }, [activePost?.cards.length, activePost?.post.id]);
 
+  useEffect(() => {
+    if (initialLoadState !== "ready") {
+      return;
+    }
+
+    if (entryState === "signed-in") {
+      identifyAnalyticsAccount(currentAccount);
+      return;
+    }
+
+    resetAnalyticsIdentity();
+  }, [
+    currentAccount.handle,
+    currentAccount.id,
+    currentAccount.postCount,
+    currentAccount.verification,
+    currentAccount.writingFriendCount,
+    entryState,
+    initialLoadState,
+  ]);
+
+  useEffect(() => {
+    if (initialLoadState !== "ready") {
+      return;
+    }
+
+    if (lastTrackedPageViewKeyRef.current === analyticsView.key) {
+      return;
+    }
+
+    lastTrackedPageViewKeyRef.current = analyticsView.key;
+    trackAnalyticsPageView(analyticsView.name, analyticsView.properties);
+  }, [analyticsView, initialLoadState]);
+
   const content = useMemo(() => {
     if (selectedEditorialPage) {
       return (
@@ -1662,14 +2035,7 @@ export function SaegimShell() {
           onPreviousPost={() => movePost(-1)}
           onSelectCard={selectCard}
           onToggleCarve={handleToggleCarve}
-          onOpenComments={(post) => {
-            if (!requireSignedIn()) {
-              return;
-            }
-
-            setInfoSheet(null);
-            setCommentPost(post);
-          }}
+          onOpenComments={openComments}
           onOpenInfo={openInfoSheet}
           onOpenProfile={openProfile}
           onToggleFollow={handleToggleFollow}
@@ -1835,6 +2201,9 @@ export function SaegimShell() {
               type="button"
               aria-label="검색"
               onClick={() => {
+                trackSaegimEvent("Search Opened", {
+                  source_surface: currentAnalyticsSurface(),
+                });
                 setCommentPost(null);
                 setInfoSheet(null);
                 setEditorialPageState(null);
@@ -1854,6 +2223,14 @@ export function SaegimShell() {
           <CommentSheet
             post={commentPost}
             onClose={() => setCommentPost(null)}
+            onCommentSubmitted={(post, commentLength) => {
+              trackSaegimEvent(
+                "Comment Submitted",
+                makePostAnalyticsProperties(post, {
+                  comment_length: commentLength,
+                }),
+              );
+            }}
             onPostChange={replacePost}
           />
         ) : null}
@@ -2772,11 +3149,24 @@ function DiscoverView({
   const hasPreviousCard = activeCardIndex > 0;
   const hasNextCard = activeCardIndex < post.cards.length - 1;
   const shouldShowTitle = post.post.title.trim() !== card.text.trim();
+  const detailViewRef = useRef<HTMLElement | null>(null);
+  const detailCarouselRef = useRef<HTMLDivElement | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragResetTimerRef = useRef<number | null>(null);
+  const hasPointerMovedRef = useRef(false);
+  const suppressChromeToggleRef = useRef(false);
+  const suppressChromeToggleTimerRef = useRef<number | null>(null);
   const wheelLockUntilRef = useRef(0);
+  const [isChromeHidden, setIsChromeHidden] = useState(false);
+  const [showDiscoverHint, setShowDiscoverHint] = useState(false);
   const [dragState, setDragState] = useState<DetailDragState | null>(null);
   const activeDragAxis = dragState?.axis;
+  const discoverViewClassName = [
+    "discover-view",
+    isChromeHidden ? "is-chrome-hidden" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const dragTrackStyle = {
     "--detail-drag-x": `${dragState?.x ?? 0}px`,
     "--detail-drag-y": `${dragState?.y ?? 0}px`,
@@ -2812,16 +3202,86 @@ function DiscoverView({
     }, 230);
   }
 
+  function suppressNextChromeToggle() {
+    suppressChromeToggleRef.current = true;
+
+    if (suppressChromeToggleTimerRef.current) {
+      window.clearTimeout(suppressChromeToggleTimerRef.current);
+    }
+
+    suppressChromeToggleTimerRef.current = window.setTimeout(() => {
+      suppressChromeToggleRef.current = false;
+      suppressChromeToggleTimerRef.current = null;
+    }, 180);
+  }
+
+  function isDetailChromeTarget(target: HTMLElement) {
+    return Boolean(
+      target.closest(
+        "button, input, textarea, a, .detail-title, .writer-bar, .action-rail, .feed-controls, .page-dots, .discover-gesture-hint",
+      ),
+    );
+  }
+
+  function toggleDetailChrome() {
+    markDiscoverHintSeen();
+    setShowDiscoverHint(false);
+    setIsChromeHidden((currentValue) => !currentValue);
+  }
+
+  function markDiscoverHintSeen() {
+    try {
+      window.localStorage.setItem(discoverGestureHintStorageKey, "seen");
+    } catch {
+      // 브라우저 저장소를 쓸 수 없으면 현재 세션에서만 숨긴다.
+    }
+  }
+
+  function detailMoveSize(axis: "x" | "y") {
+    if (axis === "x") {
+      return Math.max(detailCarouselRef.current?.clientWidth ?? 1, 1);
+    }
+
+    return Math.max(detailViewRef.current?.clientHeight ?? 1, 1);
+  }
+
+  function moveCardWithAnimation(direction: -1 | 1) {
+    if (dragState?.isAnimating) return;
+
+    const canMove = direction > 0 ? hasNextCard : hasPreviousCard;
+    if (!canMove) return;
+
+    animateDetailMove("x", direction, detailMoveSize("x"), () => {
+      if (direction > 0) onNextCard();
+      else onPreviousCard();
+    });
+  }
+
+  function movePostWithAnimation(direction: -1 | 1) {
+    if (dragState?.isAnimating) return;
+
+    const canMove = direction > 0 ? hasNextPost : hasPreviousPost;
+    if (!canMove) return;
+
+    animateDetailMove("y", direction, detailMoveSize("y"), () => {
+      if (direction > 0) onNextPost();
+      else onPreviousPost();
+    });
+  }
+
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
+    const target = event.target as HTMLElement;
+
     if (
       dragState?.isAnimating ||
-      (event.target as HTMLElement).closest("button, input, textarea")
+      isDetailChromeTarget(target)
     ) {
       return;
     }
 
     clearDragResetTimer();
     pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    hasPointerMovedRef.current = false;
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({ x: 0, y: 0, axis: null, isAnimating: false });
   }
@@ -2836,6 +3296,9 @@ function DiscoverView({
     const dy = event.clientY - start.y;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
+    if (Math.max(absX, absY) > 8) {
+      hasPointerMovedRef.current = true;
+    }
     const nextAxis =
       dragState?.axis ??
       (Math.max(absX, absY) > 10 ? (absX > absY ? "x" : "y") : null);
@@ -2868,13 +3331,24 @@ function DiscoverView({
   function handlePointerUp(event: ReactPointerEvent<HTMLElement>) {
     const start = pointerStartRef.current;
     const currentDragState = dragState;
+    const target = event.target as HTMLElement;
     pointerStartRef.current = null;
+    if (hasPointerMovedRef.current) {
+      suppressNextChromeToggle();
+    }
 
-    if (
-      !start ||
-      !currentDragState ||
-      (event.target as HTMLElement).closest("button, input, textarea")
-    ) {
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // 포인터 캡처가 이미 해제된 경우에는 무시한다.
+    }
+
+    if (!start || !currentDragState) {
+      return;
+    }
+
+    if (isDetailChromeTarget(target)) {
+      setDragState(null);
       return;
     }
 
@@ -2882,6 +3356,20 @@ function DiscoverView({
     const dy = currentDragState.y || event.clientY - start.y;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
+    const movedDistance = Math.max(absX, absY);
+
+    if (movedDistance <= 8 && !currentDragState.axis) {
+      setDragState(null);
+
+      if (!suppressChromeToggleRef.current) {
+        toggleDetailChrome();
+      }
+
+      suppressChromeToggleRef.current = false;
+      hasPointerMovedRef.current = false;
+      return;
+    }
+
     const axis = currentDragState.axis ?? (absX > absY ? "x" : "y");
     const threshold = Math.min(
       axis === "x"
@@ -2936,7 +3424,12 @@ function DiscoverView({
   }
 
   useEffect(() => {
-    return () => clearDragResetTimer();
+    return () => {
+      clearDragResetTimer();
+      if (suppressChromeToggleTimerRef.current) {
+        window.clearTimeout(suppressChromeToggleTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -2946,6 +3439,8 @@ function DiscoverView({
 
   function handlePointerCancel() {
     pointerStartRef.current = null;
+    hasPointerMovedRef.current = false;
+    suppressNextChromeToggle();
     if (dragState) {
       setDragState({ x: 0, y: 0, axis: dragState.axis, isAnimating: true });
       clearDragResetTimer();
@@ -2959,7 +3454,7 @@ function DiscoverView({
   function handleWheel(event: ReactWheelEvent<HTMLElement>) {
     if (
       dragState?.isAnimating ||
-      (event.target as HTMLElement).closest("button, input, textarea")
+      isDetailChromeTarget(event.target as HTMLElement)
     ) {
       return;
     }
@@ -3036,19 +3531,19 @@ function DiscoverView({
 
       if (event.key === "ArrowUp" && hasPreviousPost) {
         event.preventDefault();
-        onPreviousPost();
+        movePostWithAnimation(-1);
       }
       if (event.key === "ArrowDown" && hasNextPost) {
         event.preventDefault();
-        onNextPost();
+        movePostWithAnimation(1);
       }
       if (event.key === "ArrowLeft" && hasPreviousCard) {
         event.preventDefault();
-        onPreviousCard();
+        moveCardWithAnimation(-1);
       }
       if (event.key === "ArrowRight" && hasNextCard) {
         event.preventDefault();
-        onNextCard();
+        moveCardWithAnimation(1);
       }
     }
 
@@ -3059,18 +3554,41 @@ function DiscoverView({
     hasNextPost,
     hasPreviousCard,
     hasPreviousPost,
+    dragState?.isAnimating,
     onNextCard,
     onNextPost,
     onPreviousCard,
     onPreviousPost,
   ]);
 
+  useEffect(() => {
+    try {
+      setShowDiscoverHint(
+        window.localStorage.getItem(discoverGestureHintStorageKey) !== "seen",
+      );
+    } catch {
+      setShowDiscoverHint(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showDiscoverHint) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      markDiscoverHintSeen();
+      setShowDiscoverHint(false);
+    }, 5200);
+
+    return () => window.clearTimeout(timer);
+  }, [showDiscoverHint]);
+
   return (
     <article
-      className="discover-view"
-      onPointerCancel={() => {
-        pointerStartRef.current = null;
-      }}
+      className={discoverViewClassName}
+      ref={detailViewRef}
+      onPointerCancel={handlePointerCancel}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onWheel={handleWheel}
@@ -3088,10 +3606,15 @@ function DiscoverView({
       {shouldShowTitle ? (
         <div className="detail-title">{post.post.title}</div>
       ) : null}
+      {showDiscoverHint && !isChromeHidden ? (
+        <div className="discover-gesture-hint" role="status">
+          위아래로 글, 좌우로 장을 넘겨요
+        </div>
+      ) : null}
       <div className="feed-controls" aria-label="글 이동">
         <button
           type="button"
-          onClick={onPreviousPost}
+          onClick={() => movePostWithAnimation(-1)}
           disabled={!hasPreviousPost}
           aria-label="이전 글"
         >
@@ -3102,14 +3625,18 @@ function DiscoverView({
         </span>
         <button
           type="button"
-          onClick={onNextPost}
+          onClick={() => movePostWithAnimation(1)}
           disabled={!hasNextPost}
           aria-label="다음 글"
         >
           ↓
         </button>
       </div>
-      <div className="detail-carousel" style={dragTrackStyle}>
+      <div
+        className="detail-carousel"
+        style={dragTrackStyle}
+        ref={detailCarouselRef}
+      >
         <div className={dragTrackClassName}>
           {hasPreviousCard ? (
             <DetailCardSurface
@@ -3150,7 +3677,7 @@ function DiscoverView({
           <button
             className="card-step card-step-prev"
             type="button"
-            onClick={onPreviousCard}
+            onClick={() => moveCardWithAnimation(-1)}
             disabled={!hasPreviousCard}
             aria-label="이전 장"
           >
@@ -3161,7 +3688,7 @@ function DiscoverView({
           <button
             className="card-step card-step-next"
             type="button"
-            onClick={onNextCard}
+            onClick={() => moveCardWithAnimation(1)}
             disabled={!hasNextCard}
             aria-label="다음 장"
           >
@@ -3456,10 +3983,12 @@ function PostInfoSheet({
 function CommentSheet({
   post,
   onClose,
+  onCommentSubmitted,
   onPostChange,
 }: {
   post: PostBundle;
   onClose: () => void;
+  onCommentSubmitted: (post: PostBundle, commentLength: number) => void;
   onPostChange: (post: PostBundle) => void;
 }) {
   const [comments, setComments] = useState<PostComment[]>([]);
@@ -3511,6 +4040,7 @@ function CommentSheet({
       setComments((currentComments) => [...currentComments, result.item]);
       setBody("");
       onPostChange(result.post);
+      onCommentSubmitted(result.post, cleanBody.length);
       setStatus("idle");
     } catch {
       setStatus("idle");
@@ -5669,9 +6199,8 @@ function ProfileEditView({
             <PencilIcon />
           </button>
         </div>
-        <p>
-          {photoStatus === "loading" ? "사진을 다듬는 중" : tagline || "한 줄을 곁에 두는 사람"}
-        </p>
+        {photoStatus === "loading" ? <p>사진을 다듬는 중</p> : null}
+        {photoStatus !== "loading" && tagline.trim() ? <p>{tagline.trim()}</p> : null}
         {photoUrl ? (
           <button className="edit-photo-remove" type="button" onClick={() => setPhotoUrl("")}>
             사진 제거
@@ -5698,7 +6227,7 @@ function ProfileEditView({
         <input
           maxLength={48}
           onChange={(event) => setTagline(event.target.value)}
-          placeholder="한 줄을 곁에 두는 사람"
+          placeholder="짧은 소개를 적어 주세요"
           value={tagline}
         />
         <em>추천 글벗 카드와 프로필 이름 아래에 보여요.</em>

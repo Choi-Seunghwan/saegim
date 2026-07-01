@@ -16,6 +16,7 @@ interface EmailSignupInput extends EmailAuthInput {
 const passwordIterations = 120_000;
 const passwordKeyLength = 32;
 const passwordDigest = "sha256";
+const legacyDefaultTagline = "한 줄을 곁에 두는 사람";
 const accountInclude = Prisma.validator<Prisma.AccountInclude>()({
   _count: {
     select: {
@@ -57,7 +58,6 @@ export class EmailAuthService {
         email,
         handle,
         displayName,
-        tagline: "한 줄을 곁에 두는 사람",
         emailCredential: {
           create: {
             email,
@@ -188,12 +188,16 @@ export class EmailAuthService {
       id: account.id,
       handle: account.handle,
       displayName: account.displayName,
-      tagline: account.tagline,
+      tagline: this.normalizeStoredTagline(account.tagline),
       verification: account.verification === "OFFICIAL" ? "official" : "none",
       postCount: account._count.posts,
       writingFriendCount: account._count.followerRelations,
       ...(account.photoUrl ? { photoUrl: account.photoUrl } : {}),
       ...(account.bio ? { bio: account.bio } : {})
     };
+  }
+
+  private normalizeStoredTagline(tagline: string) {
+    return tagline === legacyDefaultTagline ? "" : tagline;
   }
 }

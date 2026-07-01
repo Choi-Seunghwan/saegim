@@ -1224,6 +1224,7 @@ textarea:focus-visible {
   font-weight: 800;
   backdrop-filter: blur(10px);
   cursor: pointer;
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease), filter 280ms var(--ease);
 }
 
 .detail-title {
@@ -1246,6 +1247,53 @@ textarea:focus-visible {
   transform: translateX(-50%);
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 12px -9px rgba(60, 45, 70, 0.3);
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease), filter 280ms var(--ease);
+}
+
+.discover-gesture-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 226px;
+  z-index: 11;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: calc(100% - 56px);
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(252, 251, 252, 0.58);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 12px 26px -18px rgba(35, 29, 42, 0.48);
+  backdrop-filter: blur(13px);
+  transform: translateX(-50%);
+  animation: discoverHintIn 360ms var(--ease) both;
+  transition: opacity 260ms var(--ease), transform 260ms var(--ease);
+}
+
+.discover-gesture-hint::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--ink);
+  opacity: 0.72;
+}
+
+@keyframes discoverHintIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .feed-controls {
@@ -1285,6 +1333,7 @@ textarea:focus-visible {
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
   transform: translateY(-50%);
   cursor: pointer;
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease), filter 280ms var(--ease);
 }
 
 .card-step-prev {
@@ -1303,6 +1352,7 @@ textarea:focus-visible {
   display: inline-flex;
   gap: 6px;
   transform: translateX(-50%);
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease), filter 280ms var(--ease);
 }
 
 .page-dots button {
@@ -1335,6 +1385,7 @@ textarea:focus-visible {
   border-radius: 999px;
   background: rgba(252, 251, 252, 0.3);
   backdrop-filter: blur(12px);
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease), filter 280ms var(--ease);
 }
 
 .writer-bar button {
@@ -1394,6 +1445,43 @@ textarea:focus-visible {
   display: grid;
   gap: 14px;
   justify-items: center;
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease), filter 280ms var(--ease);
+}
+
+.discover-view.is-chrome-hidden .detail-back,
+.discover-view.is-chrome-hidden .feed-controls,
+.discover-view.is-chrome-hidden .card-step,
+.discover-view.is-chrome-hidden .page-dots,
+.discover-view.is-chrome-hidden .writer-bar,
+.discover-view.is-chrome-hidden .action-rail {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.discover-view.is-chrome-hidden .detail-back {
+  transform: translate3d(-8px, -8px, 0);
+}
+
+.discover-view.is-chrome-hidden .detail-title {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -8px);
+}
+
+.discover-view.is-chrome-hidden .card-step {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.discover-view.is-chrome-hidden .page-dots {
+  transform: translate(-50%, 12px);
+}
+
+.discover-view.is-chrome-hidden .writer-bar {
+  transform: translateY(18px);
+}
+
+.discover-view.is-chrome-hidden .action-rail {
+  transform: translateX(18px);
 }
 
 .action-rail button {

@@ -125,6 +125,7 @@ const defaultAccountPageLimit = 12;
 const maxPageLimit = 24;
 const maxCardsPerPost = 10;
 const maxProfilePhotoValueLength = 240_000;
+const legacyDefaultTagline = "한 줄을 곁에 두는 사람";
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -1016,7 +1017,7 @@ export class ContentRepository {
       id: account.id,
       handle: account.handle,
       displayName: account.displayName,
-      tagline: account.tagline,
+      tagline: this.normalizeStoredTagline(account.tagline),
       verification: this.fromDbVerification(account.verification),
       postCount: account._count.posts,
       writingFriendCount: account._count.followerRelations,
@@ -1024,6 +1025,10 @@ export class ContentRepository {
       ...(account.bio ? { bio: account.bio } : {}),
       ...(typeof subscribed === "boolean" ? { viewerState: { subscribed } } : {})
     };
+  }
+
+  private normalizeStoredTagline(tagline: string) {
+    return tagline === legacyDefaultTagline ? "" : tagline;
   }
 
   private isSubscribedAccount(account: AccountWithCounts | AccountWithViewer) {

@@ -210,7 +210,6 @@ export class GoogleOAuthService {
       data: {
         handle,
         displayName,
-        tagline: "한 줄을 곁에 두는 사람",
         ...(profile.email && profile.emailVerified ? { email: profile.email } : {}),
         ...(profile.picture ? { photoUrl: profile.picture } : {})
       },
