@@ -165,7 +165,7 @@ function installMixpanelQueue() {
       ([] as unknown[] as MixpanelPeopleQueue);
 
     queueMethods.forEach((methodName) => addQueuedMethod(target, methodName));
-    mixpanel._i?.push(args);
+    mixpanel._i?.push([args[0], args[1], name]);
   };
 
   const script = document.createElement("script");
