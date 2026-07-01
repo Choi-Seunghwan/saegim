@@ -12,10 +12,7 @@ import type {
   WheelEvent as ReactWheelEvent,
 } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
-import {
-  CURRENT_LEGAL_VERSIONS,
-  LEGAL_DOCUMENTS,
-} from "@saegim/domain";
+import { CURRENT_LEGAL_VERSIONS, LEGAL_DOCUMENTS } from "@saegim/domain";
 import type {
   AccountProfile,
   CardBackgroundImage,
@@ -1122,10 +1119,12 @@ export function SaegimShell() {
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
   const [infoSheet, setInfoSheet] = useState<InfoSheetState | null>(null);
   const [editingPost, setEditingPost] = useState<PostBundle | null>(null);
-  const [deleteTargetPost, setDeleteTargetPost] =
-    useState<PostBundle | null>(null);
-  const [deletePostStatus, setDeletePostStatus] =
-    useState<"idle" | "submitting">("idle");
+  const [deleteTargetPost, setDeleteTargetPost] = useState<PostBundle | null>(
+    null,
+  );
+  const [deletePostStatus, setDeletePostStatus] = useState<
+    "idle" | "submitting"
+  >("idle");
   const [deletePostError, setDeletePostError] = useState("");
   const [detailReturnTarget, setDetailReturnTarget] =
     useState<DetailReturnTarget | null>(null);
@@ -1180,8 +1179,7 @@ export function SaegimShell() {
     Boolean(editorialPageState);
   const isDiscoverMode = activeTab === "discover" && !isFullPage;
   const isProfileTab = activeTab === "me" && !isFullPage;
-  const activeNavTab =
-    isProfileTab && !isOwnProfile ? null : activeTab;
+  const activeNavTab = isProfileTab && !isOwnProfile ? null : activeTab;
   const frameClassName = [
     "mobile-frame",
     isDiscoverMode ? "is-discover" : "",
@@ -1850,8 +1848,7 @@ export function SaegimShell() {
     postId: string,
     returnTarget?: DetailReturnTarget | null,
   ) {
-    let nextPost =
-      posts.find((post) => post.post.id === postId) ?? null;
+    let nextPost = posts.find((post) => post.post.id === postId) ?? null;
 
     if (!nextPost) {
       try {
@@ -2508,13 +2505,17 @@ export function SaegimShell() {
 
     async function loadInitialData() {
       try {
-        const [nextPostPage, nextHomePostPage, nextAccountPage, nextEditorialPages] =
-          await Promise.all([
-            fetchFeed({ limit: listInitialCount }, controller.signal),
-            fetchHomePosts({ limit: 5 }, controller.signal),
-            fetchRecommendedAccounts({ limit: 12 }, controller.signal),
-            fetchEditorialPages(controller.signal),
-          ]);
+        const [
+          nextPostPage,
+          nextHomePostPage,
+          nextAccountPage,
+          nextEditorialPages,
+        ] = await Promise.all([
+          fetchFeed({ limit: listInitialCount }, controller.signal),
+          fetchHomePosts({ limit: 5 }, controller.signal),
+          fetchRecommendedAccounts({ limit: 12 }, controller.signal),
+          fetchEditorialPages(controller.signal),
+        ]);
 
         setPosts(nextPostPage.items);
         setHomePosts(nextHomePostPage.items);
@@ -2605,10 +2606,7 @@ export function SaegimShell() {
   }, [activeTab, canApplyAppRoute, entryState]);
 
   useEffect(() => {
-    if (
-      !canApplyAppRoute ||
-      !hasAppliedInitialUrlTabRef.current
-    ) {
+    if (!canApplyAppRoute || !hasAppliedInitialUrlTabRef.current) {
       return;
     }
 
@@ -3843,7 +3841,9 @@ function HomeView({
               />
             ))
           ) : (
-            <p className="home-empty-inline">아직 큐레이션 글이 준비 중이에요.</p>
+            <p className="home-empty-inline">
+              아직 큐레이션 글이 준비 중이에요.
+            </p>
           )}
         </div>
       </section>
@@ -4081,10 +4081,7 @@ function DiscoverView({
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
     const target = event.target as HTMLElement;
 
-    if (
-      dragState?.isAnimating ||
-      isDetailChromeTarget(target)
-    ) {
+    if (dragState?.isAnimating || isDetailChromeTarget(target)) {
       return;
     }
 
@@ -4771,6 +4768,23 @@ function PostInfoSheet({
           </div>
         </div>
 
+        {canManage ? (
+          <div className="info-actions" aria-label="내 글 관리">
+            <button type="button" onClick={onEdit}>
+              <span>
+                <PencilIcon />
+              </span>
+              수정
+            </button>
+            <button className="is-danger" type="button" onClick={onDelete}>
+              <span>
+                <TrashIcon />
+              </span>
+              삭제
+            </button>
+          </div>
+        ) : null}
+
         <div className="info-fields">
           <div className="info-field">
             <span>출처</span>
@@ -4790,22 +4804,6 @@ function PostInfoSheet({
             )}
           </div>
         </div>
-        {canManage ? (
-          <div className="info-actions" aria-label="내 글 관리">
-            <button type="button" onClick={onEdit}>
-              <span>
-                <PencilIcon />
-              </span>
-              수정
-            </button>
-            <button className="is-danger" type="button" onClick={onDelete}>
-              <span>
-                <TrashIcon />
-              </span>
-              삭제
-            </button>
-          </div>
-        ) : null}
       </section>
     </>
   );
@@ -5100,9 +5098,7 @@ function CaptureView({
 
     const nextDraft = createCaptureDraftFromPost(editingPost);
     setCards(
-      nextDraft.cards.length > 0
-        ? nextDraft.cards
-        : [createCaptureDraftCard()],
+      nextDraft.cards.length > 0 ? nextDraft.cards : [createCaptureDraftCard()],
     );
     setActiveDraftIndex(0);
     setTitle(nextDraft.title);
@@ -5588,7 +5584,9 @@ function CaptureView({
           ok: "삭제",
         }
       : {
-          title: isEditMode ? "수정한 내용을 저장할까요?" : "이 글을 발행할까요?",
+          title: isEditMode
+            ? "수정한 내용을 저장할까요?"
+            : "이 글을 발행할까요?",
           desc:
             confirmState.skippedEmptyCardCount > 0
               ? isEditMode
@@ -6513,8 +6511,8 @@ function LegalDocumentView({
       <article className="legal-body">
         <p className="legal-summary">{document.summary}</p>
         <p className="legal-note">
-          본 문서는 MVP 운영 준비용 초안입니다. 정식 운영 전 사업자 정보,
-          문의 창구, 보존 기간, 위탁 현황을 확정해 갱신합니다.
+          본 문서는 MVP 운영 준비용 초안입니다. 정식 운영 전 사업자 정보, 문의
+          창구, 보존 기간, 위탁 현황을 확정해 갱신합니다.
         </p>
 
         {document.sections.map((section) => (
@@ -7151,7 +7149,11 @@ function ProfileEditView({
       const nextPhotoUrl = await createProfilePhotoDataUrl(file);
       setPhotoUrl(nextPhotoUrl);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "사진을 바꿀 수 없어요. 다른 이미지를 골라 주세요.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "사진을 바꿀 수 없어요. 다른 이미지를 골라 주세요.",
+      );
     } finally {
       setPhotoStatus("idle");
     }
@@ -7205,9 +7207,15 @@ function ProfileEditView({
           </button>
         </div>
         {photoStatus === "loading" ? <p>사진을 다듬는 중</p> : null}
-        {photoStatus !== "loading" && tagline.trim() ? <p>{tagline.trim()}</p> : null}
+        {photoStatus !== "loading" && tagline.trim() ? (
+          <p>{tagline.trim()}</p>
+        ) : null}
         {photoUrl ? (
-          <button className="edit-photo-remove" type="button" onClick={() => setPhotoUrl("")}>
+          <button
+            className="edit-photo-remove"
+            type="button"
+            onClick={() => setPhotoUrl("")}
+          >
             사진 제거
           </button>
         ) : null}
@@ -7245,7 +7253,7 @@ function ProfileEditView({
         <textarea
           maxLength={240}
           onChange={(event) => setBio(event.target.value)}
-          placeholder="조용히 남겨 둘 소개글"
+          placeholder="긴 소개글"
           value={bio}
         />
       </label>
