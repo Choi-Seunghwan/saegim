@@ -6118,7 +6118,7 @@ function SettingsView({
       <button className="settings-logout" type="button" onClick={onLogout}>
         로그아웃
       </button>
-      <p className="settings-version">새김 · 버전 1.0.0 (MVP)</p>
+      <p className="settings-version">새김 · 버전 0.1.0 (MVP)</p>
     </section>
   );
 }
