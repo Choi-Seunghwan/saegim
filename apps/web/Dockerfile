@@ -12,7 +12,7 @@ COPY packages/domain/package.json packages/domain/package.json
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS builder
-ARG NEXT_PUBLIC_API_BASE_URL=https://api.saegim.chuz.dev
+ARG NEXT_PUBLIC_API_BASE_URL=https://api-saegim.chuz.dev
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 COPY tsconfig.base.json ./
 COPY apps/web apps/web
