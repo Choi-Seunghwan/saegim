@@ -44,6 +44,8 @@ pnpm dev:api
 
 PostgreSQL 로컬 확인이 필요하면 `docker compose up -d postgres`를 사용한다. 새김 전용 DB는 기존 로컬 Postgres와 충돌하지 않도록 호스트 `55432` 포트를 쓴다.
 
+컨테이너/k3s 배포는 `deploy/README.md`를 따른다. 초기 목표 도메인은 `web.saegim.chuz.dev`와 `api.saegim.chuz.dev`다.
+
 API 기본 조회 계약:
 - `GET /health`
 - `POST /auth/signup` — 이메일 회원가입, 계정 생성, 세션 쿠키 발급

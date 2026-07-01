@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saegim-cloudflared
+  labels:
+    app.kubernetes.io/name: saegim-cloudflared
+    app.kubernetes.io/part-of: saegim
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: saegim-cloudflared
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: saegim-cloudflared
+        app.kubernetes.io/part-of: saegim
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.6.1
+          args:
+            - tunnel
+            - --no-autoupdate
+            - run
+            - --token
+            - $(CLOUDFLARE_TUNNEL_TOKEN)
+          env:
+            - name: CLOUDFLARE_TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: saegim-cloudflared
+                  key: token
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

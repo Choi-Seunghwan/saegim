@@ -16,5 +16,44 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: saegim-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 4000
+      WEB_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
+      DATABASE_URL: postgresql://saegim:saegim@postgres:5432/saegim
+      SAEGIM_SESSION_SECRET: change-me-in-production
+      SAEGIM_COOKIE_SECURE: "false"
+    ports:
+      - "4000:4000"
+    command: >
+      sh -c "pnpm --filter @saegim/api db:push &&
+             node apps/api/dist/main.js"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
+    container_name: saegim-web
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "3000:3000"
+
 volumes:
   saegim-postgres-data:

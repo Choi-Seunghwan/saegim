@@ -7,9 +7,12 @@
     "node": ">=22.11.0"
   },
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "dev:web": "pnpm --filter @saegim/web dev",
-    "dev:api": "pnpm --filter @saegim/api start:dev",
+    "dev": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; pnpm -r --parallel dev",
+    "dev:web": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; pnpm --filter @saegim/web dev",
+    "dev:api": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; pnpm --filter @saegim/api start:dev",
+    "db:generate": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; pnpm --filter @saegim/api db:generate",
+    "db:push": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; pnpm --filter @saegim/api db:push",
+    "db:validate": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; pnpm --filter @saegim/api db:validate",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint"
