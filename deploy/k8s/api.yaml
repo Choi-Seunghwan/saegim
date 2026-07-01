@@ -48,6 +48,13 @@ spec:
                 name: saegim-config
             - secretRef:
                 name: saegim-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
       containers:
         - name: api
           image: ghcr.io/choi-seunghwan/saegim-api:main
