@@ -557,8 +557,9 @@ body{
 .auth-alt{ text-align:center; font-size:13px; color:var(--ink-2); margin-top:18px; font-weight:500; }
 .auth-alt button{ background:none; border:none; color:var(--ink); font-family:var(--font); font-size:13px; font-weight:800; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
 .auth-guest{ display:block; margin:20px auto 0; background:none; border:none; color:var(--ink-3); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; padding:8px; }
-.auth-agree{ display:flex; align-items:flex-start; gap:9px; margin:4px 2px 14px; font-size:12.5px; color:var(--ink-2); line-height:1.5; font-weight:500; cursor:pointer; }
+.auth-agree{ display:flex; align-items:flex-start; gap:9px; margin:4px 2px 14px; font-size:12.5px; color:var(--ink-2); line-height:1.5; font-weight:500; }
 .auth-agree input{ width:17px; height:17px; margin-top:1px; flex:0 0 auto; accent-color:var(--green); }
+.auth-link{ background:none; border:none; padding:0; color:var(--ink); font-family:var(--font); font-size:12.5px; font-weight:800; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 
 /* ============================================================
    바텀시트 (글 정보 / 댓글)
@@ -1152,7 +1153,7 @@ body{
           <input class="auth-in" id="suName" type="text" placeholder="닉네임" autocomplete="nickname" maxlength="20">
           <input class="auth-in" id="suEmail" type="email" inputmode="email" placeholder="이메일" autocomplete="email">
           <input class="auth-in" id="suPw" type="password" placeholder="비밀번호 (8자 이상)" autocomplete="new-password">
-          <label class="auth-agree"><input type="checkbox" id="suAgree"><span>이용약관 및 개인정보 처리방침에 동의합니다</span></label>
+          <div class="auth-agree"><input type="checkbox" id="suAgree"><span><button class="auth-link" type="button" data-auth-legal="terms">이용약관</button> 및 <button class="auth-link" type="button" data-auth-legal="privacy">개인정보 처리방침</button>에 동의합니다</span></div>
           <button class="auth-btn" id="signupBtn">가입하기</button>
           <div class="auth-alt">이미 계정이 있으신가요? <button id="toLogin">로그인</button></div>
         </div>
@@ -2145,8 +2146,8 @@ function renderSettings(){
       <div class="set-glabel">정보</div>
       <div class="set-list">
         ${settingsRow('공지사항','notices')}
-        ${settingsRow('이용약관','terms', '준비 중', soon)}
-        ${settingsRow('개인정보 처리방침','privacy', '준비 중', soon)}
+        ${settingsRow('이용약관','terms')}
+        ${settingsRow('개인정보 처리방침','privacy')}
         ${settingsRow('문의하기','contact', '준비 중', soon)}
       </div>
     </div>
@@ -2162,6 +2163,8 @@ function onSetting(opt, btn){
   switch(opt){
     case 'drawer': switchView('drawer'); break;
     case 'notices': openNoticeList(); break;
+    case 'terms': openPage('terms', 'settings'); break;
+    case 'privacy': openPage('privacy', 'settings'); break;
     case 'editProfile': openEditProfile(); break;
     case 'logout': state.loggedIn=false; save(); switchView('home'); openAuth(); break;
     default: toast('준비 중이에요');
@@ -2178,7 +2181,11 @@ const PAGES = {
     cta:{ label:'＋ 문장 새기러 가기', go:'discover' } },
   promo1: { kind:'promo', label:'AD · 제휴', title:'작가·출판사와 함께', date:'',
     body:'좋은 문장을 더 많은 독자에게. 출판사·작가 계정으로 출처 있는 글귀를 카드로 발행하고, 원문이나 출처 페이지와 자연스럽게 이어 보세요.\n\n출처 연결·신간 프로모션 등 B2B 기능을 준비하고 있어요.',
-    cta:{ label:'제휴 문의하기', toast:'제휴 문의는 준비 중이에요' } }
+    cta:{ label:'제휴 문의하기', toast:'제휴 문의는 준비 중이에요' } },
+  terms: { kind:'legal', label:'약관', title:'이용약관', date:'버전 2026-07-01 · 시행일 2026.07.01',
+    body:'새김은 문장을 카드로 만들고, 발견하고, 마음에 새겨 간직하는 모바일 웹 서비스입니다. 이 약관은 글 발행, 발견, 새김 보관, 좋아요, 댓글, 구독 등 서비스 이용 조건과 권리·의무를 정합니다.\n\n회원이 공개로 발행한 글과 카드는 홈, 발견, 둘러보기, 검색, 공개 프로필, 공유 링크, 검색엔진 노출 영역에 표시될 수 있습니다. 새김(서랍에 넣기)은 비공개 보관 행위이며, 좋아요는 공개 공감 신호로 표시될 수 있습니다.\n\n회원이 작성한 문장, 카드 구성, 댓글 등 콘텐츠의 권리는 원칙적으로 회원 또는 원 권리자에게 있습니다. 회원은 자신이 올리는 인용·발췌·이미지·출처 정보에 필요한 권리를 확보해야 하며, 타인의 저작권·상표권·초상권·명예를 침해해서는 안 됩니다.\n\n불법 정보, 권리 침해 콘텐츠, 혐오·괴롭힘·성적 착취·폭력 조장, 스팸, 사칭, 자동화된 무단 수집, 서비스 방해 행위를 금지합니다. 새김은 위반 콘텐츠나 계정에 대해 노출 제한, 삭제, 이용 제한, 신고 처리 등 필요한 조치를 할 수 있습니다.\n\n현재 유료 결제 기능은 제공하지 않습니다. 유료 기능이 도입되면 별도 요금, 환불, 청약철회 기준을 마련해 고지합니다.\n\n본 문서는 MVP 운영 준비용 초안입니다. 정식 운영 전 사업자 정보, 문의 창구, 탈퇴·보존 정책을 확정해 갱신합니다.' },
+  privacy: { kind:'legal', label:'개인정보', title:'개인정보 처리방침', date:'버전 2026-07-01 · 시행일 2026.07.01',
+    body:'새김은 계정 생성과 로그인, 본인 식별, 세션 유지, 글 발행과 공개 조회, 새김 보관함, 댓글, 구독, 검색, 추천, 신고·부정 이용 방지, 보안과 오류 대응, 서비스 개선을 위해 개인정보를 처리합니다.\n\n이메일 가입 시 이메일, 닉네임, 비밀번호 해시, 약관 동의 기록을 처리합니다. Google 로그인을 이용하면 Google 계정 식별자, 이메일, 이름, 프로필 사진을 처리할 수 있습니다.\n\n서비스 이용 과정에서 공개 글·카드·출처·태그·댓글·프로필 정보, 좋아요·새김·구독 같은 활동 정보, 세션 쿠키, 접속·브라우저 정보, 오류·보안 로그가 생성될 수 있습니다. 분석 기능은 문장 본문, 댓글 본문, 검색어, 제목, 출처명 같은 사용자 입력 텍스트를 보내지 않는 것을 기본 원칙으로 합니다.\n\n회원 정보와 회원이 만든 콘텐츠는 원칙적으로 회원 탈퇴 또는 삭제 요청 시까지 보관합니다. 약관 동의 기록, 부정 이용 방지 기록, 접속·보안 로그, 분쟁 대응에 필요한 자료는 법령상 의무 또는 운영상 필요한 최소 기간 동안 보관할 수 있습니다.\n\n새김은 법령에 근거가 있거나 이용자 동의가 있는 경우를 제외하고 개인정보를 제3자에게 판매하거나 임의 제공하지 않습니다. 클라우드 호스팅, OAuth 인증, 이미지 저장·전송, 서비스 분석 도구의 실제 수탁사와 보관 위치는 운영 전 확정해 공개합니다.\n\n본 문서는 MVP 운영 준비용 초안입니다. 정식 운영 전 개인정보 보호책임자, 문의 이메일, 보존 기간, 처리 위탁 현황을 확정해 갱신합니다.' }
 };
 let pageBack='home';
 function pageArticleHTML(p){
@@ -2294,6 +2301,10 @@ $('#toSignup').addEventListener('click', ()=> authShow('signup'));
 $('#toLogin').addEventListener('click', ()=> authShow('login'));
 $('#loginBtn').addEventListener('click', ()=>{ enterApp(); toast('새김에 들어왔어요'); });
 $('#loginGoogle').addEventListener('click', ()=>{ enterApp(); });
+$$('[data-auth-legal]').forEach(b=> b.addEventListener('click', ()=>{
+  $('#auth').classList.remove('on');
+  openPage(b.dataset.authLegal, 'home');
+}));
 $('#guestBtn').addEventListener('click', ()=>{ enterApp(); });
 $('#signupBtn').addEventListener('click', ()=>{
   const nm=$('#suName').value.trim(), em=$('#suEmail').value.trim(), pw=$('#suPw').value;

@@ -5,6 +5,7 @@ import type {
   CreateCommentInput,
   CreatePostInput,
   EditorialPage,
+  LegalAgreementInput,
   ListPage,
   PostBundle,
   PostComment,
@@ -32,6 +33,7 @@ interface EmailAuthInput {
   email: string;
   password: string;
   displayName?: string;
+  agreements?: LegalAgreementInput;
 }
 
 interface CursorPageParams {
@@ -262,8 +264,17 @@ export async function unfollowAccount(accountId: string): Promise<AccountProfile
   return data.item;
 }
 
-export function getGoogleOAuthStartUrl() {
-  return `${getApiBaseUrl()}/auth/google`;
+export function getGoogleOAuthStartUrl(agreements?: LegalAgreementInput) {
+  const url = new URL(`${getApiBaseUrl()}/auth/google`);
+
+  if (agreements) {
+    url.searchParams.set("terms", String(agreements.terms));
+    url.searchParams.set("privacy", String(agreements.privacy));
+    url.searchParams.set("termsVersion", agreements.termsVersion);
+    url.searchParams.set("privacyVersion", agreements.privacyVersion);
+  }
+
+  return url.toString();
 }
 
 export async function createPost(input: CreatePostInput): Promise<PostBundle> {

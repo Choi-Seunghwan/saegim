@@ -1,5 +1,9 @@
 import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service.js";
+import {
+  LegalConsentService,
+  type LegalAgreementInput
+} from "./legal-consent.service.js";
 import { createRandomPublicHandle } from "./public-handle.js";
 
 const googleAuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -18,6 +22,18 @@ interface GoogleProfile {
   picture?: string;
 }
 
+interface OAuthAgreementQuery {
+  terms?: unknown;
+  privacy?: unknown;
+  termsVersion?: unknown;
+  privacyVersion?: unknown;
+}
+
+interface OAuthStatePayload {
+  flow?: unknown;
+  agreements?: unknown;
+}
+
 @Injectable()
 export class GoogleOAuthService {
   private readonly clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
@@ -27,12 +43,19 @@ export class GoogleOAuthService {
   private readonly successRedirectUrl =
     process.env.GOOGLE_OAUTH_SUCCESS_REDIRECT_URL?.trim() ?? this.firstWebOrigin() ?? "http://127.0.0.1:3000";
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly legalConsentService: LegalConsentService
+  ) {}
 
-  getAuthorizationRedirect() {
+  getAuthorizationRedirect(input: OAuthAgreementQuery = {}) {
     if (!this.clientId) {
       throw new ServiceUnavailableException("Google 로그인이 아직 설정되지 않았어요.");
     }
+
+    const agreement = this.hasAgreementInput(input)
+      ? this.legalConsentService.validateRequiredAgreement(input)
+      : null;
 
     const authorizationUrl = new URL(googleAuthorizationEndpoint);
     authorizationUrl.searchParams.set("client_id", this.clientId);
@@ -41,7 +64,7 @@ export class GoogleOAuthService {
     authorizationUrl.searchParams.set("scope", "openid email profile");
     authorizationUrl.searchParams.set("access_type", "offline");
     authorizationUrl.searchParams.set("prompt", "select_account");
-    authorizationUrl.searchParams.set("state", "saegim-oauth-dev");
+    authorizationUrl.searchParams.set("state", this.encodeOAuthState(agreement));
 
     return authorizationUrl.toString();
   }
@@ -57,7 +80,8 @@ export class GoogleOAuthService {
 
     const token = await this.exchangeCodeForToken(input.code);
     const profile = await this.fetchGoogleProfile(token.access_token);
-    const accountId = await this.upsertGoogleAccount(profile);
+    const agreement = this.decodeOAuthState(input.state);
+    const accountId = await this.upsertGoogleAccount(profile, agreement);
 
     return {
       accountId,
@@ -132,7 +156,7 @@ export class GoogleOAuthService {
     };
   }
 
-  private async upsertGoogleAccount(profile: GoogleProfile) {
+  private async upsertGoogleAccount(profile: GoogleProfile, agreement: LegalAgreementInput | null) {
     const existingOAuthAccount = await this.prisma.oAuthAccount.findUnique({
       where: {
         provider_providerAccountId: {
@@ -161,12 +185,12 @@ export class GoogleOAuthService {
         updateData.email = profile.email;
       }
 
-      await this.prisma.$transaction([
-        this.prisma.account.update({
+      await this.prisma.$transaction(async (transaction) => {
+        await transaction.account.update({
           where: { id: existingOAuthAccount.accountId },
           data: updateData
-        }),
-        this.prisma.oAuthAccount.update({
+        });
+        await transaction.oAuthAccount.update({
           where: {
             provider_providerAccountId: {
               provider: "GOOGLE",
@@ -176,8 +200,19 @@ export class GoogleOAuthService {
           data: {
             ...(profile.email ? { email: profile.email } : {})
           }
-        })
-      ]);
+        });
+
+        if (agreement) {
+          await transaction.accountConsent.createMany({
+            data: this.legalConsentService.makeConsentCreateManyInput(
+              existingOAuthAccount.accountId,
+              agreement,
+              "GOOGLE_OAUTH"
+            ),
+            skipDuplicates: true
+          });
+        }
+      });
 
       return existingOAuthAccount.accountId;
     }
@@ -189,33 +224,112 @@ export class GoogleOAuthService {
         })
       : null;
 
-    const accountId = linkedAccount?.id ?? (await this.createGoogleAccount(profile)).id;
+    if (linkedAccount) {
+      await this.prisma.$transaction(async (transaction) => {
+        await transaction.oAuthAccount.create({
+          data: {
+            provider: "GOOGLE",
+            providerAccountId: profile.sub,
+            ...(profile.email ? { email: profile.email } : {}),
+            accountId: linkedAccount.id
+          }
+        });
 
-    await this.prisma.oAuthAccount.create({
-      data: {
-        provider: "GOOGLE",
-        providerAccountId: profile.sub,
-        ...(profile.email ? { email: profile.email } : {}),
-        accountId
-      }
-    });
+        if (agreement) {
+          await transaction.accountConsent.createMany({
+            data: this.legalConsentService.makeConsentCreateManyInput(
+              linkedAccount.id,
+              agreement,
+              "GOOGLE_OAUTH"
+            ),
+            skipDuplicates: true
+          });
+        }
+      });
 
-    return accountId;
+      return linkedAccount.id;
+    }
+
+    if (!agreement) {
+      throw new BadRequestException("새 계정 생성을 위해 이용약관과 개인정보 처리방침 동의가 필요해요.");
+    }
+
+    return this.createGoogleAccount(profile, agreement);
   }
 
-  private async createGoogleAccount(profile: GoogleProfile) {
+  private async createGoogleAccount(profile: GoogleProfile, agreement: LegalAgreementInput) {
     const handle = await this.createUniqueHandle();
     const displayName = profile.name ?? "새김 사용자";
 
-    return this.prisma.account.create({
-      data: {
-        handle,
-        displayName,
-        ...(profile.email && profile.emailVerified ? { email: profile.email } : {}),
-        ...(profile.picture ? { photoUrl: profile.picture } : {})
-      },
-      select: { id: true }
+    return this.prisma.$transaction(async (transaction) => {
+      const account = await transaction.account.create({
+        data: {
+          handle,
+          displayName,
+          ...(profile.email && profile.emailVerified ? { email: profile.email } : {}),
+          ...(profile.picture ? { photoUrl: profile.picture } : {})
+        },
+        select: { id: true }
+      });
+
+      await transaction.oAuthAccount.create({
+        data: {
+          provider: "GOOGLE",
+          providerAccountId: profile.sub,
+          ...(profile.email ? { email: profile.email } : {}),
+          accountId: account.id
+        }
+      });
+
+      await transaction.accountConsent.createMany({
+        data: this.legalConsentService.makeConsentCreateManyInput(
+          account.id,
+          agreement,
+          "GOOGLE_OAUTH"
+        ),
+        skipDuplicates: true
+      });
+
+      return account.id;
     });
+  }
+
+  private hasAgreementInput(input: OAuthAgreementQuery) {
+    return (
+      input.terms !== undefined ||
+      input.privacy !== undefined ||
+      input.termsVersion !== undefined ||
+      input.privacyVersion !== undefined
+    );
+  }
+
+  private encodeOAuthState(agreement: LegalAgreementInput | null) {
+    const payload = {
+      flow: "saegim-oauth",
+      ...(agreement ? { agreements: agreement } : {})
+    };
+
+    return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  }
+
+  private decodeOAuthState(state?: string | undefined): LegalAgreementInput | null {
+    if (!state) {
+      return null;
+    }
+
+    try {
+      const payload = JSON.parse(
+        Buffer.from(state, "base64url").toString("utf8")
+      ) as OAuthStatePayload;
+
+      if (payload.flow !== "saegim-oauth" || !payload.agreements) {
+        return null;
+      }
+
+      return this.legalConsentService.validateRequiredAgreement(payload.agreements);
+    } catch {
+      return null;
+    }
   }
 
   private async createUniqueHandle() {

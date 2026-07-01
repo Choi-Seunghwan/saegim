@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { pbkdf2Sync, randomBytes, timingSafeEqual } from "node:crypto";
 import type { AccountProfile } from "../content/content.types.js";
 import { PrismaService } from "../database/prisma.service.js";
+import { LegalConsentService } from "./legal-consent.service.js";
 import { createRandomPublicHandle } from "./public-handle.js";
 
 interface EmailAuthInput {
@@ -12,6 +13,7 @@ interface EmailAuthInput {
 
 interface EmailSignupInput extends EmailAuthInput {
   displayName?: unknown;
+  agreements?: unknown;
 }
 
 const passwordIterations = 120_000;
@@ -33,12 +35,16 @@ type AccountWithCounts = Prisma.AccountGetPayload<{
 
 @Injectable()
 export class EmailAuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly legalConsentService: LegalConsentService
+  ) {}
 
   async signup(input: EmailSignupInput) {
     const email = this.normalizeEmail(input.email);
     const password = this.normalizePassword(input.password);
     const displayName = this.normalizeDisplayName(input.displayName);
+    const agreement = this.legalConsentService.validateRequiredAgreement(input.agreements);
 
     const existingAccount = await this.prisma.account.findUnique({
       where: { email },
@@ -54,19 +60,32 @@ export class EmailAuthService {
     }
 
     const handle = await this.createUniqueHandle();
-    const account = await this.prisma.account.create({
-      data: {
-        email,
-        handle,
-        displayName,
-        emailCredential: {
-          create: {
-            email,
-            passwordHash: this.hashPassword(password)
+    const account = await this.prisma.$transaction(async (transaction) => {
+      const createdAccount = await transaction.account.create({
+        data: {
+          email,
+          handle,
+          displayName,
+          emailCredential: {
+            create: {
+              email,
+              passwordHash: this.hashPassword(password)
+            }
           }
-        }
-      },
-      include: accountInclude
+        },
+        include: accountInclude
+      });
+
+      await transaction.accountConsent.createMany({
+        data: this.legalConsentService.makeConsentCreateManyInput(
+          createdAccount.id,
+          agreement,
+          "EMAIL_SIGNUP"
+        ),
+        skipDuplicates: true
+      });
+
+      return createdAccount;
     });
 
     return {

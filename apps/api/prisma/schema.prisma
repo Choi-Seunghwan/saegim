@@ -52,6 +52,16 @@ enum EditorialCtaAction {
   CONTACT
 }
 
+enum LegalDocumentType {
+  TERMS
+  PRIVACY
+}
+
+enum ConsentSource {
+  EMAIL_SIGNUP
+  GOOGLE_OAUTH
+}
+
 model Account {
   id                 String            @id @default(cuid())
   handle             String            @unique
@@ -71,6 +81,7 @@ model Account {
   likes              Like[]
   carves             Carve[]
   comments           Comment[]
+  consents           AccountConsent[]
 
   @@index([verification])
   @@index([createdAt])
@@ -100,6 +111,20 @@ model OAuthAccount {
 
   @@unique([provider, providerAccountId])
   @@index([accountId])
+}
+
+model AccountConsent {
+  id           String            @id @default(cuid())
+  accountId    String
+  account      Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  documentType LegalDocumentType
+  version      String
+  source       ConsentSource
+  agreedAt     DateTime          @default(now())
+  createdAt    DateTime          @default(now())
+
+  @@unique([accountId, documentType, version])
+  @@index([accountId, documentType])
 }
 
 model Post {

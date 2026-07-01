@@ -34,9 +34,27 @@ export class AuthController {
 
   @Get("google")
   @Redirect()
-  startGoogleOAuth() {
+  startGoogleOAuth(
+    @Query("terms") terms?: string,
+    @Query("privacy") privacy?: string,
+    @Query("termsVersion") termsVersion?: string,
+    @Query("privacyVersion") privacyVersion?: string
+  ) {
+    const agreementQuery =
+      terms === undefined &&
+      privacy === undefined &&
+      termsVersion === undefined &&
+      privacyVersion === undefined
+        ? {}
+        : {
+            terms: terms === "true",
+            privacy: privacy === "true",
+            termsVersion,
+            privacyVersion
+          };
+
     return {
-      url: this.googleOAuthService.getAuthorizationRedirect(),
+      url: this.googleOAuthService.getAuthorizationRedirect(agreementQuery),
       statusCode: 302
     };
   }

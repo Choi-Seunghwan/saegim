@@ -12,12 +12,19 @@ import type {
   WheelEvent as ReactWheelEvent,
 } from "react";
 import { DEFAULT_CARD_COMP } from "@saegim/domain";
+import {
+  CURRENT_LEGAL_VERSIONS,
+  LEGAL_DOCUMENTS,
+} from "@saegim/domain";
 import type {
   AccountProfile,
   CardBackgroundImage,
   CardComposition,
   CreatePostInput,
   EditorialPage,
+  LegalAgreementInput,
+  LegalDocument,
+  LegalDocumentKind,
   PageInfo,
   PostBundle,
   PostComment,
@@ -71,6 +78,7 @@ type AuthSubmitInput = {
   displayName: string;
   email: string;
   password: string;
+  agreements?: LegalAgreementInput;
 };
 type EditorialPageOrigin = "home" | "settings" | "notice-list";
 type MainReturnTab = Exclude<TabKey, "capture">;
@@ -1065,6 +1073,8 @@ export function SaegimShell() {
   const [isViewingFollowing, setIsViewingFollowing] = useState(false);
   const [isViewingSettings, setIsViewingSettings] = useState(false);
   const [isViewingNoticeList, setIsViewingNoticeList] = useState(false);
+  const [legalDocumentKind, setLegalDocumentKind] =
+    useState<LegalDocumentKind | null>(null);
   const [editorialPageState, setEditorialPageState] =
     useState<EditorialPageState | null>(null);
   const [commentPost, setCommentPost] = useState<PostBundle | null>(null);
@@ -1111,6 +1121,7 @@ export function SaegimShell() {
     isViewingFollowing ||
     isViewingSettings ||
     isViewingNoticeList ||
+    Boolean(legalDocumentKind) ||
     Boolean(editorialPageState);
   const isDiscoverMode = activeTab === "discover" && !isFullPage;
   const isProfileTab = activeTab === "me" && !isFullPage;
@@ -1143,6 +1154,18 @@ export function SaegimShell() {
       entry_state: entryState,
       signed_in: entryState === "signed-in",
     };
+
+    if (legalDocumentKind) {
+      return {
+        key: `legal:${legalDocumentKind}`,
+        name: "Legal Document",
+        properties: {
+          ...baseProperties,
+          legal_document_kind: legalDocumentKind,
+          legal_document_version: LEGAL_DOCUMENTS[legalDocumentKind].version,
+        },
+      };
+    }
 
     if (selectedEditorialPage) {
       return {
@@ -1292,6 +1315,7 @@ export function SaegimShell() {
     isViewingFollowing,
     isViewingNoticeList,
     isViewingSettings,
+    legalDocumentKind,
     noticePages.length,
     posts.length,
     selectedEditorialPage,
@@ -1299,6 +1323,7 @@ export function SaegimShell() {
   ]);
 
   function currentAnalyticsSurface() {
+    if (legalDocumentKind) return "legal";
     if (selectedEditorialPage) return "editorial";
     if (isViewingNoticeList) return "notice_list";
     if (isSearching) return "search";
@@ -1482,6 +1507,7 @@ export function SaegimShell() {
             displayName: input.displayName,
             email: input.email,
             password: input.password,
+            ...(input.agreements ? { agreements: input.agreements } : {}),
           })
         : await loginWithEmail({
             email: input.email,
@@ -1763,12 +1789,12 @@ export function SaegimShell() {
     activateTab(tab);
   }
 
-  function startGoogleOAuth() {
+  function startGoogleOAuth(agreements: LegalAgreementInput) {
     trackSaegimEvent("Login Started", {
       auth_intent: authSheetIntent ?? "default",
       method: "google",
     });
-    window.location.assign(getGoogleOAuthStartUrl());
+    window.location.assign(getGoogleOAuthStartUrl(agreements));
   }
 
   function openEditorialPage(page: EditorialPage, origin: EditorialPageOrigin) {
@@ -2344,6 +2370,19 @@ export function SaegimShell() {
   }, [analyticsView, initialLoadState]);
 
   const content = useMemo(() => {
+    if (legalDocumentKind) {
+      return (
+        <LegalDocumentView
+          document={LEGAL_DOCUMENTS[legalDocumentKind]}
+          onBack={() => {
+            setLegalDocumentKind(null);
+            setIsViewingSettings(true);
+            setActiveTab("me");
+          }}
+        />
+      );
+    }
+
     if (selectedEditorialPage) {
       return (
         <EditorialPageView
@@ -2447,6 +2486,7 @@ export function SaegimShell() {
               setIsViewingSettings(false);
               setIsViewingFollowing(true);
             }}
+            onOpenLegal={(kind) => setLegalDocumentKind(kind)}
             onOpenNotices={openNoticeList}
           />
         );
@@ -2549,6 +2589,7 @@ export function SaegimShell() {
     isViewingNoticeList,
     isViewingSettings,
     isOwnProfile,
+    legalDocumentKind,
     noticePages,
     posts,
     selectedEditorialPage,
@@ -2729,7 +2770,7 @@ function AuthSheet({
   initialMode: AuthMode;
   onClose: () => void;
   onEnter: (input: AuthSubmitInput) => Promise<void>;
-  onGoogleLogin: () => void;
+  onGoogleLogin: (agreements: LegalAgreementInput) => void;
 }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [displayName, setDisplayName] = useState("");
@@ -2745,6 +2786,12 @@ function AuthSheet({
       ? "가입하기"
       : "로그인";
   const passwordRuleText = "8자 이상, 영문과 숫자를 함께 입력해 주세요.";
+  const currentAgreement: LegalAgreementInput = {
+    terms: true,
+    privacy: true,
+    termsVersion: CURRENT_LEGAL_VERSIONS.terms,
+    privacyVersion: CURRENT_LEGAL_VERSIONS.privacy,
+  };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2787,6 +2834,7 @@ function AuthSheet({
         displayName: cleanDisplayName,
         email: cleanEmail,
         password: cleanPassword,
+        ...(isSignup ? { agreements: currentAgreement } : {}),
       });
     } catch (error) {
       setSubmitError(
@@ -2796,6 +2844,30 @@ function AuthSheet({
       setIsSubmitting(false);
     }
   }
+
+  function handleGoogleLogin() {
+    setSubmitError("");
+
+    if (!agreed) {
+      setSubmitError("Google로 계속하려면 필수 약관 동의가 필요해요.");
+      return;
+    }
+
+    onGoogleLogin(currentAgreement);
+  }
+
+  const agreementText = (
+    <span>
+      <a href="/terms" target="_blank" rel="noreferrer">
+        이용약관
+      </a>
+      {" 및 "}
+      <a href="/privacy" target="_blank" rel="noreferrer">
+        개인정보 처리방침
+      </a>
+      에 동의합니다
+    </span>
+  );
 
   return (
     <>
@@ -2854,7 +2926,7 @@ function AuthSheet({
                 onChange={(event) => setAgreed(event.target.checked)}
                 type="checkbox"
               />
-              <span>이용약관 및 개인정보 처리방침에 동의합니다</span>
+              {agreementText}
             </label>
           ) : null}
 
@@ -2874,10 +2946,18 @@ function AuthSheet({
             <div className="auth-div">
               <span>또는</span>
             </div>
+            <label className="auth-agree auth-agree-oauth">
+              <input
+                checked={agreed}
+                onChange={(event) => setAgreed(event.target.checked)}
+                type="checkbox"
+              />
+              {agreementText}
+            </label>
             <button
               className="auth-social google"
               type="button"
-              onClick={onGoogleLogin}
+              onClick={handleGoogleLogin}
             >
               Google로 계속하기
             </button>
@@ -5899,12 +5979,59 @@ function NoticeListView({
   );
 }
 
+function LegalDocumentView({
+  document,
+  onBack,
+}: {
+  document: LegalDocument;
+  onBack: () => void;
+}) {
+  return (
+    <section className="legal-view">
+      <div className="settings-head">
+        <button
+          className="back-icon"
+          type="button"
+          onClick={onBack}
+          aria-label="설정으로 돌아가기"
+        >
+          ←
+        </button>
+        <div>
+          <h2>{document.title}</h2>
+          <p>
+            버전 {document.version} · 시행일 {document.effectiveDate}
+          </p>
+        </div>
+      </div>
+
+      <article className="legal-body">
+        <p className="legal-summary">{document.summary}</p>
+        <p className="legal-note">
+          본 문서는 MVP 운영 준비용 초안입니다. 정식 운영 전 사업자 정보,
+          문의 창구, 보존 기간, 위탁 현황을 확정해 갱신합니다.
+        </p>
+
+        {document.sections.map((section) => (
+          <section className="legal-section" key={section.title}>
+            <h3>{section.title}</h3>
+            {section.body.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </section>
+        ))}
+      </article>
+    </section>
+  );
+}
+
 function SettingsView({
   onBack,
   onEditProfile,
   onLogout,
   onOpenDrawer,
   onOpenFollowing,
+  onOpenLegal,
   onOpenNotices,
 }: {
   onBack: () => void;
@@ -5912,6 +6039,7 @@ function SettingsView({
   onLogout: () => void;
   onOpenDrawer: () => void;
   onOpenFollowing: () => void;
+  onOpenLegal: (kind: LegalDocumentKind) => void;
   onOpenNotices: () => void;
 }) {
   const sections: Array<{
@@ -5940,8 +6068,8 @@ function SettingsView({
       title: "정보",
       rows: [
         { label: "공지사항", onClick: onOpenNotices },
-        { label: "이용약관", state: "준비 중" },
-        { label: "개인정보 처리방침", state: "준비 중" },
+        { label: "이용약관", onClick: () => onOpenLegal("terms") },
+        { label: "개인정보 처리방침", onClick: () => onOpenLegal("privacy") },
         { label: "문의하기", state: "준비 중" },
       ],
     },
