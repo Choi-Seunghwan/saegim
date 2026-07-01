@@ -2,12 +2,34 @@ import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ContentRepository } from "./content.repository.js";
 import type { CreateCommentInput, CreatePostInput, UpdateAccountInput } from "./content.types.js";
 
+function parseBooleanEnv(value: string | undefined) {
+  if (!value) return undefined;
+
+  const normalizedValue = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalizedValue)) return true;
+  if (["0", "false", "no", "off"].includes(normalizedValue)) return false;
+
+  return undefined;
+}
+
+function shouldSeedMvpData() {
+  const nodeEnv = (process.env.NODE_ENV ?? "development").trim().toLowerCase();
+  if (nodeEnv === "production") return false;
+
+  const explicitSeedFlag = parseBooleanEnv(process.env.SAEGIM_MVP_SEED_ENABLED);
+  if (explicitSeedFlag !== undefined) return explicitSeedFlag;
+
+  return ["development", "test", "local"].includes(nodeEnv);
+}
+
 @Injectable()
 export class ContentService implements OnModuleInit {
   constructor(private readonly contentRepository: ContentRepository) {}
 
   async onModuleInit() {
-    await this.contentRepository.ensureSeedData();
+    await this.contentRepository.ensureStartupData({
+      seedMvpData: shouldSeedMvpData()
+    });
   }
 
   getFeed(options?: { cursor?: string | undefined; limit?: string | undefined }, accountIdHint?: string) {

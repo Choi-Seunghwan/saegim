@@ -63,12 +63,12 @@ API 기본 조회 계약:
 - `GET /accounts/:accountId` — 계정 상세 + 공개 글 목록
 - `GET /accounts/recommended`
 - `GET /accounts/following` — 현재 계정이 구독중인 계정 목록
-- `GET /editorial-pages` — 공지·이벤트·광고 소식 목록(DB 기반, MVP 시드는 공지만)
+- `GET /editorial-pages` — 공지·이벤트·광고 소식 목록(DB 기반, 운영 데이터는 별도 등록)
 - `POST /posts` — PostgreSQL 저장
 - `POST /posts/:postId/like` / `DELETE /posts/:postId/like`
 - `POST /posts/:postId/carve` / `DELETE /posts/:postId/carve`
 
-웹은 `NEXT_PUBLIC_API_BASE_URL`이 있으면 해당 API를 사용하고, 비워두면 브라우저에서 연 호스트의 `:4000` API를 읽는다. 프론트 내장 샘플 fallback은 두지 않는다. 포착 탭은 작성 중 draft를 프론트 메모리에 유지하다가 1~N장 글을 `POST /posts`로 발행하고, 성공 시 draft를 비운 뒤 발견 피드로 이동한다. 서버 시작 시 API가 MVP용 공개 계정/글 샘플과 공지 1건을 PostgreSQL에 idempotent하게 보강한다.
+웹은 `NEXT_PUBLIC_API_BASE_URL`이 있으면 해당 API를 사용하고, 비워두면 브라우저에서 연 호스트의 `:4000` API를 읽는다. 프론트 내장 샘플 fallback은 두지 않는다. 포착 탭은 작성 중 draft를 프론트 메모리에 유지하다가 1~N장 글을 `POST /posts`로 발행하고, 성공 시 draft를 비운 뒤 발견 피드로 이동한다. 로컬 개발에서는 API 시작 시 MVP용 공개 계정/글 샘플과 공지 1건을 PostgreSQL에 idempotent하게 보강할 수 있지만, `NODE_ENV=production`에서는 자동 seed를 실행하지 않는다.
 
 API의 현재 계정은 이메일 로그인 또는 Google OAuth가 발급한 세션 쿠키(`saegim_session`)로만 해석한다. 세션이 없으면 홈·발견·둘러보기·검색·타인 프로필 같은 공개 조회는 게스트 상태로 동작하고, 내 프로필·내 서랍·구독 목록·발행·좋아요·새김·댓글·구독·프로필 수정 같은 계정 필요 API는 인증 오류를 반환한다.
 

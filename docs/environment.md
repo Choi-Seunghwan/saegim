@@ -14,6 +14,7 @@
 
 ```text
 NODE_ENV
+SAEGIM_MVP_SEED_ENABLED
 NEXT_PUBLIC_API_BASE_URL
 NEXT_PUBLIC_MIXPANEL_TOKEN
 NEXT_PUBLIC_MIXPANEL_ENABLED
@@ -37,6 +38,8 @@ AWS_SECRET_ACCESS_KEY
 ```
 
 `NEXT_PUBLIC_API_BASE_URL`을 비워두면 웹은 현재 브라우저 호스트 기준으로 `:4000` API를 사용한다.
+
+`SAEGIM_MVP_SEED_ENABLED`는 로컬 개발 DB에 샘플 계정/글/공지 seed를 넣을 때만 사용한다. `NODE_ENV=production`에서는 이 값과 관계없이 자동 seed를 실행하지 않는다.
 
 ## GitHub Repository Variables
 
@@ -72,6 +75,8 @@ AWS_REGION=ap-northeast-2
 SAEGIM_UPLOADS_BUCKET=saegim-uploads-prod
 SAEGIM_UPLOADS_CDN_BASE_URL=https://cdn.saegim.chuz.dev
 ```
+
+production에는 `SAEGIM_MVP_SEED_ENABLED`를 넣지 않는다. 운영 공지·이벤트·광고는 자동 seed가 아니라 별도 운영 데이터/CMS로 등록한다.
 
 ## k3s Secret
 

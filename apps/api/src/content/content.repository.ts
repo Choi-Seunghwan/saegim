@@ -143,6 +143,9 @@ type SearchQueryOptions = {
   accountLimit?: string | number | undefined;
   postLimit?: string | number | undefined;
 };
+type StartupDataOptions = {
+  seedMvpData: boolean;
+};
 type PageParams = {
   cursor?: string;
   limit: number;
@@ -156,9 +159,13 @@ export class ContentRepository {
     private readonly currentAccountService: CurrentAccountService
   ) {}
 
-  async ensureSeedData() {
+  async ensureStartupData(options: StartupDataOptions) {
     await this.removeLegacyDevelopmentAccount();
     await this.rotateEmailDerivedHandles();
+
+    if (!options.seedMvpData) {
+      return;
+    }
 
     for (const account of seedAccounts) {
       await this.prisma.account.upsert({
