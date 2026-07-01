@@ -1872,7 +1872,7 @@ function renderFeedSheet(){
       <div class="avatar md" style="${avStyle(c.pub)}">${esc(initial(c.pub))}</div>
       <div class="who"><div class="nm">${esc(c.pub)} ${vbadge(c.pub)}</div><div class="rl">${ttl?esc(ttl):role}</div></div>
     </div>
-    <div class="fs-sec"><div class="fs-lbl">출처</div><div class="fs-val">${src||'직접 새긴 글'}</div></div>
+    <div class="fs-sec"><div class="fs-lbl">출처</div><div class="fs-val">${src}</div></div>
     ${tags.length?`<div class="fs-sec"><div class="fs-lbl">태그</div><div class="fs-tags">${tags.map(t=>`<span class="fs-tag">${esc(t)}</span>`).join('')}</div></div>`:''}
     <div class="fs-rows">
       <button class="fs-row" data-fa="share"><span class="t">${shareSvg()}공유하기</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>

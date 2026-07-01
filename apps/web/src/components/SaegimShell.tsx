@@ -485,14 +485,6 @@ function formatCommentDate(value: string) {
   }).format(new Date(value));
 }
 
-function sourceKindLabel(source: PostBundle["cards"][number]["source"]) {
-  if (source.kind === "book") return "책";
-  if (source.kind === "web") return "웹";
-  if (source.kind === "publisher") return "출판사";
-  if (source.author?.trim() || source.work?.trim()) return "직접 입력";
-  return "직접 새김";
-}
-
 function formatSource(source: PostBundle["cards"][number]["source"]) {
   const author = source.author?.trim();
   const work = source.work?.trim();
@@ -509,7 +501,7 @@ function formatSource(source: PostBundle["cards"][number]["source"]) {
     return author;
   }
 
-  return work || "직접 새김";
+  return "";
 }
 
 function bgWithDim(background: string, dim: number) {
@@ -872,7 +864,7 @@ function cardSourceStyle(comp: CardComposition): CSSProperties | undefined {
 function cardSourceLabel(card: SentenceCard) {
   if (card.source.kind === "direct") return "";
   const formatted = formatSource(card.source);
-  return formatted === "직접 새김" ? "" : formatted;
+  return formatted;
 }
 
 function SearchIcon() {
@@ -4789,7 +4781,6 @@ function PostInfoSheet({
           <div className="info-field">
             <span>출처</span>
             <strong>{formatSource(card.source)}</strong>
-            <small>{sourceKindLabel(card.source)}</small>
           </div>
           <div className="info-field">
             <span>태그</span>

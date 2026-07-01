@@ -1704,7 +1704,7 @@ textarea:focus-visible {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 21;
+  z-index: 61;
   max-height: 82%;
   display: grid;
   gap: 12px;
