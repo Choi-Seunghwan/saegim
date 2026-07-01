@@ -1,5 +1,6 @@
 export const siteName = "새김";
-export const siteDescription = "한 줄을 카드로 만들어, 발견하고, 마음에 새겨 간직하는 곳";
+export const siteDescription =
+  "새김은 좋은 문장을 카드로 기록하고 발견하며, 마음에 남는 글을 비공개 서랍에 간직하는 모바일 웹 서비스입니다.";
 
 export function getSiteUrl() {
   const explicitUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();

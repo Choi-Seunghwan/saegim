@@ -6,6 +6,12 @@ import { absoluteUrl, publicEditorialPath, publicPostPath, publicProfilePath } f
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const legalEntries = [
     {
+      url: absoluteUrl("/about"),
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.7
+    },
+    {
       url: absoluteUrl("/terms"),
       lastModified: new Date(CURRENT_LEGAL_VERSIONS.terms),
       changeFrequency: "monthly" as const,
