@@ -54,12 +54,11 @@ export function trackAnalyticsPageView(
     ...properties,
   });
 
+  mixpanel.track?.("Page Viewed", nextProperties);
+
   if (typeof mixpanel.track_pageview === "function") {
     mixpanel.track_pageview(nextProperties);
-    return;
   }
-
-  mixpanel.track?.("Page Viewed", nextProperties);
 }
 
 export function trackAnalyticsEvent(

@@ -1152,6 +1152,7 @@ export function SaegimShell() {
       current_account_id:
         currentAccount.id === guestAccount.id ? null : currentAccount.id,
       entry_state: entryState,
+      initial_load_state: initialLoadState,
       signed_in: entryState === "signed-in",
     };
 
@@ -1308,6 +1309,7 @@ export function SaegimShell() {
     editorialPageState?.origin,
     editorialPages.length,
     entryState,
+    initialLoadState,
     isEditingProfile,
     isOwnProfile,
     isSearching,
@@ -1344,6 +1346,7 @@ export function SaegimShell() {
       current_account_id:
         currentAccount.id === guestAccount.id ? null : currentAccount.id,
       entry_state: entryState,
+      initial_load_state: initialLoadState,
       signed_in: isSignedIn(),
       surface: currentAnalyticsSurface(),
     };
@@ -2336,7 +2339,7 @@ export function SaegimShell() {
   ]);
 
   useEffect(() => {
-    if (initialLoadState !== "ready") {
+    if (initialLoadState === "loading") {
       return;
     }
 
