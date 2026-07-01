@@ -43,6 +43,7 @@ import {
   fetchEditorialPages,
   fetchFeed,
   fetchFollowingAccounts,
+  fetchHomePosts,
   fetchPost,
   fetchRecommendedAccounts,
   fetchSearch,
@@ -1089,6 +1090,7 @@ export function SaegimShell() {
     null,
   );
   const [posts, setPosts] = useState<PostBundle[]>([]);
+  const [homePosts, setHomePosts] = useState<PostBundle[]>([]);
   const [feedPageInfo, setFeedPageInfo] = useState<PageInfo>(emptyPageInfo);
   const [isLoadingMoreFeed, setIsLoadingMoreFeed] = useState(false);
   const [accounts, setAccounts] = useState<AccountProfile[]>([]);
@@ -1385,6 +1387,9 @@ export function SaegimShell() {
     setPosts((currentPosts) =>
       currentPosts.map((item) => (item.post.id === post.post.id ? post : item)),
     );
+    setHomePosts((currentPosts) =>
+      currentPosts.map((item) => (item.post.id === post.post.id ? post : item)),
+    );
     setCommentPost((currentPost) =>
       currentPost?.post.id === post.post.id ? post : currentPost,
     );
@@ -1451,6 +1456,24 @@ export function SaegimShell() {
       currentAccounts.map((item) => (item.id === account.id ? account : item)),
     );
     setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.author.id === account.id
+          ? {
+              ...post,
+              author: account,
+              viewerState: {
+                ...post.viewerState,
+                liked: post.viewerState?.liked ?? false,
+                carved: post.viewerState?.carved ?? false,
+                subscribed: account.viewerState?.subscribed ?? false,
+                likeCount: post.viewerState?.likeCount ?? 0,
+                commentCount: post.viewerState?.commentCount ?? 0,
+              },
+            }
+          : post,
+      ),
+    );
+    setHomePosts((currentPosts) =>
       currentPosts.map((post) =>
         post.author.id === account.id
           ? {
@@ -2213,14 +2236,16 @@ export function SaegimShell() {
 
     async function loadInitialData() {
       try {
-        const [nextPostPage, nextAccountPage, nextEditorialPages] =
+        const [nextPostPage, nextHomePostPage, nextAccountPage, nextEditorialPages] =
           await Promise.all([
             fetchFeed({ limit: listInitialCount }, controller.signal),
+            fetchHomePosts({ limit: 5 }, controller.signal),
             fetchRecommendedAccounts({ limit: 12 }, controller.signal),
             fetchEditorialPages(controller.signal),
           ]);
 
         setPosts(nextPostPage.items);
+        setHomePosts(nextHomePostPage.items);
         setFeedPageInfo(nextPostPage.pageInfo);
         setAccounts(nextAccountPage.items);
         setEditorialPages(nextEditorialPages);
@@ -2243,6 +2268,7 @@ export function SaegimShell() {
       } catch {
         if (!controller.signal.aborted) {
           setPosts([]);
+          setHomePosts([]);
           setFeedPageInfo(emptyPageInfo);
           setAccounts([]);
           setEditorialPages([]);
@@ -2559,7 +2585,7 @@ export function SaegimShell() {
     }
     return (
       <HomeView
-        posts={posts}
+        homePosts={homePosts}
         accounts={accounts}
         currentAccountId={currentAccount.id}
         editorialPages={editorialPages}
@@ -2594,6 +2620,7 @@ export function SaegimShell() {
     isOwnProfile,
     legalDocumentKind,
     noticePages,
+    homePosts,
     posts,
     selectedEditorialPage,
     selectedProfile,
@@ -3356,7 +3383,7 @@ function PostPreviewButton({
 }
 
 function HomeView({
-  posts,
+  homePosts,
   accounts,
   currentAccountId,
   editorialPages,
@@ -3366,7 +3393,7 @@ function HomeView({
   onOpenProfile,
   onToggleFollow,
 }: {
-  posts: PostBundle[];
+  homePosts: PostBundle[];
   accounts: AccountProfile[];
   currentAccountId: string;
   editorialPages: EditorialPage[];
@@ -3379,9 +3406,9 @@ function HomeView({
   const displayAccounts = accounts.filter(
     (account) => account.id !== currentAccountId,
   );
-  const heroPost = posts[0] ?? null;
+  const heroPost = homePosts[0] ?? null;
   const heroCard = heroPost?.cards[0] ?? null;
-  const todayPosts = posts.slice(0, 5);
+  const todayPosts = homePosts.slice(0, 5);
   const heroItems = [
     ...(heroPost && heroCard
       ? [
@@ -3489,7 +3516,7 @@ function HomeView({
               />
             ))
           ) : (
-            <p className="home-empty-inline">아직 공개된 글이 없어요.</p>
+            <p className="home-empty-inline">아직 큐레이션 글이 준비 중이에요.</p>
           )}
         </div>
       </section>

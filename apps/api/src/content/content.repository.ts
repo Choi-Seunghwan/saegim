@@ -325,6 +325,17 @@ export class ContentRepository {
     );
   }
 
+  async getHomePosts(options?: PageQueryOptions, cookieHeader?: string) {
+    const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
+
+    return this.findPostsPage(
+      [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      currentAccountId,
+      options,
+      { creationType: "CURATION" }
+    );
+  }
+
   async getShelf(sort?: string, options?: PageQueryOptions, cookieHeader?: string) {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const sortMode = this.normalizeShelfSort(sort);

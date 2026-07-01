@@ -149,6 +149,16 @@ export async function fetchFeed(params?: CursorPageParams, signal?: AbortSignal)
   return toListPage(data);
 }
 
+export async function fetchHomePosts(params?: CursorPageParams, signal?: AbortSignal): Promise<ListPage<PostBundle>> {
+  const searchParams = new URLSearchParams();
+  appendCursorParams(searchParams, params);
+  const data = await fetchJson<ListResponse<PostBundle>>(
+    makeQueryPath("/home/posts", searchParams),
+    signal ? { signal } : {}
+  );
+  return toListPage(data);
+}
+
 export async function fetchShelf(
   sort: "popular" | "latest",
   params?: CursorPageParams,

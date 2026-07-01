@@ -11,6 +11,11 @@ export class PostsController {
     return this.contentService.getFeed({ cursor, limit }, cookieHeader);
   }
 
+  @Get("home/posts")
+  getHomePosts(@Query("cursor") cursor?: string, @Query("limit") limit?: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getHomePosts({ cursor, limit }, cookieHeader);
+  }
+
   @Get("shelf")
   getShelf(
     @Query("sort") sort?: string,
