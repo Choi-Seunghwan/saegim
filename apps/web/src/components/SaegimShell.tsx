@@ -74,6 +74,7 @@ import {
 type TabKey = "home" | "discover" | "capture" | "shelf" | "me";
 type EntryState = "guest" | "signed-in";
 type InitialLoadState = "loading" | "ready" | "error";
+type SessionRestoreState = "checking" | "ready";
 type InfoSheetState = { postId: string };
 type AuthSheetIntent = "default" | "capture" | "profile";
 type AuthMode = "login" | "signup";
@@ -1099,6 +1100,8 @@ export function SaegimShell() {
   const [entryState, setEntryState] = useState<EntryState>("guest");
   const [initialLoadState, setInitialLoadState] =
     useState<InitialLoadState>("loading");
+  const [sessionRestoreState, setSessionRestoreState] =
+    useState<SessionRestoreState>("checking");
   const [initialLoadRetryKey, setInitialLoadRetryKey] = useState(0);
   const [authSheetIntent, setAuthSheetIntent] =
     useState<AuthSheetIntent | null>(null);
@@ -1151,6 +1154,12 @@ export function SaegimShell() {
         posts.find((post) => post.author.id === selectedProfileId)?.author ??
         currentAccount);
   const isOwnProfile = isSignedIn() && selectedProfile.id === currentAccount.id;
+  const canUseSignedInAccount =
+    !isSignedIn() || currentAccount.id !== guestAccount.id;
+  const canApplyAppRoute =
+    initialLoadState === "ready" &&
+    sessionRestoreState === "ready" &&
+    canUseSignedInAccount;
   const infoSheetPost = infoSheet
     ? posts.find((post) => post.post.id === infoSheet.postId)
     : null;
@@ -1694,6 +1703,7 @@ export function SaegimShell() {
     setCurrentAccount(nextAccount);
     replaceAccount(nextAccount);
     setEntryState("signed-in");
+    setSessionRestoreState("ready");
     setSelectedProfileId(nextAccount.id);
     setAuthSheetIntent(null);
     identifyAnalyticsAccount(nextAccount);
@@ -1768,6 +1778,7 @@ export function SaegimShell() {
     setCurrentAccount(guestAccount);
     setSelectedProfileId(null);
     setEntryState("guest");
+    setSessionRestoreState("ready");
     setAuthSheetIntent(null);
   }
 
@@ -2475,9 +2486,16 @@ export function SaegimShell() {
         const session = await fetchAuthSession(controller.signal);
         if (session.authenticated) {
           setEntryState("signed-in");
+        } else {
+          setEntryState("guest");
         }
       } catch {
         // 세션이 없거나 API가 꺼져 있어도 게스트 탐색은 유지한다.
+        setEntryState("guest");
+      } finally {
+        if (!controller.signal.aborted) {
+          setSessionRestoreState("ready");
+        }
       }
     }
 
@@ -2550,7 +2568,7 @@ export function SaegimShell() {
   }, [activePost?.cards.length, activePost?.post.id]);
 
   useEffect(() => {
-    if (initialLoadState !== "ready" || hasAppliedInitialUrlTabRef.current) {
+    if (!canApplyAppRoute || hasAppliedInitialUrlTabRef.current) {
       return;
     }
 
@@ -2570,11 +2588,11 @@ export function SaegimShell() {
       }
       writeAppRouteToHistory(initialRoute, "replace", routeState);
     }
-  }, [entryState, initialLoadState]);
+  }, [canApplyAppRoute, entryState]);
 
   useEffect(() => {
     if (
-      initialLoadState !== "ready" ||
+      !canApplyAppRoute ||
       isSignedIn() ||
       (activeTab !== "capture" && activeTab !== "me")
     ) {
@@ -2584,11 +2602,11 @@ export function SaegimShell() {
     resetProtectedAccountSurfaces();
     setActiveTab("home");
     writeAppRouteToHistory({ surface: "tab", tab: "home" }, "replace");
-  }, [activeTab, entryState, initialLoadState]);
+  }, [activeTab, canApplyAppRoute, entryState]);
 
   useEffect(() => {
     if (
-      initialLoadState !== "ready" ||
+      !canApplyAppRoute ||
       !hasAppliedInitialUrlTabRef.current
     ) {
       return;
@@ -2606,7 +2624,7 @@ export function SaegimShell() {
     activeTab,
     detailReturnTarget,
     editorialPageState,
-    initialLoadState,
+    canApplyAppRoute,
     isEditingProfile,
     isOwnProfile,
     isSearching,
@@ -2619,7 +2637,7 @@ export function SaegimShell() {
   ]);
 
   useEffect(() => {
-    if (initialLoadState !== "ready") {
+    if (!canApplyAppRoute) {
       return undefined;
     }
 
@@ -2637,9 +2655,9 @@ export function SaegimShell() {
   }, [
     activeTab,
     currentAccount.id,
+    canApplyAppRoute,
     entryState,
     featuredPost?.post.id,
-    initialLoadState,
   ]);
 
   useEffect(() => {
@@ -2762,7 +2780,7 @@ export function SaegimShell() {
       );
     }
     if (activeTab === "capture") {
-      if (!isSignedIn()) {
+      if (!isSignedIn() || currentAccount.id === guestAccount.id) {
         return null;
       }
 
@@ -2780,7 +2798,7 @@ export function SaegimShell() {
     }
     if (activeTab === "shelf") return <ShelfView onOpenPost={openPost} />;
     if (activeTab === "me") {
-      if (!isSignedIn()) {
+      if (!isSignedIn() || currentAccount.id === guestAccount.id) {
         return null;
       }
 

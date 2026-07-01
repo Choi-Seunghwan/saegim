@@ -97,7 +97,7 @@ function toDisplayApiErrorMessage(status: number, message: string) {
 
 function getApiBaseUrl() {
   if (API_BASE_URL) {
-    return API_BASE_URL;
+    return normalizeLoopbackApiBaseUrl(API_BASE_URL);
   }
 
   if (typeof window !== "undefined") {
@@ -105,6 +105,30 @@ function getApiBaseUrl() {
   }
 
   return "http://127.0.0.1:4000";
+}
+
+function normalizeLoopbackApiBaseUrl(apiBaseUrl: string) {
+  if (typeof window === "undefined") {
+    return apiBaseUrl;
+  }
+
+  try {
+    const url = new URL(apiBaseUrl);
+    const currentHostname = window.location.hostname;
+    const isConfiguredLoopback =
+      url.hostname === "127.0.0.1" || url.hostname === "localhost";
+    const isCurrentLoopback =
+      currentHostname === "127.0.0.1" || currentHostname === "localhost";
+
+    if (isConfiguredLoopback && isCurrentLoopback) {
+      url.hostname = currentHostname;
+      return url.toString().replace(/\/$/, "");
+    }
+  } catch {
+    // 잘못된 URL이면 기존 설정값을 그대로 사용해 환경 오류가 드러나게 둔다.
+  }
+
+  return apiBaseUrl;
 }
 
 function toListPage<T>(data: ListResponse<T>): ListPage<T> {
