@@ -15,10 +15,11 @@ production 브랜치: main
 폐기 브랜치: master
 ```
 
-2026-07-01 기준 `dev` 최신 커밋:
+배포 전 `dev` 최신 커밋 확인:
 
-```text
-060be56 chore: tidy env and manualize dev image builds
+```bash
+git fetch origin dev main
+git log --oneline --decorate -n 5 dev
 ```
 
 `main`은 아직 production 배포 반영 전 상태다.
@@ -60,6 +61,13 @@ apps/saegim-cloudflared
 NEXT_PUBLIC_MIXPANEL_TOKEN
 NEXT_PUBLIC_MIXPANEL_ENABLED
 NEXT_PUBLIC_MIXPANEL_DEBUG
+```
+
+운영 사이트/ API URL은 workflow build args에 고정되어 있다.
+
+```text
+NEXT_PUBLIC_SITE_URL=https://saegim.chuz.dev
+NEXT_PUBLIC_API_BASE_URL=https://api-saegim.chuz.dev
 ```
 
 선택값은 비어 있어 등록하지 않았다.

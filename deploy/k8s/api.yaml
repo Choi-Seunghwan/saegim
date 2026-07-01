@@ -39,15 +39,24 @@ spec:
           image: ghcr.io/choi-seunghwan/saegim-api:main
           imagePullPolicy: Always
           command:
-            - pnpm
-            - --filter
-            - "@saegim/api"
-            - db:push
+            - node
+            - apps/api/node_modules/prisma/build/index.js
+            - db
+            - push
+            - --schema
+            - apps/api/prisma/schema.prisma
           envFrom:
             - configMapRef:
                 name: saegim-config
             - secretRef:
                 name: saegim-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 400m
+              memory: 1Gi
       containers:
         - name: api
           image: ghcr.io/choi-seunghwan/saegim-api:main
