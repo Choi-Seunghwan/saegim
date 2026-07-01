@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "새김",
     short_name: "새김",
     description: "한 줄을 카드로 만들어, 발견하고, 마음에 새겨 간직하는 곳",
-    start_url: "/",
+    start_url: "/discover",
     display: "standalone",
     background_color: "#F6F5F6",
     theme_color: "#F6F5F6",

@@ -4028,6 +4028,327 @@ textarea:focus-visible {
   box-shadow: 0 0 0 1px rgba(56, 50, 63, 0.16);
 }
 
+.public-web-shell {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden auto;
+  background:
+    radial-gradient(90% 52% at 50% 0%, rgba(252, 251, 252, 0.96), transparent 66%),
+    linear-gradient(180deg, var(--mist), var(--mist-2));
+}
+
+.public-web-page {
+  width: min(100%, 960px);
+  margin: 0 auto;
+  padding: 24px 20px 86px;
+}
+
+.public-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 34px;
+}
+
+.public-wordmark {
+  position: relative;
+  padding-bottom: 6px;
+  color: var(--ink);
+  font-family: var(--font-round);
+  font-size: 29px;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.public-wordmark::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--ink);
+  opacity: 0.62;
+}
+
+.public-open-link,
+.public-primary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--ink-strong);
+  color: #fbf8fc;
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.public-post-page,
+.public-profile-page,
+.public-editorial-page {
+  display: grid;
+  gap: 28px;
+}
+
+.public-hero {
+  max-width: 680px;
+  display: grid;
+  gap: 12px;
+}
+
+.public-kicker {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.public-hero h1,
+.public-profile-hero h1,
+.public-section-head h2,
+.public-text-section h2 {
+  margin: 0;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+
+.public-hero h1,
+.public-profile-hero h1 {
+  font-size: clamp(32px, 8vw, 58px);
+  line-height: 1.08;
+  font-weight: 900;
+}
+
+.public-hero p,
+.public-profile-hero p,
+.public-text-section p,
+.public-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.72;
+}
+
+.public-hero time {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.public-profile-link {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.public-profile-link > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.public-profile-link small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.public-account-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.public-official-mark {
+  width: 16px;
+  height: 16px;
+  display: inline-grid;
+  flex: 0 0 16px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--ink-strong);
+  color: #fbf8fc;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.public-avatar {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ink-strong);
+  color: #fbf8fc;
+  font-size: 15px;
+  font-weight: 900;
+  object-fit: cover;
+}
+
+.public-avatar.is-large {
+  width: 86px;
+  height: 86px;
+  font-size: 30px;
+}
+
+.public-card-stack {
+  display: grid;
+  gap: 22px;
+}
+
+.public-sentence-card {
+  width: min(100%, 430px);
+  min-height: auto;
+  aspect-ratio: 9 / 16;
+  margin: 0 auto;
+  border-radius: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.public-card-index {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 4;
+  min-width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--cv-text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.public-meta-section {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.public-meta-section div {
+  display: grid;
+  gap: 5px;
+  padding: 16px 12px;
+}
+
+.public-meta-section span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.public-meta-section strong,
+.public-meta-section a {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 900;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.public-text-section {
+  max-width: 700px;
+  display: grid;
+  gap: 13px;
+  padding-top: 4px;
+}
+
+.public-text-section h2 {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.public-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.public-tag-row span {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: rgba(56, 50, 63, 0.07);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.public-profile-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+}
+
+.public-profile-hero > div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.public-profile-hero small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.public-post-list {
+  display: grid;
+  gap: 16px;
+}
+
+.public-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.public-section-head h2 {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.public-section-head span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.public-masonry {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.public-post-preview {
+  color: var(--cv-text, #fff);
+  text-decoration: none;
+}
+
+.public-editorial-page .public-primary-link {
+  width: fit-content;
+}
+
 @media (max-width: 520px) {
   .app-shell {
     padding: 0;
@@ -4041,5 +4362,27 @@ textarea:focus-visible {
 
   body {
     background: var(--mist);
+  }
+
+  .public-web-page {
+    padding: 18px 18px 70px;
+  }
+
+  .public-header {
+    margin-bottom: 26px;
+  }
+
+  .public-hero h1,
+  .public-profile-hero h1 {
+    font-size: 36px;
+  }
+
+  .public-profile-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .public-meta-section,
+  .public-masonry {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

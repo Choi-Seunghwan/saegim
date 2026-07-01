@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service.js";
+import { createRandomPublicHandle } from "./public-handle.js";
 
 const googleAuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
 const googleTokenEndpoint = "https://oauth2.googleapis.com/token";
@@ -203,8 +204,8 @@ export class GoogleOAuthService {
   }
 
   private async createGoogleAccount(profile: GoogleProfile) {
-    const handle = await this.createUniqueHandle(profile);
-    const displayName = profile.name ?? profile.email?.split("@")[0] ?? "새김 사용자";
+    const handle = await this.createUniqueHandle();
+    const displayName = profile.name ?? "새김 사용자";
 
     return this.prisma.account.create({
       data: {
@@ -217,11 +218,9 @@ export class GoogleOAuthService {
     });
   }
 
-  private async createUniqueHandle(profile: GoogleProfile) {
-    const baseHandle = this.toHandleBase(profile.email?.split("@")[0] ?? profile.name ?? "google");
-
-    for (let index = 0; index < 20; index += 1) {
-      const handle = index === 0 ? baseHandle : `${baseHandle}${index + 1}`;
+  private async createUniqueHandle() {
+    for (let index = 0; index < 30; index += 1) {
+      const handle = createRandomPublicHandle();
       const existingAccount = await this.prisma.account.findUnique({
         where: { handle },
         select: { id: true }
@@ -232,17 +231,7 @@ export class GoogleOAuthService {
       }
     }
 
-    return `${baseHandle}${Date.now().toString(36).slice(-6)}`;
-  }
-
-  private toHandleBase(value: string) {
-    return (
-      value
-        .toLowerCase()
-        .normalize("NFKD")
-        .replace(/[^a-z0-9_]+/g, "")
-        .slice(0, 24) || "google"
-    );
+    return `${createRandomPublicHandle()}${Date.now().toString(36).slice(-4)}`;
   }
 
   private asString(value: unknown) {

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { pbkdf2Sync, randomBytes, timingSafeEqual } from "node:crypto";
 import type { AccountProfile } from "../content/content.types.js";
 import { PrismaService } from "../database/prisma.service.js";
+import { createRandomPublicHandle } from "./public-handle.js";
 
 interface EmailAuthInput {
   email?: unknown;
@@ -37,7 +38,7 @@ export class EmailAuthService {
   async signup(input: EmailSignupInput) {
     const email = this.normalizeEmail(input.email);
     const password = this.normalizePassword(input.password);
-    const displayName = this.normalizeDisplayName(input.displayName, email);
+    const displayName = this.normalizeDisplayName(input.displayName);
 
     const existingAccount = await this.prisma.account.findUnique({
       where: { email },
@@ -52,7 +53,7 @@ export class EmailAuthService {
       throw new ConflictException("이미 가입된 이메일이에요.");
     }
 
-    const handle = await this.createUniqueHandle(email.split("@")[0] ?? displayName);
+    const handle = await this.createUniqueHandle();
     const account = await this.prisma.account.create({
       data: {
         email,
@@ -122,9 +123,9 @@ export class EmailAuthService {
     return password;
   }
 
-  private normalizeDisplayName(value: unknown, email: string) {
+  private normalizeDisplayName(value: unknown) {
     if (typeof value !== "string" || !value.trim()) {
-      return email.split("@")[0]?.slice(0, 24) || "새김 사용자";
+      return "새김 사용자";
     }
 
     const displayName = value.trim();
@@ -135,11 +136,9 @@ export class EmailAuthService {
     return displayName;
   }
 
-  private async createUniqueHandle(value: string) {
-    const baseHandle = this.toHandleBase(value);
-
-    for (let index = 0; index < 20; index += 1) {
-      const handle = index === 0 ? baseHandle : `${baseHandle}${index + 1}`;
+  private async createUniqueHandle() {
+    for (let index = 0; index < 30; index += 1) {
+      const handle = createRandomPublicHandle();
       const existingAccount = await this.prisma.account.findUnique({
         where: { handle },
         select: { id: true }
@@ -150,17 +149,7 @@ export class EmailAuthService {
       }
     }
 
-    return `${baseHandle}${Date.now().toString(36).slice(-6)}`;
-  }
-
-  private toHandleBase(value: string) {
-    return (
-      value
-        .toLowerCase()
-        .normalize("NFKD")
-        .replace(/[^a-z0-9_]+/g, "")
-        .slice(0, 24) || "saegim"
-    );
+    return `${createRandomPublicHandle()}${Date.now().toString(36).slice(-4)}`;
   }
 
   private hashPassword(password: string) {

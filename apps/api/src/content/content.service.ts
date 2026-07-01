@@ -30,6 +30,10 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getEditorialPage(pageId);
   }
 
+  getPublicSeoIndex() {
+    return this.contentRepository.getPublicSeoIndex();
+  }
+
   search(
     query: string | undefined,
     options?: {
@@ -79,16 +83,16 @@ export class ContentService implements OnModuleInit {
     return this.contentRepository.getCurrentAccount(accountIdHint);
   }
 
-  getAccountDetail(accountId: string, accountIdHint?: string) {
-    return this.contentRepository.getAccountDetail(accountId, accountIdHint);
+  getAccountDetail(accountHandle: string, accountIdHint?: string) {
+    return this.contentRepository.getAccountDetail(accountHandle, accountIdHint);
   }
 
   getAccountPosts(
-    accountId: string,
+    accountHandle: string,
     options?: { cursor?: string | undefined; limit?: string | undefined },
     accountIdHint?: string
   ) {
-    return this.contentRepository.getAccountPosts(accountId, options, accountIdHint);
+    return this.contentRepository.getAccountPosts(accountHandle, options, accountIdHint);
   }
 
   updateCurrentAccount(input: UpdateAccountInput, accountIdHint?: string) {

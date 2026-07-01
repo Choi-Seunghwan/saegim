@@ -33,19 +33,19 @@ export class AccountsController {
     return this.contentService.getFollowingAccounts(cookieHeader);
   }
 
-  @Get(":accountId/posts")
+  @Get(":accountHandle/posts")
   getAccountPosts(
-    @Param("accountId") accountId: string,
+    @Param("accountHandle") accountHandle: string,
     @Query("cursor") cursor?: string,
     @Query("limit") limit?: string,
     @Headers("cookie") cookieHeader?: string
   ) {
-    return this.contentService.getAccountPosts(accountId, { cursor, limit }, cookieHeader);
+    return this.contentService.getAccountPosts(accountHandle, { cursor, limit }, cookieHeader);
   }
 
-  @Get(":accountId")
-  getAccountDetail(@Param("accountId") accountId: string, @Headers("cookie") cookieHeader?: string) {
-    return this.contentService.getAccountDetail(accountId, cookieHeader);
+  @Get(":accountHandle")
+  getAccountDetail(@Param("accountHandle") accountHandle: string, @Headers("cookie") cookieHeader?: string) {
+    return this.contentService.getAccountDetail(accountHandle, cookieHeader);
   }
 
   @HttpPost(":accountId/follow")

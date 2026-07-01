@@ -180,6 +180,21 @@ export interface EditorialPage {
   };
 }
 
+export interface PublicSeoIndex {
+  posts: Array<{
+    id: SaegimId;
+    updatedAt: string;
+  }>;
+  accounts: Array<{
+    handle: string;
+    updatedAt: string;
+  }>;
+  editorialPages: Array<{
+    id: SaegimId;
+    updatedAt: string;
+  }>;
+}
+
 export interface AccountDetail {
   account: AccountProfile;
   posts: PostBundle[];

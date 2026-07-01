@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { CurrentAccountService } from "../auth/current-account.service.js";
+import { createRandomPublicHandle, isEmailDerivedHandle } from "../auth/public-handle.js";
 import { PrismaService } from "../database/prisma.service.js";
 import { seedAccounts, seedEditorialPages, seedPostBundles } from "./seed-data.js";
 import type {
@@ -15,6 +16,7 @@ import type {
   ListPage,
   PostComment,
   PostBundle,
+  PublicSeoIndex,
   SearchResult,
   AccountDetail,
   UpdateAccountInput
@@ -156,6 +158,7 @@ export class ContentRepository {
 
   async ensureSeedData() {
     await this.removeLegacyDevelopmentAccount();
+    await this.rotateEmailDerivedHandles();
 
     for (const account of seedAccounts) {
       await this.prisma.account.upsert({
@@ -258,6 +261,46 @@ export class ContentRepository {
     });
   }
 
+  private async rotateEmailDerivedHandles() {
+    const accounts = await this.prisma.account.findMany({
+      where: {
+        email: { not: null }
+      },
+      select: {
+        id: true,
+        email: true,
+        handle: true
+      }
+    });
+
+    for (const account of accounts) {
+      if (!account.email || !isEmailDerivedHandle(account.handle, account.email)) {
+        continue;
+      }
+
+      await this.prisma.account.update({
+        where: { id: account.id },
+        data: { handle: await this.createUniquePublicHandle() }
+      });
+    }
+  }
+
+  private async createUniquePublicHandle() {
+    for (let index = 0; index < 30; index += 1) {
+      const handle = createRandomPublicHandle();
+      const existingAccount = await this.prisma.account.findUnique({
+        where: { handle },
+        select: { id: true }
+      });
+
+      if (!existingAccount) {
+        return handle;
+      }
+    }
+
+    return `${createRandomPublicHandle()}${Date.now().toString(36).slice(-4)}`;
+  }
+
   async getFeed(options?: PageQueryOptions, cookieHeader?: string) {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
 
@@ -338,6 +381,65 @@ export class ContentRepository {
 
     return {
       item: this.toEditorialPage(page)
+    };
+  }
+
+  async getPublicSeoIndex(): Promise<PublicSeoIndex> {
+    const [posts, accounts, editorialPages] = await Promise.all([
+      this.prisma.post.findMany({
+        where: {
+          visibility: "PUBLIC"
+        },
+        select: {
+          id: true,
+          publishedAt: true,
+          updatedAt: true
+        },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 1000
+      }),
+      this.prisma.account.findMany({
+        where: {
+          posts: {
+            some: {
+              visibility: "PUBLIC"
+            }
+          }
+        },
+        select: {
+          handle: true,
+          updatedAt: true
+        },
+        orderBy: [{ updatedAt: "desc" }, { handle: "asc" }],
+        take: 1000
+      }),
+      this.prisma.editorialPage.findMany({
+        where: {
+          isActive: true
+        },
+        select: {
+          id: true,
+          publishedAt: true,
+          updatedAt: true
+        },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 1000
+      })
+    ]);
+
+    return {
+      posts: posts.map((post) => ({
+        id: post.id,
+        updatedAt: (post.publishedAt ?? post.updatedAt).toISOString()
+      })),
+      accounts: accounts.map((account) => ({
+        handle: account.handle,
+        updatedAt: account.updatedAt.toISOString()
+      })),
+      editorialPages: editorialPages.map((page) => ({
+        id: page.id,
+        updatedAt: (page.publishedAt ?? page.updatedAt).toISOString()
+      }))
     };
   }
 
@@ -671,28 +773,23 @@ export class ContentRepository {
     };
   }
 
-  async getAccountDetail(accountId: string, cookieHeader?: string): Promise<AccountDetail> {
+  async getAccountDetail(accountHandle: string, cookieHeader?: string): Promise<AccountDetail> {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
     const page = this.normalizePageOptions(undefined);
-    const [account, posts] = await Promise.all([
-      this.prisma.account.findUnique({
-        where: { id: accountId },
-        include: accountIncludeForViewer(currentAccountId)
-      }),
-      this.prisma.post.findMany({
-        where: {
-          authorId: accountId,
-          visibility: "PUBLIC"
-        },
-        include: postIncludeForAccount(currentAccountId),
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: page.limit + 1
-      })
-    ]);
+    const account = await this.findAccountByHandle(accountHandle, currentAccountId);
 
     if (!account) {
       throw new NotFoundException("계정을 찾을 수 없어요.");
     }
+    const posts = await this.prisma.post.findMany({
+      where: {
+        authorId: account.id,
+        visibility: "PUBLIC"
+      },
+      include: postIncludeForAccount(currentAccountId),
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: page.limit + 1
+    });
     const postPage = this.toPostPage(posts, page.limit);
 
     return {
@@ -702,12 +799,9 @@ export class ContentRepository {
     };
   }
 
-  async getAccountPosts(accountId: string, options?: PageQueryOptions, cookieHeader?: string) {
+  async getAccountPosts(accountHandle: string, options?: PageQueryOptions, cookieHeader?: string) {
     const currentAccountId = this.currentAccountService.getOptionalCurrentAccountId(cookieHeader);
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      select: { id: true }
-    });
+    const account = await this.findAccountByHandle(accountHandle, currentAccountId);
 
     if (!account) {
       throw new NotFoundException("계정을 찾을 수 없어요.");
@@ -717,7 +811,7 @@ export class ContentRepository {
       [{ createdAt: "desc" }, { id: "desc" }],
       currentAccountId,
       options,
-      { authorId: accountId }
+      { authorId: account.id }
     );
   }
 
@@ -914,6 +1008,15 @@ export class ContentRepository {
     }
 
     return post;
+  }
+
+  private findAccountByHandle(accountHandle: string, currentAccountId?: string | null) {
+    return this.prisma.account.findUnique({
+      where: {
+        handle: accountHandle
+      },
+      include: accountIncludeForViewer(currentAccountId)
+    });
   }
 
   private async assertPostExists(postId: string) {

@@ -168,3 +168,18 @@ export interface EditorialPage {
     action: EditorialPageCtaAction;
   };
 }
+
+export interface PublicSeoIndex {
+  posts: Array<{
+    id: string;
+    updatedAt: string;
+  }>;
+  accounts: Array<{
+    handle: string;
+    updatedAt: string;
+  }>;
+  editorialPages: Array<{
+    id: string;
+    updatedAt: string;
+  }>;
+}

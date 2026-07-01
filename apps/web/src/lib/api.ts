@@ -222,21 +222,25 @@ export async function fetchCurrentAccount(signal?: AbortSignal): Promise<Account
   return data.item;
 }
 
-export async function fetchAccountDetail(accountId: string, signal?: AbortSignal): Promise<AccountDetail> {
-  return fetchJson<AccountDetail>(`/accounts/${encodeURIComponent(accountId)}`, signal ? { signal } : {});
+export async function fetchAccountDetail(accountHandle: string, signal?: AbortSignal): Promise<AccountDetail> {
+  return fetchJson<AccountDetail>(`/accounts/${encodeURIComponent(accountHandle)}`, signal ? { signal } : {});
 }
 
 export async function fetchAccountPosts(
-  accountId: string,
+  accountHandle: string,
   params?: CursorPageParams,
   signal?: AbortSignal
 ): Promise<ListPage<PostBundle>> {
   const searchParams = new URLSearchParams();
   appendCursorParams(searchParams, params);
   return fetchJson<ListPage<PostBundle>>(
-    makeQueryPath(`/accounts/${encodeURIComponent(accountId)}/posts`, searchParams),
+    makeQueryPath(`/accounts/${encodeURIComponent(accountHandle)}/posts`, searchParams),
     signal ? { signal } : {}
   );
+}
+
+export async function fetchPost(postId: string, signal?: AbortSignal): Promise<PostBundle> {
+  return fetchJson<PostBundle>(`/posts/${encodeURIComponent(postId)}`, signal ? { signal } : {});
 }
 
 export async function updateCurrentAccount(input: UpdateAccountInput): Promise<AccountProfile> {

@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { getSiteUrl, siteDescription } from "../src/lib/seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   applicationName: "새김",
   title: "새김",
-  description: "한 줄을 카드로 만들어, 발견하고, 마음에 새겨 간직하는 곳",
+  description: siteDescription,
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [

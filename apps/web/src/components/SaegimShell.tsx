@@ -36,6 +36,7 @@ import {
   fetchEditorialPages,
   fetchFeed,
   fetchFollowingAccounts,
+  fetchPost,
   fetchRecommendedAccounts,
   fetchSearch,
   fetchShelf,
@@ -123,6 +124,15 @@ type ProfileReturnTarget =
   | { surface: "drawer"; drawerReturnSurface: DrawerReturnSurface }
   | { surface: "following" }
   | { surface: "settings" };
+type AppRoute =
+  | { surface: "tab"; tab: TabKey }
+  | { surface: "post"; postId: string }
+  | { surface: "profile"; handle: string };
+type AppRouteHistoryState = {
+  saegimDetailReturnTarget?: DetailReturnTarget | null;
+  saegimProfileReturnTarget?: ProfileReturnTarget | null;
+  saegimRoute?: AppRoute;
+};
 type DrawerReturnSurface = "profile" | "settings";
 type DetailDragState = {
   x: number;
@@ -144,6 +154,132 @@ const tabLabels: Record<TabKey, string> = {
   shelf: "둘러보기",
   me: "나",
 };
+const tabUrlParam = "tab";
+const tabKeys = [
+  "home",
+  "discover",
+  "capture",
+  "shelf",
+  "me",
+] as const satisfies readonly TabKey[];
+const tabPaths: Record<TabKey, string> = {
+  home: "/",
+  discover: "/discover",
+  capture: "/capture",
+  shelf: "/shelf",
+  me: "/me",
+};
+
+function isTabKey(value: string | null): value is TabKey {
+  return tabKeys.includes(value as TabKey);
+}
+
+function decodePathSegment(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function readAppRouteFromLocation(): AppRoute | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const url = new URL(window.location.href);
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  const legacyTab = url.searchParams.get(tabUrlParam);
+
+  if (url.pathname === "/" && isTabKey(legacyTab)) {
+    return { surface: "tab", tab: legacyTab };
+  }
+
+  if (pathParts[0] === "posts" && pathParts.length === 2) {
+    const postId = pathParts[1];
+    if (!postId) {
+      return null;
+    }
+
+    return {
+      surface: "post",
+      postId: decodePathSegment(postId),
+    };
+  }
+
+  if (pathParts[0] === "u" && pathParts.length === 2) {
+    const handle = pathParts[1];
+    if (!handle) {
+      return null;
+    }
+
+    return {
+      surface: "profile",
+      handle: decodePathSegment(handle),
+    };
+  }
+
+  const pathTab = tabKeys.find((tab) => tabPaths[tab] === url.pathname);
+  if (pathTab) {
+    return { surface: "tab", tab: pathTab };
+  }
+
+  return null;
+}
+
+function appRoutePath(route: AppRoute) {
+  if (route.surface === "post") {
+    return `/posts/${encodeURIComponent(route.postId)}`;
+  }
+
+  if (route.surface === "profile") {
+    return `/u/${encodeURIComponent(route.handle)}`;
+  }
+
+  return tabPaths[route.tab];
+}
+
+function writeAppRouteToHistory(
+  route: AppRoute,
+  mode: "push" | "replace" = "push",
+  state: AppRouteHistoryState = {},
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  url.pathname = appRoutePath(route);
+  url.searchParams.delete(tabUrlParam);
+
+  const nextPath = `${url.pathname}${url.search}${url.hash}`;
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+  if (nextPath === currentPath) {
+    return;
+  }
+
+  const nextState: AppRouteHistoryState = {
+    ...window.history.state,
+    ...state,
+    saegimRoute: route,
+  };
+
+  if (mode === "replace") {
+    window.history.replaceState(nextState, "", nextPath);
+    return;
+  }
+
+  window.history.pushState(nextState, "", nextPath);
+}
+
+function readRouteHistoryState(): AppRouteHistoryState {
+  if (typeof window === "undefined" || !window.history.state) {
+    return {};
+  }
+
+  return window.history.state as AppRouteHistoryState;
+}
 
 const topbarCopy: Record<
   Exclude<TabKey, "discover">,
@@ -910,9 +1046,9 @@ function AccountName({ account }: { account: AccountProfile }) {
 }
 
 export function SaegimShell() {
-  const [activeTab, setActiveTab] = useState<TabKey>("discover");
+  const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [captureReturnTab, setCaptureReturnTab] =
-    useState<Exclude<TabKey, "capture">>("discover");
+    useState<Exclude<TabKey, "capture">>("home");
   const [entryState, setEntryState] = useState<EntryState>("guest");
   const [initialLoadState, setInitialLoadState] =
     useState<InitialLoadState>("loading");
@@ -978,6 +1114,8 @@ export function SaegimShell() {
     Boolean(editorialPageState);
   const isDiscoverMode = activeTab === "discover" && !isFullPage;
   const isProfileTab = activeTab === "me" && !isFullPage;
+  const activeNavTab =
+    isProfileTab && !isOwnProfile ? null : activeTab;
   const frameClassName = [
     "mobile-frame",
     isDiscoverMode ? "is-discover" : "",
@@ -994,6 +1132,8 @@ export function SaegimShell() {
         posts.findIndex((post) => post.post.id === activePost.post.id),
       )
     : 0;
+  const hasAppliedInitialUrlTabRef = useRef(false);
+  const skipNextTabUrlWriteRef = useRef(false);
   const lastTrackedPageViewKeyRef = useRef<string | null>(null);
   const analyticsView = useMemo<AnalyticsViewState>(() => {
     const baseProperties: AnalyticsProperties = {
@@ -1424,18 +1564,7 @@ export function SaegimShell() {
     setAuthSheetIntent(null);
   }
 
-  function selectTab(tab: TabKey) {
-    if (tab === "capture" && !requireSignedIn("capture")) {
-      return;
-    }
-
-    if (tab === "me" && !requireSignedIn("profile")) {
-      return;
-    }
-
-    if (tab === "capture" && activeTab !== "capture") {
-      setCaptureReturnTab(activeTab);
-    }
+  function activateTab(tab: TabKey) {
     setActiveTab(tab);
     setIsSearching(false);
     setIsViewingNoticeList(false);
@@ -1458,9 +1587,180 @@ export function SaegimShell() {
       setDrawerReturnSurface("profile");
       setIsViewingFollowing(false);
       setIsViewingSettings(false);
-    } else {
-      setSelectedProfileId(currentAccount.id);
+      return;
     }
+
+    setSelectedProfileId(currentAccount.id);
+  }
+
+  function activateTabFromUrl(tab: TabKey) {
+    if (tab === "capture" && !isSignedIn()) {
+      openAuthSheet("capture");
+      return;
+    }
+
+    if (tab === "me" && !isSignedIn()) {
+      openAuthSheet("profile");
+      return;
+    }
+
+    if (tab === "capture" && activeTab !== "capture") {
+      setCaptureReturnTab(activeTab);
+    }
+
+    activateTab(tab);
+  }
+
+  async function activatePostRouteFromUrl(
+    postId: string,
+    returnTarget?: DetailReturnTarget | null,
+  ) {
+    let nextPost =
+      posts.find((post) => post.post.id === postId) ?? null;
+
+    if (!nextPost) {
+      try {
+        nextPost = await fetchPost(postId);
+        mergePosts([nextPost]);
+      } catch {
+        activateTab("discover");
+        return;
+      }
+    }
+
+    setActivePostId(nextPost.post.id);
+    setActiveCardIndex(0);
+    setIsSearching(false);
+    setIsEditingProfile(false);
+    setIsViewingDrawer(false);
+    setDrawerReturnSurface("profile");
+    setIsViewingFollowing(false);
+    setIsViewingSettings(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
+    setCommentPost(null);
+    setInfoSheet(null);
+    setProfileReturnTarget(null);
+    setDetailReturnTarget(
+      returnTarget === undefined
+        ? { surface: "tab", tab: "discover" }
+        : returnTarget,
+    );
+    setActiveTab("discover");
+  }
+
+  async function activateProfileRouteFromUrl(
+    handle: string,
+    returnTarget?: ProfileReturnTarget | null,
+  ) {
+    let nextAccount =
+      currentAccount.handle === handle
+        ? currentAccount
+        : (accounts.find((account) => account.handle === handle) ??
+          posts.find((post) => post.author.handle === handle)?.author ??
+          null);
+
+    if (!nextAccount) {
+      try {
+        const detail = await fetchAccountDetail(handle);
+        nextAccount = detail.account;
+        upsertAccount(detail.account);
+        mergePosts(detail.posts);
+      } catch {
+        activateTab("discover");
+        return;
+      }
+    }
+
+    setSelectedProfileId(nextAccount.id);
+    setProfileReturnTarget(
+      nextAccount.id === currentAccount.id
+        ? null
+        : returnTarget === undefined
+          ? { surface: "tab", tab: "discover" }
+          : returnTarget,
+    );
+    setIsSearching(false);
+    setIsEditingProfile(false);
+    setIsViewingDrawer(false);
+    setDrawerReturnSurface("profile");
+    setIsViewingFollowing(false);
+    setIsViewingSettings(false);
+    setIsViewingNoticeList(false);
+    setEditorialPageState(null);
+    setCommentPost(null);
+    setInfoSheet(null);
+    setDetailReturnTarget(null);
+    setActiveTab("me");
+  }
+
+  function activateAppRouteFromUrl(
+    route: AppRoute,
+    routeState: AppRouteHistoryState = {},
+  ) {
+    if (route.surface === "tab") {
+      activateTabFromUrl(route.tab);
+      return;
+    }
+
+    if (route.surface === "post") {
+      void activatePostRouteFromUrl(
+        route.postId,
+        routeState.saegimDetailReturnTarget,
+      );
+      return;
+    }
+
+    void activateProfileRouteFromUrl(
+      route.handle,
+      routeState.saegimProfileReturnTarget,
+    );
+  }
+
+  function currentAppRouteForState(): {
+    route: AppRoute;
+    state?: AppRouteHistoryState;
+  } {
+    if (activeTab === "discover" && activePost && detailReturnTarget) {
+      return {
+        route: { surface: "post", postId: activePost.post.id },
+        state: { saegimDetailReturnTarget: detailReturnTarget },
+      };
+    }
+
+    if (
+      activeTab === "me" &&
+      !isOwnProfile &&
+      !isSearching &&
+      !isEditingProfile &&
+      !isViewingDrawer &&
+      !isViewingFollowing &&
+      !isViewingSettings &&
+      !isViewingNoticeList &&
+      !editorialPageState
+    ) {
+      return {
+        route: { surface: "profile", handle: selectedProfile.handle },
+        state: { saegimProfileReturnTarget: profileReturnTarget },
+      };
+    }
+
+    return { route: { surface: "tab", tab: activeTab } };
+  }
+
+  function selectTab(tab: TabKey) {
+    if (tab === "capture" && !requireSignedIn("capture")) {
+      return;
+    }
+
+    if (tab === "me" && !requireSignedIn("profile")) {
+      return;
+    }
+
+    if (tab === "capture" && activeTab !== "capture") {
+      setCaptureReturnTab(activeTab);
+    }
+    activateTab(tab);
   }
 
   function startGoogleOAuth() {
@@ -1787,7 +2087,7 @@ export function SaegimShell() {
     setActiveTab("me");
 
     try {
-      const detail = await fetchAccountDetail(account.id);
+      const detail = await fetchAccountDetail(account.handle);
       upsertAccount(detail.account);
       mergePosts(detail.posts);
     } catch {
@@ -1936,6 +2236,78 @@ export function SaegimShell() {
       Math.min(currentIndex, Math.max(activePost.cards.length - 1, 0)),
     );
   }, [activePost?.cards.length, activePost?.post.id]);
+
+  useEffect(() => {
+    if (initialLoadState !== "ready" || hasAppliedInitialUrlTabRef.current) {
+      return;
+    }
+
+    hasAppliedInitialUrlTabRef.current = true;
+    skipNextTabUrlWriteRef.current = true;
+
+    const initialRoute = readAppRouteFromLocation();
+    if (initialRoute) {
+      const routeState = readRouteHistoryState();
+      activateAppRouteFromUrl(initialRoute, routeState);
+      writeAppRouteToHistory(initialRoute, "replace", routeState);
+    }
+  }, [entryState, initialLoadState]);
+
+  useEffect(() => {
+    if (
+      initialLoadState !== "ready" ||
+      !hasAppliedInitialUrlTabRef.current
+    ) {
+      return;
+    }
+
+    if (skipNextTabUrlWriteRef.current) {
+      skipNextTabUrlWriteRef.current = false;
+      return;
+    }
+
+    const { route, state } = currentAppRouteForState();
+    writeAppRouteToHistory(route, "push", state);
+  }, [
+    activePost?.post.id,
+    activeTab,
+    detailReturnTarget,
+    editorialPageState,
+    initialLoadState,
+    isEditingProfile,
+    isOwnProfile,
+    isSearching,
+    isViewingDrawer,
+    isViewingFollowing,
+    isViewingNoticeList,
+    isViewingSettings,
+    profileReturnTarget,
+    selectedProfile.handle,
+  ]);
+
+  useEffect(() => {
+    if (initialLoadState !== "ready") {
+      return undefined;
+    }
+
+    function handlePopState() {
+      const nextRoute = readAppRouteFromLocation() ?? {
+        surface: "tab",
+        tab: "home",
+      };
+      skipNextTabUrlWriteRef.current = true;
+      activateAppRouteFromUrl(nextRoute, readRouteHistoryState());
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [
+    activeTab,
+    currentAccount.id,
+    entryState,
+    featuredPost?.post.id,
+    initialLoadState,
+  ]);
 
   useEffect(() => {
     if (initialLoadState !== "ready") {
@@ -2248,11 +2620,11 @@ export function SaegimShell() {
               {(["home", "discover"] as const).map((tabKey) => (
                 <button
                   key={tabKey}
-                  className={tabKey === activeTab ? "tab is-active" : "tab"}
+                  className={tabKey === activeNavTab ? "tab is-active" : "tab"}
                   type="button"
                   onClick={() => selectTab(tabKey)}
                   aria-label={tabLabels[tabKey]}
-                  aria-current={tabKey === activeTab ? "page" : undefined}
+                  aria-current={tabKey === activeNavTab ? "page" : undefined}
                 >
                   <TabIcon tab={tabKey} />
                 </button>
@@ -2261,7 +2633,7 @@ export function SaegimShell() {
               {(["shelf", "me"] as const).map((tabKey) => (
                 <button
                   key={tabKey}
-                  className={tabKey === activeTab ? "tab is-active" : "tab"}
+                  className={tabKey === activeNavTab ? "tab is-active" : "tab"}
                   type="button"
                   onClick={() => selectTab(tabKey)}
                   aria-label={
@@ -2269,7 +2641,7 @@ export function SaegimShell() {
                       ? "나, 게스트"
                       : tabLabels[tabKey]
                   }
-                  aria-current={tabKey === activeTab ? "page" : undefined}
+                  aria-current={tabKey === activeNavTab ? "page" : undefined}
                 >
                   {tabKey === "me" ? (
                     isSignedIn() ? (
@@ -5917,7 +6289,7 @@ function ProfileView({
         setStatus("loading");
         setError("");
         const page = await fetchAccountPosts(
-          account.id,
+          account.handle,
           { limit: listInitialCount },
           controller.signal,
         );
@@ -5936,7 +6308,7 @@ function ProfileView({
 
     void loadProfilePosts();
     return () => controller.abort();
-  }, [account.id]);
+  }, [account.handle]);
 
   async function loadMoreProfilePosts() {
     if (!pageInfo.hasNextPage || !pageInfo.nextCursor || loadingMore) {
@@ -5945,7 +6317,7 @@ function ProfileView({
 
     try {
       setLoadingMore(true);
-      const page = await fetchAccountPosts(account.id, {
+      const page = await fetchAccountPosts(account.handle, {
         cursor: pageInfo.nextCursor,
         limit: listLoadStep,
       });
