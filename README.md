@@ -15,6 +15,7 @@
 - **비주얼**: C 소프트 감성 · 모노톤(색은 '글 카드'에만, UI 크롬은 무채색). 카드 문장 폰트 5종(고딕/명조/둥근/손글씨/진한), 워드마크 Gowun Dodum, UI Pretendard.
 
 ## 폴더 구조
+- `docs/` — 프로젝트 문서 허브. 제품·개발·환경변수·인프라·배포·현재 상태를 여기서 찾는다.
 - `PLANNING.md` — **기획 SSOT**(확정 상태 종합본 §1~13 · 진행 로그 · **§14 개발 착수 가이드**). 여기부터 읽으면 전체 맥락이 잡힌다.
 - `design-system.html` — 디자인 시스템 + 화면별 데모(통합 앱 딥링크 임베드).
 - `CLAUDE.md` — 작업 지침(요약).
@@ -44,7 +45,7 @@ pnpm dev:api
 
 PostgreSQL 로컬 확인이 필요하면 `docker compose up -d postgres`를 사용한다. 새김 전용 DB는 기존 로컬 Postgres와 충돌하지 않도록 호스트 `55432` 포트를 쓴다.
 
-컨테이너/k3s 배포는 `deploy/README.md`를 따른다. 초기 목표 도메인은 `saegim.chuz.dev`와 `api-saegim.chuz.dev`다.
+문서는 [docs/README.md](docs/README.md)에서 시작한다. 컨테이너/k3s 배포는 [docs/deployment.md](docs/deployment.md)를 따른다. 초기 목표 도메인은 `saegim.chuz.dev`와 `api-saegim.chuz.dev`다.
 
 API 기본 조회 계약:
 - `GET /health`
